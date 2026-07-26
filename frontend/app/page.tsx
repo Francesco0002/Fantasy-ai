@@ -18,68 +18,16 @@ import { useEffect, useMemo, useState } from "react";
 
 
 /*
- * Definiamo i quattro ruoli del Fantacalcio Classic.
- *
- * La stringa vuota rappresenta la scelta
- * "Tutti i ruoli".
+ * Tipi TypeScript condivisi relativi
+ * ai giocatori, ai filtri e all'ordinamento.
  */
-type Role = "" | "P" | "D" | "C" | "A";
-
-
-/*
- * Criteri di ordinamento disponibili nell'interfaccia.
- *
- * Ogni valore identifica una diversa modalità
- * con cui ordinare l'elenco dei giocatori.
- */
-type SortOption =
-  | "score_desc"
-  | "price_desc"
-  | "starting_desc"
-  | "injury_asc"
-  | "name_asc";
-
-
-/*
- * Descriviamo la struttura di un giocatore
- * restituito dall'API FastAPI.
- *
- * TypeScript controllerà che i dati usati
- * nella pagina rispettino questa struttura.
- */
-type Player = {
-  player_id: number;
-  name: string;
-  team: string;
-  role: "P" | "D" | "C" | "A";
-  age: number;
-  overall_score: number;
-  role_rank: number;
-  starting_probability: number;
-  injury_risk: number;
-  recommended_min: number;
-  recommended_price: number;
-  recommended_max: number;
-  absolute_max: number;
-  market_coverage: number;
-};
-
-
-/*
- * Struttura completa della risposta
- * restituita dall'endpoint GET /players.
- */
-type PlayersResponse = {
-  count: number;
-
-  filters: {
-    role: Role | null;
-    search: string | null;
-    limit: number;
-  };
-
-  players: Player[];
-};
+import type {
+  Player,
+  PlayersResponse,
+  PlayerTier,
+  Role,
+  SortOption,
+} from "../types/player";
 
 
 /*
@@ -131,18 +79,6 @@ function getInjuryRiskLabel(risk: number): string {
 
   return "Alto";
 }
-
-
-/*
- * Elenco delle possibili fasce assegnate
- * ai giocatori in base al Punteggio Fantasy AI.
- */
-type PlayerTier =
-  | "Top"
-  | "Ottimo"
-  | "Buono"
-  | "Scommessa"
-  | "Bassa priorità";
 
 
 /*
