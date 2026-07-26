@@ -25,10 +25,14 @@ import {
 
 
 /*
- * Proprietà ricevute dal componente PlayerCard.
+ * Proprietà ricevute dalla scheda.
+ *
+ * onCompare viene chiamata quando l'utente
+ * vuole confrontare questo giocatore.
  */
 type PlayerCardProps = {
   player: Player;
+  onCompare: (player: Player) => void;
 };
 
 
@@ -38,6 +42,7 @@ type PlayerCardProps = {
  */
 export default function PlayerCard({
   player,
+  onCompare,
 }: PlayerCardProps) {
   /*
    * Calcoliamo la fascia una sola volta,
@@ -236,14 +241,16 @@ export default function PlayerCard({
           Dettagli
         </Link>
 
+        {/* Apre la finestra per scegliere il secondo giocatore */}
         <button
           type="button"
-          disabled
-          title="Funzionalità in sviluppo"
+          onClick={() => {
+            onCompare(player);
+          }}
           className="
-            cursor-not-allowed rounded-xl
-            bg-slate-300 px-4 py-2 text-sm
-            font-semibold text-slate-600
+            rounded-xl bg-slate-900 px-4 py-2
+            text-sm font-semibold text-white
+            transition hover:bg-slate-700
           "
         >
           Confronta

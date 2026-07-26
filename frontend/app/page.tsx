@@ -2,6 +2,13 @@
 
 
 /*
+ * Finestra utilizzata per scegliere
+ * il secondo giocatore del confronto.
+ */
+import ComparePlayerModal from "../components/ComparePlayerModal";
+
+
+/*
  * Componente contenente ricerca,
  * filtro per ruolo e ordinamento.
  */
@@ -40,6 +47,7 @@ import { usePlayers } from "../hooks/usePlayers";
  * ai giocatori, ai filtri e all'ordinamento.
  */
 import type {
+  Player,
   Role,
   SortOption,
 } from "../types/player";
@@ -69,7 +77,7 @@ export default function Home() {
   const [sortBy, setSortBy] =
     useState<SortOption>("score_desc");
 
-  
+
   /*
   * Carichiamo i giocatori in base
   * ai filtri attualmente selezionati.
@@ -163,6 +171,17 @@ export default function Home() {
     }
   }, [players, sortBy]);
 
+
+  /*
+  * Primo giocatore fissato per il confronto.
+  *
+  * null indica che la finestra
+  * di confronto è chiusa.
+  */
+  const [
+    compareBasePlayer,
+    setCompareBasePlayer,
+  ] = useState<Player | null>(null);
 
 
   return (
@@ -272,11 +291,32 @@ export default function Home() {
                 <PlayerCard
                   key={player.player_id}
                   player={player}
+                  onCompare={(selectedPlayer) => {
+                    /*
+                     * Fissiamo il giocatore selezionato
+                     * e apriamo la finestra.
+                     */
+                    setCompareBasePlayer(
+                      selectedPlayer,
+                    );
+                  }}
                 />
               ))}
             </section>
           )}
       </div>
+      {/*
+      * La finestra viene mostrata solamente
+      * quando esiste un giocatore fissato.
+      */}
+      {compareBasePlayer && (
+        <ComparePlayerModal
+          basePlayer={compareBasePlayer}
+          onClose={() => {
+            setCompareBasePlayer(null);
+          }}
+        />
+      )}
     </main>
   );
 }
