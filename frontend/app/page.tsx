@@ -2,6 +2,12 @@
 
 
 /*
+ * Componente contenente ricerca,
+ * filtro per ruolo e ordinamento.
+ */
+import PlayerFilters from "../components/PlayerFilters";
+
+/*
  * Componente grafico che rappresenta
  * la scheda di un singolo giocatore.
  */
@@ -344,105 +350,15 @@ export default function Home() {
         </header>
 
 
-        {/*
-         * Pannello contenente ricerca e filtro per ruolo.
-         */}
-        <section className="mb-8 grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-3">
-          <div>
-            <label
-              htmlFor="player-search"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Cerca giocatore o squadra
-            </label>
-
-            <input
-              id="player-search"
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-              }}
-              placeholder="Esempio: Colombo"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="role-filter"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Filtra per ruolo
-            </label>
-
-            <select
-              id="role-filter"
-              value={role}
-              onChange={(event) => {
-                setRole(event.target.value as Role);
-              }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="">Tutti i ruoli</option>
-              <option value="P">Portieri</option>
-              <option value="D">Difensori</option>
-              <option value="C">Centrocampisti</option>
-              <option value="A">Attaccanti</option>
-            </select>
-          </div>
-          {/*
-          * Menu utilizzato per scegliere
-          * l'ordinamento dei giocatori visualizzati.
-          */}
-          <div>
-            <label
-              htmlFor="sort-filter"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Ordina per
-            </label>
-
-            <select
-              id="sort-filter"
-              value={sortBy}
-              onChange={(event) => {
-                /*
-                * TypeScript riceve genericamente una stringa.
-                * Specifichiamo che il valore appartiene
-                * al tipo SortOption definito in precedenza.
-                */
-                setSortBy(event.target.value as SortOption);
-              }}
-              className="
-                w-full rounded-xl border border-slate-300
-                bg-white px-4 py-3 outline-none transition
-                focus:border-emerald-600
-                focus:ring-2 focus:ring-emerald-100
-              "
-            >
-              <option value="score_desc">
-                Punteggio Fantasy AI
-              </option>
-
-              <option value="price_desc">
-                Prezzo consigliato
-              </option>
-
-              <option value="starting_desc">
-                Probabilità titolare
-              </option>
-
-              <option value="injury_asc">
-                Minor rischio infortunio
-              </option>
-
-              <option value="name_asc">
-                Nome alfabetico
-              </option>
-            </select>
-          </div>
-        </section>
+        {/* Ricerca, filtro per ruolo e ordinamento */}
+        <PlayerFilters
+          search={search}
+          role={role}
+          sortBy={sortBy}
+          onSearchChange={setSearch}
+          onRoleChange={setRole}
+          onSortChange={setSortBy}
+        />
 
 
         {/*
