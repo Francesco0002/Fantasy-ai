@@ -15,6 +15,16 @@ import PlayerCard from "../components/PlayerCard";
 
 
 /*
+ * Funzioni utilizzate per comunicare
+ * con il backend FastAPI.
+ */
+import {
+  API_URL,
+  fetchPlayers,
+} from "../lib/api";
+
+
+/*
  * Importiamo gli hook React necessari:
  *
  * useState:
@@ -37,23 +47,9 @@ import { useEffect, useMemo, useState } from "react";
  */
 import type {
   Player,
-  PlayersResponse,
-  PlayerTier,
   Role,
   SortOption,
 } from "../types/player";
-
-
-/*
- * Recuperiamo l'indirizzo del backend
- * dalla variabile definita in .env.local.
- *
- * Se la variabile manca, usiamo l'indirizzo locale
- * come valore predefinito.
- */
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000";
 
 
 export default function Home() {
@@ -112,119 +108,74 @@ export default function Home() {
     const controller = new AbortController();
 
 
-    async function loadPlayers() {
-      /*
-       * Prima di iniziare una nuova richiesta:
-       * - attiviamo il caricamento;
-       * - cancelliamo eventuali vecchi errori.
-       */
-      setIsLoading(true);
-      setError(null);
-
-      /*
-       * URLSearchParams costruisce correttamente
-       * i parametri dell'indirizzo.
-       */
-      const params = new URLSearchParams();
-
-      /*
-       * Richiediamo fino a 100 giocatori.
-       */
-      params.set("limit", "100");
-
-      /*
-       * Aggiungiamo il ruolo soltanto
-       * quando l'utente ne ha selezionato uno.
-       */
-      if (role !== "") {
-        params.set("role", role);
-      }
-
-      /*
-       * Eliminiamo gli spazi iniziali e finali.
-       */
-      const cleanedSearch = search.trim();
-
-      /*
-       * Aggiungiamo il testo solo quando
-       * contiene almeno un carattere.
-       */
-      if (cleanedSearch !== "") {
-        params.set("search", cleanedSearch);
-      }
-
-      try {
+    /*
+      * Carica i giocatori utilizzando la funzione
+      * centralizzata definita in lib/api.ts.
+      */
+      async function loadPlayers() {
         /*
-         * Effettuiamo la richiesta HTTP
-         * verso l'endpoint FastAPI.
-         */
-        const response = await fetch(
-          `${API_URL}/players?${params.toString()}`,
-          {
+        * Prima della richiesta:
+        * - mostriamo il caricamento;
+        * - cancelliamo eventuali errori precedenti.
+        */
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          /*
+          * fetchPlayers si occupa di:
+          * - costruire i parametri dell'URL;
+          * - comunicare con FastAPI;
+          * - controllare la risposta HTTP;
+          * - convertire il JSON.
+          */
+          const data = await fetchPlayers({
+            role,
+            search,
+            limit: 100,
             signal: controller.signal,
-          },
-        );
+          });
 
-        /*
-         * fetch non genera automaticamente un errore
-         * per risposte HTTP come 404 o 500.
-         *
-         * Controlliamo quindi manualmente response.ok.
-         */
-        if (!response.ok) {
-          throw new Error(
-            `Il backend ha restituito l'errore ${response.status}.`,
-          );
+          /*
+          * Salviamo nello stato i giocatori
+          * restituiti dal backend.
+          */
+          setPlayers(data.players);
+        } catch (caughtError) {
+          /*
+          * Ignoriamo l'errore generato quando
+          * una richiesta viene annullata volontariamente.
+          */
+          if (
+            caughtError instanceof Error &&
+            caughtError.name === "AbortError"
+          ) {
+            return;
+          }
+
+          /*
+          * Mostriamo gli eventuali errori reali.
+          */
+          if (caughtError instanceof Error) {
+            setError(caughtError.message);
+          } else {
+            setError(
+              "Si è verificato un errore sconosciuto.",
+            );
+          }
+
+          /*
+          * In caso di errore svuotiamo
+          * l'elenco dei giocatori.
+          */
+          setPlayers([]);
+        } finally {
+          /*
+          * La richiesta è terminata.
+          */
+          setIsLoading(false);
         }
-
-        /*
-         * Convertiamo la risposta JSON
-         * nella struttura PlayersResponse.
-         */
-        const data: PlayersResponse =
-          await response.json();
-
-        /*
-         * Salviamo i giocatori nello stato React.
-         */
-        setPlayers(data.players);
-      } catch (caughtError) {
-        /*
-         * Non mostriamo un errore quando la richiesta
-         * è stata annullata volontariamente.
-         */
-        if (
-          caughtError instanceof Error &&
-          caughtError.name === "AbortError"
-        ) {
-          return;
-        }
-
-        /*
-         * Gestiamo gli errori normali,
-         * ad esempio backend non raggiungibile.
-         */
-        if (caughtError instanceof Error) {
-          setError(caughtError.message);
-        } else {
-          setError(
-            "Si è verificato un errore sconosciuto.",
-          );
-        }
-
-        /*
-         * In caso di errore svuotiamo
-         * l'elenco precedente.
-         */
-        setPlayers([]);
-      } finally {
-        /*
-         * Disattiviamo lo stato di caricamento.
-         */
-        setIsLoading(false);
       }
-    }
-
 
     /*
      * Avviamo la funzione asincrona.
