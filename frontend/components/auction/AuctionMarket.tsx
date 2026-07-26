@@ -1,6 +1,13 @@
 "use client";
 
 /*
+ * Pannello con i migliori giocatori
+ * compatibili con il budget corrente.
+ */
+import AuctionSuggestions from "./AuctionSuggestions";
+
+
+/*
  * Hook React utilizzati per gestire:
  * - ruolo selezionato;
  * - ricerca;
@@ -48,6 +55,16 @@ import type {
 import type {
   Player,
 } from "../../types/player";
+
+
+/*
+ * Logica dell'assistente strategico
+ * per valutare il prezzo inserito.
+ */
+import {
+  AUCTION_ADVICE_CLASSES,
+  createAuctionAdvice,
+} from "../../lib/auction-advisor";
 
 
 /*
@@ -207,6 +224,42 @@ export default function AuctionMarket({
 
 
   /*
+* Consiglio strategico calcolato
+* sul giocatore e sul prezzo correnti.
+*/
+  const auctionAdvice = useMemo(() => {
+    /*
+     * Non mostriamo una valutazione
+     * senza giocatore o senza prezzo.
+     */
+    if (
+      !selectedPlayer ||
+      purchasePrice.trim() === ""
+    ) {
+      return null;
+    }
+
+    return createAuctionAdvice({
+      player: selectedPlayer,
+      bid: Number(purchasePrice),
+      config,
+      remainingBudget,
+      remainingSlots,
+      purchases,
+      maximumBid,
+    });
+  }, [
+    selectedPlayer,
+    purchasePrice,
+    config,
+    remainingBudget,
+    remainingSlots,
+    purchases,
+    maximumBid,
+  ]);
+
+
+  /*
    * Seleziona un giocatore e propone
    * automaticamente un prezzo iniziale.
    */
@@ -269,6 +322,23 @@ export default function AuctionMarket({
 
     const parsedPrice =
       Number(purchasePrice);
+
+    /*
+    * Per un acquisto classificato come
+    * "Da evitare" chiediamo una conferma aggiuntiva.
+    */
+    if (
+      auctionAdvice?.label ===
+      "Da evitare"
+    ) {
+      const confirmed = window.confirm(
+        `Fantasy AI considera eccessivo il prezzo di ${parsedPrice} crediti per ${selectedPlayer.name}. Vuoi registrare comunque l'acquisto?`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
 
     /*
      * Prepariamo l'acquisto da passare
@@ -362,12 +432,11 @@ export default function AuctionMarket({
                 text-sm font-semibold
                 transition
 
-                ${
-                  activeRole === role
-                    ? "bg-slate-900 text-white"
-                    : hasAvailableSlots
-                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      : "cursor-not-allowed bg-slate-100 text-slate-400"
+                ${activeRole === role
+                  ? "bg-slate-900 text-white"
+                  : hasAvailableSlots
+                    ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : "cursor-not-allowed bg-slate-100 text-slate-400"
                 }
               `}
             >
@@ -381,6 +450,23 @@ export default function AuctionMarket({
         })}
       </div>
 
+      {/* Suggerimenti strategici per il ruolo selezionato */}
+      <AuctionSuggestions
+        players={availablePlayers}
+        role={activeRole}
+        config={config}
+        purchases={purchases}
+        maximumBid={maximumBid}
+        remainingBudget={
+          remainingBudget
+        }
+        remainingSlots={
+          remainingSlots
+        }
+        onSelectPlayer={
+          selectPlayer
+        }
+      />
 
       {/*
        * Layout:
@@ -442,7 +528,7 @@ export default function AuctionMarket({
           {!isLoading &&
             !error &&
             availablePlayers.length ===
-              0 && (
+            0 && (
               <div className="mt-4 rounded-xl bg-slate-100 p-6 text-center text-sm text-slate-600">
                 Nessun giocatore disponibile.
               </div>
@@ -453,7 +539,7 @@ export default function AuctionMarket({
           {!isLoading &&
             !error &&
             availablePlayers.length >
-              0 && (
+            0 && (
               <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
                 {availablePlayers.map(
                   (player) => {
@@ -480,10 +566,9 @@ export default function AuctionMarket({
                           border p-4
                           text-left transition
 
-                          ${
-                            isSelected
-                              ? "border-emerald-500 bg-emerald-50"
-                              : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50"
+                          ${isSelected
+                            ? "border-emerald-500 bg-emerald-50"
+                            : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50"
                           }
                         `}
                       >
@@ -498,10 +583,9 @@ export default function AuctionMarket({
                                 rounded-full
                                 px-2 py-0.5
                                 text-xs font-bold
-                                ${
-                                  ROLE_BADGE_CLASSES[
-                                    player.role
-                                  ]
+                                ${ROLE_BADGE_CLASSES[
+                                player.role
+                                ]
                                 }
                               `}
                             >
@@ -575,10 +659,9 @@ export default function AuctionMarket({
                       rounded-full
                       px-2 py-1
                       text-xs font-bold
-                      ${
-                        ROLE_BADGE_CLASSES[
-                          selectedPlayer.role
-                        ]
+                      ${ROLE_BADGE_CLASSES[
+                      selectedPlayer.role
+                      ]
                       }
                     `}
                   >
@@ -662,6 +745,159 @@ export default function AuctionMarket({
                 />
               </div>
 
+              {/* Assistente strategico */}
+              {auctionAdvice && (
+                <section
+                  className={`
+      mt-4 rounded-xl border p-4
+      ${AUCTION_ADVICE_CLASSES[
+                    auctionAdvice.tone
+                    ]
+                    }
+    `}
+                >
+                  {/* Valutazione principale */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">
+                        Valutazione Fantasy AI
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {auctionAdvice.label}
+                      </p>
+
+                      <p className="mt-1 text-sm opacity-80">
+                        {auctionAdvice.description}
+                      </p>
+                    </div>
+
+                    <span className="w-fit rounded-full bg-white/70 px-3 py-1 text-sm font-bold">
+                      {auctionAdvice.differenceFromRecommended ===
+                        0
+                        ? "Prezzo consigliato"
+                        : auctionAdvice.differenceFromRecommended <
+                          0
+                          ? `${Math.abs(
+                            auctionAdvice.differenceFromRecommended,
+                          )} crediti sotto`
+                          : `${auctionAdvice.differenceFromRecommended} crediti sopra`}
+                    </span>
+                  </div>
+
+
+                  {/* Dati principali del consiglio */}
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs opacity-70">
+                        Prezzo consigliato
+                      </p>
+
+                      <p className="mt-1 font-bold">
+                        {
+                          selectedPlayer.recommended_price
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs opacity-70">
+                        Tetto strategico
+                      </p>
+
+                      <p className="mt-1 font-bold">
+                        {
+                          auctionAdvice.strategicMaximumBid
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs opacity-70">
+                        Budget dopo l&apos;acquisto
+                      </p>
+
+                      <p className="mt-1 font-bold">
+                        {
+                          auctionAdvice.remainingBudgetAfterPurchase
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-white/70 p-3">
+                      <p className="text-xs opacity-70">
+                        Crediti da conservare
+                      </p>
+
+                      <p className="mt-1 font-bold">
+                        {
+                          auctionAdvice.minimumCreditsToReserve
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+
+                  {/* Situazione del budget per il ruolo */}
+                  <div className="mt-3 rounded-lg bg-white/70 p-3 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="opacity-70">
+                        Budget previsto ruolo
+                      </span>
+
+                      <strong>
+                        {auctionAdvice.plannedRoleBudget}
+                      </strong>
+                    </div>
+
+                    <div className="mt-2 flex justify-between gap-3">
+                      <span className="opacity-70">
+                        Spesa dopo l&apos;acquisto
+                      </span>
+
+                      <strong>
+                        {auctionAdvice.spentInRoleAfter}
+                      </strong>
+                    </div>
+
+                    <div className="mt-2 flex justify-between gap-3">
+                      <span className="opacity-70">
+                        Situazione del piano
+                      </span>
+
+                      <strong>
+                        {auctionAdvice.roleBudgetDifference >=
+                          0
+                          ? `${auctionAdvice.roleBudgetDifference} crediti disponibili`
+                          : `${Math.abs(
+                            auctionAdvice.roleBudgetDifference,
+                          )} crediti oltre il piano`}
+                      </strong>
+                    </div>
+                  </div>
+
+
+                  {/* Avvisi */}
+                  {auctionAdvice.warnings.length >
+                    0 && (
+                      <div className="mt-3 rounded-lg bg-white/70 p-3 text-sm">
+                        <p className="font-semibold">
+                          Attenzione
+                        </p>
+
+                        <div className="mt-2 space-y-1">
+                          {auctionAdvice.warnings.map(
+                            (warning) => (
+                              <p key={warning}>
+                                • {warning}
+                              </p>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                </section>
+              )}
 
               {/* Informazioni sul budget */}
               <div className="mt-4 rounded-xl bg-white p-4 text-sm">
@@ -693,7 +929,7 @@ export default function AuctionMarket({
                   <strong>
                     {
                       remainingSlots[
-                        selectedPlayer.role
+                      selectedPlayer.role
                       ]
                     }
                   </strong>
@@ -704,17 +940,24 @@ export default function AuctionMarket({
               {/* Conferma acquisto */}
               <button
                 type="submit"
-                className="
-                  mt-4 w-full
-                  rounded-xl
-                  bg-emerald-700
-                  px-5 py-3
-                  text-sm font-semibold
-                  text-white transition
-                  hover:bg-emerald-800
-                "
+                disabled={
+                  !auctionAdvice?.isPurchaseValid
+                }
+                className={`
+                  mt-4 w-full rounded-xl
+                  px-5 py-3 text-sm
+                  font-semibold transition
+
+                  ${auctionAdvice?.isPurchaseValid
+                    ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                    : "cursor-not-allowed bg-slate-300 text-slate-500"
+                  }
+                `}
               >
-                Registra acquisto
+                {auctionAdvice?.label ===
+                  "Da evitare"
+                  ? "Registra comunque"
+                  : "Registra acquisto"}
               </button>
             </form>
           )}
@@ -728,11 +971,10 @@ export default function AuctionMarket({
                 border p-4 text-sm
                 font-semibold
 
-                ${
-                  feedback.type ===
+                ${feedback.type ===
                   "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-red-200 bg-red-50 text-red-800"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-red-200 bg-red-50 text-red-800"
                 }
               `}
             >
