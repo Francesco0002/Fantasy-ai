@@ -31,96 +31,16 @@ import type {
 
 
 /*
- * Frase grammaticalmente corretta utilizzata
- * per indicare la posizione del giocatore
- * nella classifica del proprio ruolo.
+ * Funzioni e configurazioni grafiche
+ * utilizzate nelle schede dei giocatori.
  */
-const ROLE_RANK_LABELS: Record<Player["role"], string> = {
-  P: "tra i portieri",
-  D: "tra i difensori",
-  C: "tra i centrocampisti",
-  A: "tra gli attaccanti",
-};
-
-
-/*
- * Classi grafiche utilizzate per distinguere
- * immediatamente il ruolo di ogni giocatore.
- *
- * Usiamo un testo scuro sul giallo per garantire
- * una buona leggibilità, mentre sugli altri colori
- * utilizziamo il testo bianco.
- */
-const ROLE_BADGE_CLASSES: Record<Player["role"], string> = {
-  P: "bg-yellow-400 text-yellow-950",
-  D: "bg-green-600 text-white",
-  C: "bg-blue-600 text-white",
-  A: "bg-red-600 text-white",
-};
-
-
-/*
- * Trasforma il rischio numerico di infortunio
- * in un'etichetta più immediata da comprendere.
- *
- * Il valore ricevuto è compreso tra 0 e 1:
- * - meno di 0.15: rischio basso;
- * - da 0.15 a meno di 0.30: rischio medio;
- * - da 0.30 in poi: rischio alto.
- */
-function getInjuryRiskLabel(risk: number): string {
-  if (risk < 0.15) {
-    return "Basso";
-  }
-
-  if (risk < 0.30) {
-    return "Medio";
-  }
-
-  return "Alto";
-}
-
-
-/*
- * Assegna una fascia qualitativa al giocatore
- * utilizzando il suo Punteggio Fantasy AI.
- *
- * Le soglie sono inizialmente sperimentali
- * e potranno essere modificate quando utilizzeremo
- * un dataset reale e più completo.
- */
-function getPlayerTier(score: number): PlayerTier {
-  if (score >= 85) {
-    return "Top";
-  }
-
-  if (score >= 75) {
-    return "Ottimo";
-  }
-
-  if (score >= 65) {
-    return "Buono";
-  }
-
-  if (score >= 50) {
-    return "Scommessa";
-  }
-
-  return "Bassa priorità";
-}
-
-
-/*
- * Colore utilizzato per rappresentare visivamente
- * ciascuna fascia del giocatore.
- */
-const PLAYER_TIER_CLASSES: Record<PlayerTier, string> = {
-  Top: "bg-amber-100 text-amber-800",
-  Ottimo: "bg-emerald-100 text-emerald-800",
-  Buono: "bg-blue-100 text-blue-800",
-  Scommessa: "bg-violet-100 text-violet-800",
-  "Bassa priorità": "bg-slate-200 text-slate-700",
-};
+import {
+  getInjuryRiskLabel,
+  getPlayerTier,
+  PLAYER_TIER_CLASSES,
+  ROLE_BADGE_CLASSES,
+  ROLE_RANK_LABELS,
+} from "../lib/player-utils";
 
 
 /*
