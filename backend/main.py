@@ -60,8 +60,12 @@ app = FastAPI(
 # pur indicando lo stesso computer, per il browser
 # rappresentano origini differenti.
 allowed_origins = [
+    # Frontend locale utilizzato durante lo sviluppo.
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+
+    # Frontend pubblico pubblicato su Vercel.
+    "https://fantasy-ai-eight.vercel.app",
 ]
 
 
