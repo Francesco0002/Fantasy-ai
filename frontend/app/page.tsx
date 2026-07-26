@@ -1,5 +1,13 @@
 "use client";
 
+
+/*
+ * Componente grafico che rappresenta
+ * la scheda di un singolo giocatore.
+ */
+import PlayerCard from "../components/PlayerCard";
+
+
 /*
  * Importiamo gli hook React necessari:
  *
@@ -28,19 +36,6 @@ import type {
   Role,
   SortOption,
 } from "../types/player";
-
-
-/*
- * Funzioni e configurazioni grafiche
- * utilizzate nelle schede dei giocatori.
- */
-import {
-  getInjuryRiskLabel,
-  getPlayerTier,
-  PLAYER_TIER_CLASSES,
-  ROLE_BADGE_CLASSES,
-  ROLE_RANK_LABELS,
-} from "../lib/player-utils";
 
 
 /*
@@ -519,267 +514,11 @@ export default function Home() {
           players.length > 0 && (
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {sortedPlayers.map((player) => (
-                <article
+                <PlayerCard
                   key={player.player_id}
-                  className="rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  {/* Nome, squadra e ruolo */}
-                  <div className="mb-5 flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        {player.name}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        {player.team}
-                      </p>
-                    </div>
-
-                    {/* Badge colorato in base al ruolo del giocatore */}
-                    <span
-                      className={`
-                        min-w-8 rounded-full px-3 py-1 text-center text-xs font-bold
-                        ${ROLE_BADGE_CLASSES[player.role]}
-                      `}
-                    >
-                      {player.role}
-                    </span>
-                  </div>
-
-
-                  {/* Punteggio e fascia qualitativa del giocatore */}
-                  <div className="mb-5 rounded-xl bg-emerald-50 p-4">
-
-                    {/* Nome del punteggio */}
-                    <p className="text-sm text-emerald-800">
-                      Punteggio Fantasy AI
-                    </p>
-
-                    {/*
-                    * Punteggio numerico e fascia vengono mostrati
-                    * sulla stessa riga quando lo spazio lo permette.
-                    */}
-                    <div className="mt-1 flex flex-wrap items-center gap-3">
-                      <p className="text-3xl font-bold text-emerald-900">
-                        {player.overall_score.toFixed(2)}
-                      </p>
-
-                      {/*
-                      * Il colore del badge viene scelto automaticamente
-                      * in base alla fascia calcolata.
-                      */}
-                      <span
-                        className={`
-                          rounded-full px-3 py-1 text-xs font-semibold
-                          ${PLAYER_TIER_CLASSES[
-                          getPlayerTier(player.overall_score)
-                          ]}
-                        `}
-                      >
-                        {getPlayerTier(player.overall_score)}
-                      </span>
-                    </div>
-
-                    {/* Posizione nella classifica del ruolo */}
-                    <p className="mt-1 text-xs text-emerald-700">
-                      #{player.role_rank} {ROLE_RANK_LABELS[player.role]}
-                    </p>
-                  </div>
-
-
-                  {/* Prezzi consigliati */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl bg-slate-100 p-3">
-                      <p className="text-xs text-slate-500">
-                        Affare
-                      </p>
-
-                      <p className="mt-1 font-bold">
-                        {player.recommended_min}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-emerald-600 p-3 text-white">
-                      <p className="text-xs text-emerald-100">
-                        Consigliato
-                      </p>
-
-                      <p className="mt-1 text-xl font-bold">
-                        {player.recommended_price}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-100 p-3">
-                      <p className="text-xs text-slate-500">
-                        Massimo
-                      </p>
-
-                      <p className="mt-1 font-bold">
-                        {player.absolute_max}
-                      </p>
-                    </div>
-                  </div>
-
-
-                  {/*
-                  * Informazioni aggiuntive del giocatore.
-                  *
-                  * Titolarità e rischio infortunio vengono rappresentati
-                  * anche attraverso una barra per rendere i valori
-                  * più immediati da comprendere.
-                  */}
-                  <div className="mt-5 space-y-5 text-sm">
-
-                    {/* Età del giocatore */}
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">
-                        Età
-                      </span>
-
-                      <span className="font-semibold">
-                        {player.age}
-                      </span>
-                    </div>
-
-
-                    {/* Probabilità di partire titolare */}
-                    <div>
-                      {/*
-                      * Riga contenente l'etichetta
-                      * e la percentuale numerica.
-                      */}
-                      <div className="mb-2 flex justify-between">
-                        <span className="text-slate-500">
-                          Probabilità titolare
-                        </span>
-
-                        <span className="font-semibold">
-                          {Math.round(
-                            player.starting_probability * 100,
-                          )}
-                          %
-                        </span>
-                      </div>
-
-                      {/*
-                      * Sfondo grigio della barra.
-                      */}
-                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-
-                        {/*
-                        * Parte verde della barra.
-                        *
-                        * La larghezza viene calcolata utilizzando
-                        * la probabilità di titolarità del giocatore.
-                        *
-                        * Un valore di 0.86, ad esempio,
-                        * produce una barra larga l'86%.
-                        */}
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all duration-300"
-                          style={{
-                            width: `${Math.min(
-                              Math.max(
-                                player.starting_probability * 100,
-                                0,
-                              ),
-                              100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-
-                    {/* Rischio di infortunio */}
-                    <div>
-                      {/*
-                      * Riga contenente l'etichetta
-                      * e la percentuale numerica.
-                      */}
-                      <div className="mb-2 flex justify-between">
-                        <span className="text-slate-500">
-                          Rischio infortunio
-                        </span>
-
-                        {/*
-                        * Mostriamo sia la percentuale numerica
-                        * sia l'etichetta Basso, Medio oppure Alto.
-                        */}
-                        <span className="font-semibold">
-                          {Math.round(
-                            player.injury_risk * 100,
-                          )}
-                          % · {getInjuryRiskLabel(player.injury_risk)}
-                        </span>
-                      </div>
-
-                      {/*
-                      * Sfondo grigio della barra.
-                      */}
-                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-
-                        {/*
-                        * Parte rossa della barra.
-                        *
-                        * Più il rischio è alto,
-                        * più la barra rossa sarà lunga.
-                        */}
-                        <div
-                          className="h-full rounded-full bg-red-500 transition-all duration-300"
-                          style={{
-                            width: `${Math.min(
-                              Math.max(
-                                player.injury_risk * 100,
-                                0,
-                              ),
-                              100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {/*
-                  * Azioni disponibili per il giocatore.
-                  *
-                  * Il pulsante Dettagli apre temporaneamente
-                  * la risposta completa dell'API in una nuova scheda.
-                  *
-                  * Il pulsante Confronta verrà collegato successivamente
-                  * al sistema di confronto tra giocatori.
-                  */}
-                  <div className="mt-6 grid grid-cols-2 gap-3">
-
-                    {/* Apertura dei dati completi del giocatore */}
-                    <a
-                      href={`${API_URL}/players/${player.player_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="
-                        rounded-xl border border-slate-300 px-4 py-2
-                        text-center text-sm font-semibold
-                        transition
-                        hover:border-slate-400 hover:bg-slate-100
-                      "
-                    >
-                      Dettagli
-                    </a>
-
-                    {/* Pulsante predisposto per il confronto futuro */}
-                    <button
-                      type="button"
-                      disabled
-                      title="Funzionalità in sviluppo"
-                      className="
-                        cursor-not-allowed rounded-xl bg-slate-300
-                        px-4 py-2 text-sm font-semibold text-slate-600
-                      "
-                    >
-                      Confronta
-                    </button>
-                  </div>
-                </article>
+                  player={player}
+                  apiUrl={API_URL}
+                />
               ))}
             </section>
           )}
