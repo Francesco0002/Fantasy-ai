@@ -2,6 +2,13 @@
 
 
 /*
+ * Link permette di aprire
+ * la modalità asta.
+ */
+import Link from "next/link";
+
+
+/*
  * Finestra utilizzata per scegliere
  * il secondo giocatore del confronto.
  */
@@ -205,6 +212,19 @@ export default function Home() {
             Consulta le valutazioni proprietarie e i prezzi
             d&apos;asta consigliati per ciascun giocatore.
           </p>
+
+          {/* Accesso alla modalità asta */}
+          <Link
+            href="/auction"
+            className="
+              mt-5 inline-flex rounded-xl
+              bg-emerald-700 px-5 py-3
+              text-sm font-semibold text-white
+              transition hover:bg-emerald-800
+            "
+          >
+            Apri modalità asta
+          </Link>
         </header>
 
 
