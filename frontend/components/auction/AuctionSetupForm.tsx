@@ -139,10 +139,33 @@ function getConfigError(
     return "Gli slot della rosa devono essere numeri interi non negativi.";
   }
 
-  if (
-    calculateTotalRosterSlots(config) === 0
-  ) {
+  /*
+ * Numero complessivo di giocatori
+ * che devono essere acquistati.
+ */
+  const totalRosterSlots =
+    calculateTotalRosterSlots(config);
+
+  if (totalRosterSlots === 0) {
     return "La rosa deve contenere almeno un giocatore.";
+  }
+
+
+  /*
+   * Il budget deve permettere almeno
+   * un'offerta minima per ogni slot.
+   *
+   * Esempio:
+   * 25 giocatori × 1 credito = almeno 25 crediti.
+   */
+  const minimumRequiredBudget =
+    totalRosterSlots * config.minimumBid;
+
+  if (
+    config.startingBudget <
+    minimumRequiredBudget
+  ) {
+    return `Servono almeno ${minimumRequiredBudget} crediti per completare tutti gli slot.`;
   }
 
   if (!isBudgetDistributionValid(config)) {
@@ -556,10 +579,9 @@ export default function AuctionSetupForm({
               w-fit rounded-full px-3 py-1
               text-sm font-semibold
 
-              ${
-                budgetPercentageTotal === 100
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-red-100 text-red-700"
+              ${budgetPercentageTotal === 100
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-red-100 text-red-700"
               }
             `}
           >
@@ -572,7 +594,7 @@ export default function AuctionSetupForm({
             const percentage =
               Math.round(
                 config.budgetDistribution[
-                  role
+                role
                 ] * 100,
               );
 
@@ -668,10 +690,9 @@ export default function AuctionSetupForm({
             rounded-xl px-5 py-3
             text-sm font-semibold transition
 
-            ${
-              configError === null
-                ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                : "cursor-not-allowed bg-slate-300 text-slate-500"
+            ${configError === null
+              ? "bg-emerald-700 text-white hover:bg-emerald-800"
+              : "cursor-not-allowed bg-slate-300 text-slate-500"
             }
           `}
         >
