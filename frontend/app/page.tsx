@@ -15,13 +15,6 @@ import PlayerCard from "../components/PlayerCard";
 
 
 /*
- * Funzioni utilizzate per comunicare
- * con il backend FastAPI.
- */
-import { API_URL } from "../lib/api";
-
-
-/*
  * Importiamo gli hook React necessari:
  *
  * useState:
@@ -279,7 +272,6 @@ export default function Home() {
                 <PlayerCard
                   key={player.player_id}
                   player={player}
-                  apiUrl={API_URL}
                 />
               ))}
             </section>

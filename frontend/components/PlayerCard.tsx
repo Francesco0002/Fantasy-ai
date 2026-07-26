@@ -1,4 +1,11 @@
 /*
+ * Link viene utilizzato per navigare
+ * alla pagina dettagli del giocatore.
+ */
+import Link from "next/link";
+
+
+/*
  * Tipo TypeScript utilizzato per descrivere
  * il giocatore ricevuto dal componente.
  */
@@ -22,7 +29,6 @@ import {
  */
 type PlayerCardProps = {
   player: Player;
-  apiUrl: string;
 };
 
 
@@ -32,7 +38,6 @@ type PlayerCardProps = {
  */
 export default function PlayerCard({
   player,
-  apiUrl,
 }: PlayerCardProps) {
   /*
    * Calcoliamo la fascia una sola volta,
@@ -218,10 +223,9 @@ export default function PlayerCard({
 
       {/* Azioni disponibili */}
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <a
-          href={`${apiUrl}/players/${player.player_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* Collegamento alla pagina dettagli interna */}
+        <Link
+          href={`/players/${player.player_id}`}
           className="
             rounded-xl border border-slate-300
             px-4 py-2 text-center text-sm font-semibold
@@ -230,7 +234,7 @@ export default function PlayerCard({
           "
         >
           Dettagli
-        </a>
+        </Link>
 
         <button
           type="button"

@@ -1,8 +1,9 @@
 /*
- * Tipi utilizzati per costruire la richiesta
- * e descrivere la risposta del backend.
+ * Tipi utilizzati per descrivere
+ * i dati ricevuti dal backend.
  */
 import type {
+  Player,
   PlayersResponse,
   Role,
 } from "../types/player";
@@ -101,4 +102,54 @@ export async function fetchPlayers({
     await response.json();
 
   return data;
+}
+
+
+/*
+ * Recupera un singolo giocatore
+ * utilizzando il suo identificativo.
+ *
+ * Esempio di richiesta:
+ * GET /players/41
+ */
+export async function fetchPlayerById(
+  playerId: number,
+  signal?: AbortSignal,
+): Promise<Player> {
+  /*
+   * Effettuiamo la richiesta verso
+   * l'endpoint FastAPI dedicato.
+   */
+  const response = await fetch(
+    `${API_URL}/players/${playerId}`,
+    {
+      signal,
+    },
+  );
+
+  /*
+   * Forniamo un messaggio specifico
+   * quando l'identificativo non esiste.
+   */
+  if (response.status === 404) {
+    throw new Error("Giocatore non trovato.");
+  }
+
+  /*
+   * Gestiamo eventuali altri errori HTTP.
+   */
+  if (!response.ok) {
+    throw new Error(
+      `Il backend ha restituito l'errore ${response.status}.`,
+    );
+  }
+
+  /*
+   * Convertiamo la risposta JSON
+   * nel tipo Player.
+   */
+  const player: Player =
+    await response.json();
+
+  return player;
 }
