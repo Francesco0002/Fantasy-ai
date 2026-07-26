@@ -1,0 +1,36 @@
+{
+  "league_name": "Lega di prova",
+  "participants": 8,
+  "budget_per_team": 500,
+  "minimum_bid": 1,
+  "mode": "classic",
+
+  "roster_slots": {
+    "P": 3,
+    "D": 8,
+    "C": 8,
+    "A": 6
+  },
+
+  "budget_distribution": {
+    "P": 0.08,
+    "D": 0.16,
+    "C": 0.26,
+    "A": 0.50
+  },
+
+  "role_price_caps": {
+    "P": 0.08,
+    "D": 0.12,
+    "C": 0.20,
+    "A": 0.35
+  },
+
+  "score_exponent": 3.0,
+
+  "price_range": {
+    "minimum_multiplier": 0.90,
+    "maximum_multiplier": 1.10,
+    "absolute_max_multiplier": 1.20
+  }
+}

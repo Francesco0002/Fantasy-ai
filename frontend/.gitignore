@@ -1,0 +1,30 @@
+@'
+# Ambiente virtuale Python
+.venv/
+venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+
+# Variabili d'ambiente
+.env
+.env.*
+!.env.example
+
+# Dipendenze e build Next.js
+node_modules/
+.next/
+out/
+
+# File temporanei
+*.log
+
+# Configurazioni locali degli editor
+.vscode/
+.idea/
+
+# File di sistema
+.DS_Store
+Thumbs.db
+'@ | Set-Content -Encoding utf8 .gitignore

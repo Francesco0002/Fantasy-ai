@@ -1,0 +1,28 @@
+# Ambiente virtuale Python
+.venv/
+venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+
+# Variabili d'ambiente
+.env
+.env.local
+*.env.local
+
+# Dipendenze e build Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# File temporanei
+*.log
+
+# Editor
+.vscode/
+.idea/
+
+# File di sistema
+.DS_Store
+Thumbs.db
