@@ -18,10 +18,7 @@ import PlayerCard from "../components/PlayerCard";
  * Funzioni utilizzate per comunicare
  * con il backend FastAPI.
  */
-import {
-  API_URL,
-  fetchPlayers,
-} from "../lib/api";
+import { API_URL } from "../lib/api";
 
 
 /*
@@ -29,16 +26,20 @@ import {
  *
  * useState:
  * conserva i dati e lo stato dell'interfaccia.
- *
- * useEffect:
- * esegue il caricamento dei giocatori quando
- * la pagina viene aperta o cambiano i filtri.
- */
-/*
  * useMemo permette di calcolare la lista ordinata
  * soltanto quando cambiano i giocatori o il criterio scelto.
  */
-import { useEffect, useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
+
+
+/*
+ * Custom hook che gestisce il caricamento
+ * dei giocatori dal backend.
+ */
+import { usePlayers } from "../hooks/usePlayers";
 
 
 /*
@@ -46,17 +47,13 @@ import { useEffect, useMemo, useState } from "react";
  * ai giocatori, ai filtri e all'ordinamento.
  */
 import type {
-  Player,
   Role,
   SortOption,
 } from "../types/player";
 
 
 export default function Home() {
-  /*
-   * Lista dei giocatori ricevuti dal backend.
-   */
-  const [players, setPlayers] = useState<Player[]>([]);
+
 
   /*
    * Testo scritto nel campo di ricerca.
@@ -69,18 +66,6 @@ export default function Home() {
    */
   const [role, setRole] = useState<Role>("");
 
-  /*
-   * Stato usato per mostrare il messaggio
-   * di caricamento.
-   */
-  const [isLoading, setIsLoading] = useState(true);
-
-  /*
-   * Contiene un eventuale messaggio di errore.
-   * null significa che non ci sono errori.
-   */
-  const [error, setError] = useState<string | null>(null);
-
 
   /*
     * Criterio di ordinamento attualmente selezionato.
@@ -91,106 +76,16 @@ export default function Home() {
   const [sortBy, setSortBy] =
     useState<SortOption>("score_desc");
 
-
+  
   /*
-   * useEffect esegue una richiesta al backend.
-   *
-   * La richiesta viene ripetuta quando cambiano:
-   * - il ruolo selezionato;
-   * - il testo di ricerca.
-   */
-  useEffect(() => {
-    /*
-     * AbortController permette di annullare
-     * una richiesta precedente quando l'utente
-     * cambia rapidamente un filtro.
-     */
-    const controller = new AbortController();
-
-
-    /*
-      * Carica i giocatori utilizzando la funzione
-      * centralizzata definita in lib/api.ts.
-      */
-      async function loadPlayers() {
-        /*
-        * Prima della richiesta:
-        * - mostriamo il caricamento;
-        * - cancelliamo eventuali errori precedenti.
-        */
-        setIsLoading(true);
-        setError(null);
-
-        try {
-          /*
-          * fetchPlayers si occupa di:
-          * - costruire i parametri dell'URL;
-          * - comunicare con FastAPI;
-          * - controllare la risposta HTTP;
-          * - convertire il JSON.
-          */
-          const data = await fetchPlayers({
-            role,
-            search,
-            limit: 100,
-            signal: controller.signal,
-          });
-
-          /*
-          * Salviamo nello stato i giocatori
-          * restituiti dal backend.
-          */
-          setPlayers(data.players);
-        } catch (caughtError) {
-          /*
-          * Ignoriamo l'errore generato quando
-          * una richiesta viene annullata volontariamente.
-          */
-          if (
-            caughtError instanceof Error &&
-            caughtError.name === "AbortError"
-          ) {
-            return;
-          }
-
-          /*
-          * Mostriamo gli eventuali errori reali.
-          */
-          if (caughtError instanceof Error) {
-            setError(caughtError.message);
-          } else {
-            setError(
-              "Si è verificato un errore sconosciuto.",
-            );
-          }
-
-          /*
-          * In caso di errore svuotiamo
-          * l'elenco dei giocatori.
-          */
-          setPlayers([]);
-        } finally {
-          /*
-          * La richiesta è terminata.
-          */
-          setIsLoading(false);
-        }
-      }
-
-    /*
-     * Avviamo la funzione asincrona.
-     */
-    loadPlayers();
-
-
-    /*
-     * Questa funzione viene eseguita quando
-     * l'effetto deve essere interrotto o ricreato.
-     */
-    return () => {
-      controller.abort();
-    };
-  }, [role, search]);
+  * Carichiamo i giocatori in base
+  * ai filtri attualmente selezionati.
+  */
+  const {
+    players,
+    isLoading,
+    error,
+  } = usePlayers(role, search);
 
 
   /*
