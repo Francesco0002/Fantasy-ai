@@ -537,123 +537,136 @@ export default function AuctionSuggestions({
 
 
     return (
-        <section className="rounded-xl bg-transparent p-1">
-            {/* Intestazione */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
-                        Assistente strategico
+        <section className="bg-transparent">
+            {/* Intestazione compatta */}
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                        Strategia del ruolo
                     </p>
 
-                    <h3 className="mt-1 text-xl font-bold text-emerald-950">
+                    <h3 className="mt-0.5 text-base font-bold text-emerald-950">
                         {isRoleBudgetCritical
-                            ? "Scelte economiche ad alta titolarità"
-                            : "Migliori scelte disponibili"}
+                            ? "Scelte economiche"
+                            : "Migliori scelte"}
                     </h3>
 
-                    <p className="mt-1 text-sm text-emerald-800">
+                    <p className="mt-0.5 text-xs leading-relaxed text-emerald-800">
                         {isRoleBudgetCritical
-                            ? "Giocatori ordinati per convenienza titolarità/prezzo."
-                            : "Suggerimenti compatibili con il budget previsto per questo ruolo."}
+                            ? "Priorità al rapporto tra titolarità e prezzo."
+                            : "Giocatori compatibili con il budget attuale."}
                     </p>
                 </div>
 
-                <div className="w-fit rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
-                    <p className="text-xs text-slate-500">
-                        Tetto suggerito
+                {/* Tetto suggerito */}
+                <div
+                    className="
+                    shrink-0 rounded-lg
+                    bg-white px-3 py-2
+                    text-right shadow-sm
+                    "
+                >
+                    <p className="text-[11px] text-slate-500">
+                        Tetto
                     </p>
 
-                    <p className="mt-1 text-xl font-bold text-slate-900">
+                    <p className="text-lg font-bold text-slate-900">
                         {strategicBudget}
                     </p>
                 </div>
             </div>
 
 
-            {/* Situazione economica del ruolo */}
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                        Budget aggiornato
+            {/* Situazione economica */}
+            <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-white px-2 py-2.5 text-center">
+                    <p className="text-[11px] text-slate-500">
+                        Budget ruolo
                     </p>
 
-                    <p className="mt-1 text-xl font-bold">
+                    <p className="mt-0.5 text-base font-bold">
                         {updatedRoleBudget}
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                        Iniziale: {initialRoleBudget}
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                        Iniziale {initialRoleBudget}
                     </p>
                 </div>
 
-                <div className="rounded-xl bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                        Già speso
+                <div className="rounded-lg bg-white px-2 py-2.5 text-center">
+                    <p className="text-[11px] text-slate-500">
+                        Speso
                     </p>
 
-                    <p className="mt-1 text-xl font-bold">
+                    <p className="mt-0.5 text-base font-bold">
                         {spentInRole}
                     </p>
                 </div>
 
-                <div className="rounded-xl bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                        Disponibile ora
+                <div className="rounded-lg bg-white px-2 py-2.5 text-center">
+                    <p className="text-[11px] text-slate-500">
+                        Disponibile
                     </p>
 
                     <p
                         className={`
-        mt-1 text-xl font-bold
-        ${remainingRoleBudget >
-                                criticalBudgetThreshold
-                                ? "text-emerald-700"
-                                : "text-amber-700"
-                            }
-      `}
+                            mt-0.5 text-base font-bold
+
+                            ${remainingRoleBudget >
+                                                criticalBudgetThreshold
+                                                ? "text-emerald-700"
+                                                : "text-amber-700"
+                                            }
+                        `}
                     >
                         {remainingRoleBudget}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                        Dopo la ridistribuzione
                     </p>
                 </div>
             </div>
 
-            {/* Stato della strategia */}
+
+            {/* Strategia risparmio */}
             {isRoleBudgetCritical && (
-                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950">
+                <div
+                    className="
+                    mt-3 rounded-lg border
+                    border-amber-300 bg-amber-50
+                    px-3 py-2.5
+                    text-xs text-amber-950
+                    "
+                >
                     <p className="font-semibold">
                         Strategia risparmio attiva
                     </p>
 
-                    <p className="mt-1 text-sm">
-                        Restano {remainingRoleBudget} crediti
-                        dinamicamente assegnati a questo ruolo.
-                        {" "}
-                        I suggerimenti privilegiano la convenienza
-                        titolarità/prezzo.
+                    <p className="mt-1 leading-relaxed">
+                        Il budget del ruolo è vicino al minimo necessario.
+                        I suggerimenti privilegiano giocatori economici
+                        con buona probabilità di titolarità.
                     </p>
                 </div>
             )}
 
-            {/* Nessun giocatore compatibile */}
+
+            {/* Nessun suggerimento */}
             {suggestions.length === 0 && (
-                <div className="mt-4 rounded-xl bg-white p-6 text-center">
-                    <p className="font-semibold text-slate-800">
+                <div className="mt-3 rounded-lg bg-white p-4 text-center">
+                    <p className="text-sm font-semibold text-slate-800">
                         Nessun giocatore compatibile
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                        Nessun prezzo consigliato rientra nel budget strategico attuale. Puoi cercare manualmente un giocatore più costoso, ma rischieresti di superare il piano del ruolo.
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        Nessuna quotazione rientra nel budget strategico
+                        attuale. Puoi comunque scegliere manualmente un
+                        giocatore dalla lista.
                     </p>
                 </div>
             )}
 
 
-            {/* Suggerimenti */}
+            {/* Giocatori suggeriti */}
             {suggestions.length > 0 && (
-                <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <div className="mt-3 space-y-2">
                     {suggestions.map(
                         (suggestion) => {
                             const player =
@@ -662,103 +675,111 @@ export default function AuctionSuggestions({
                             return (
                                 <article
                                     key={player.player_id}
-                                    className="flex flex-col rounded-xl bg-white p-4 shadow-sm"
+                                    className="
+                                    rounded-xl border
+                                    border-emerald-100
+                                    bg-white p-3
+                                    shadow-sm
+                                    "
                                 >
-                                    {/* Tipo di suggerimento */}
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                                        {suggestion.label}
-                                    </p>
+                                    {/* Intestazione del giocatore */}
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                                                {suggestion.label}
+                                            </p>
 
-                                    {/* Giocatore */}
-                                    <div className="mt-3 flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="font-bold text-slate-950">
+                                            <p className="mt-1 truncate font-bold text-slate-950">
                                                 {player.name}
                                             </p>
 
-                                            <p className="mt-1 text-sm text-slate-500">
+                                            <p className="mt-0.5 truncate text-xs text-slate-500">
                                                 {player.team}
                                             </p>
                                         </div>
 
                                         <span
                                             className={`
-                        rounded-full px-2 py-1
-                        text-xs font-bold
-                        ${ROLE_BADGE_CLASSES[
-                                                player.role
-                                                ]
-                                                }
-                      `}
+                                            shrink-0 rounded-full
+                                            px-2 py-1
+                                            text-xs font-bold
+
+                                            ${ROLE_BADGE_CLASSES[
+                                                                        player.role
+                                                                        ]}
+                                            `}
                                         >
                                             {player.role}
                                         </span>
                                     </div>
 
-                                    {/* Dati principali */}
-                                    <dl className="mt-4 space-y-2 text-sm">
-                                        <div className="flex justify-between gap-3">
-                                            <dt className="text-slate-500">
-                                                Punteggio AI
-                                            </dt>
 
-                                            <dd className="font-semibold">
+                                    {/* Dati principali */}
+                                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                                        <div className="rounded-lg bg-slate-50 px-2 py-2">
+                                            <p className="text-[10px] text-slate-500">
+                                                Punteggio
+                                            </p>
+
+                                            <p className="mt-0.5 text-sm font-bold">
                                                 {player.overall_score.toFixed(
                                                     2,
                                                 )}
-                                            </dd>
+                                            </p>
                                         </div>
 
-                                        {isRoleBudgetCritical && (
-                                            <div className="flex justify-between gap-3">
-                                                <dt className="text-slate-500">
-                                                    Convenienza titolarità/prezzo
-                                                </dt>
+                                        <div className="rounded-lg bg-slate-50 px-2 py-2">
+                                            <p className="text-[10px] text-slate-500">
+                                                Prezzo
+                                            </p>
 
-                                                <dd className="font-semibold">
-                                                    {(
-                                                        (
-                                                            player.starting_probability *
-                                                            100
-                                                        ) /
-                                                        Math.max(
-                                                            player.recommended_price,
-                                                            1,
-                                                        )
-                                                    ).toFixed(1)}
-                                                </dd>
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-between gap-3">
-                                            <dt className="text-slate-500">
-                                                Prezzo consigliato
-                                            </dt>
-
-                                            <dd className="font-semibold">
-                                                {
-                                                    player.recommended_price
-                                                }
-                                            </dd>
+                                            <p className="mt-0.5 text-sm font-bold">
+                                                {player.recommended_price}
+                                            </p>
                                         </div>
 
-                                        <div className="flex justify-between gap-3">
-                                            <dt className="text-slate-500">
+                                        <div className="rounded-lg bg-slate-50 px-2 py-2">
+                                            <p className="text-[10px] text-slate-500">
                                                 Titolarità
-                                            </dt>
+                                            </p>
 
-                                            <dd className="font-semibold">
+                                            <p className="mt-0.5 text-sm font-bold">
                                                 {formatPercentage(
                                                     player.starting_probability,
                                                 )}
-                                            </dd>
+                                            </p>
                                         </div>
-                                    </dl>
+                                    </div>
+
+
+                                    {/* Convenienza durante la strategia risparmio */}
+                                    {isRoleBudgetCritical && (
+                                        <div className="mt-2 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-xs">
+                                            <span className="text-amber-800">
+                                                Convenienza titolarità/prezzo
+                                            </span>
+
+                                            <strong className="text-amber-950">
+                                                {(
+                                                    (
+                                                        player.starting_probability *
+                                                        100
+                                                    ) /
+                                                    Math.max(
+                                                        player.recommended_price,
+                                                        1,
+                                                    )
+                                                ).toFixed(1)}
+                                            </strong>
+                                        </div>
+                                    )}
+
 
                                     {/* Motivazione */}
-                                    <p className="mt-4 flex-1 text-sm text-slate-600">
+                                    <p className="mt-3 text-xs leading-relaxed text-slate-600">
                                         {suggestion.description}
                                     </p>
+
 
                                     {/* Selezione */}
                                     <button
@@ -767,14 +788,14 @@ export default function AuctionSuggestions({
                                             onSelectPlayer(player);
                                         }}
                                         className="
-                      mt-4 w-full rounded-xl
-                      bg-slate-900 px-4 py-2
-                      text-sm font-semibold
-                      text-white transition
-                      hover:bg-slate-700
-                    "
+                                            mt-3 w-full rounded-lg
+                                            bg-slate-900 px-3 py-2
+                                            text-xs font-semibold
+                                            text-white transition
+                                            hover:bg-slate-700
+                                        "
                                     >
-                                        Valuta giocatore
+                                        Seleziona giocatore
                                     </button>
                                 </article>
                             );

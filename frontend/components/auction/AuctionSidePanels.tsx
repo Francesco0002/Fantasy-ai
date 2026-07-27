@@ -711,6 +711,7 @@ export default function AuctionSidePanels({
                   overflow-y-auto
                   overscroll-contain
                   bg-white p-4
+                  text-slate-900
                   shadow-2xl
                 "
               >
@@ -1170,6 +1171,7 @@ export default function AuctionSidePanels({
                   overflow-y-auto
                   overscroll-contain
                   bg-white p-4
+                  text-slate-900
                   shadow-2xl
                 "
               >

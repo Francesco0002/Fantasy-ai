@@ -68,6 +68,19 @@ export type AuctionConfig = {
   participants: number;
 
   /*
+  * Nomi opzionali delle squadre avversarie.
+  *
+  * Quando l'array è vuoto o assente,
+  * il nome viene inserito manualmente
+  * durante l'asta.
+  *
+  * Quando contiene dei nomi,
+  * durante l'asta viene mostrato
+  * un menu a tendina.
+  */
+  opponentTeamNames?: string[];
+
+  /*
    * Crediti iniziali disponibili
    * per ogni squadra.
    */

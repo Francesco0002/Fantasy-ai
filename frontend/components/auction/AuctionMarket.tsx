@@ -194,6 +194,21 @@ const AUCTION_ROLE_BUTTON_CLASSES: Record<
 
 
 /*
+ * Testi grammaticalmente corretti
+ * mostrati sopra la ricerca.
+ */
+const AUCTION_ROLE_SEARCH_LABELS: Record<
+  AuctionRole,
+  string
+> = {
+  P: "i portieri",
+  D: "i difensori",
+  C: "i centrocampisti",
+  A: "gli attaccanti",
+};
+
+
+/*
  * Trasforma una probabilità da 0-1
  * in una percentuale.
  */
@@ -266,7 +281,7 @@ export default function AuctionMarket({
 
 
   /*
-   * Nome facoltativo della squadra avversaria.
+   * Nome della squadra avversaria.
    */
   const [
     opponentName,
@@ -279,6 +294,38 @@ export default function AuctionMarket({
    */
   const [feedback, setFeedback] =
     useState<Feedback | null>(null);
+
+
+  /*
+  * Nomi delle squadre configurati
+  * prima dell'inizio dell'asta.
+  */
+  const configuredOpponentTeamNames =
+    useMemo(() => {
+      return (
+        config.opponentTeamNames ??
+        []
+      )
+        .map(
+          (teamName) =>
+            teamName.trim(),
+        )
+        .filter(
+          (teamName) =>
+            teamName !== "",
+        );
+    }, [
+      config.opponentTeamNames,
+    ]);
+
+
+  /*
+   * Indica se durante l'asta deve
+   * essere mostrato il menu a tendina.
+   */
+  const hasConfiguredOpponentTeams =
+    configuredOpponentTeamNames.length >
+    0;
 
 
   /*
@@ -670,8 +717,8 @@ export default function AuctionMarket({
 
 
   /*
- * Validazione acquisto avversario.
- */
+  * Validazione acquisto avversario.
+  */
   const numericPurchasePrice =
     Number(purchasePrice);
 
@@ -748,14 +795,14 @@ export default function AuctionMarket({
                 changePurchaseOwner("ME");
               }}
               className={`
-          rounded-xl border px-3 py-2.5
-          text-sm font-semibold transition
+                rounded-xl border px-3 py-2.5
+                text-sm font-semibold transition
 
-          ${purchaseOwner === "ME"
+                ${purchaseOwner === "ME"
                   ? "border-emerald-600 bg-emerald-50 text-emerald-800"
                   : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }
-        `}
+              `}
             >
               La mia rosa
             </button>
@@ -769,53 +816,102 @@ export default function AuctionMarket({
                 );
               }}
               className={`
-          rounded-xl border px-3 py-2.5
-          text-sm font-semibold transition
+                rounded-xl border px-3 py-2.5
+                text-sm font-semibold transition
 
-          ${purchaseOwner === "OPPONENT"
+                ${purchaseOwner === "OPPONENT"
                   ? "border-amber-500 bg-amber-50 text-amber-800"
                   : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }
-        `}
+              `}
             >
               Squadra avversaria
             </button>
           </div>
 
-          {/* Nome della squadra avversaria */}
+          {/* Selezione della squadra avversaria */}
           {purchaseOwner === "OPPONENT" && (
             <div className="mt-3">
               <label
                 htmlFor="opponent-name"
                 className="mb-2 block text-sm font-semibold"
               >
-                Nome squadra avversaria
+                Squadra avversaria
               </label>
 
-              <input
-                id="opponent-name"
-                type="text"
-                required
-                value={opponentName}
-                onChange={(event) => {
-                  setOpponentName(
-                    event.target.value,
-                  );
-                }}
-                placeholder="Es. Team Marco"
-                className="
-                  w-full rounded-xl border
-                  border-slate-300 bg-white
-                  px-4 py-2.5 outline-none
-                  transition
-                  focus:border-amber-500
-                  focus:ring-2
-                  focus:ring-amber-100
-                "
-              />
+
+              {hasConfiguredOpponentTeams ? (
+                /*
+                 * Menu mostrato quando i nomi
+                 * sono stati configurati in anticipo.
+                 */
+                <select
+                  id="opponent-name"
+                  required
+                  value={opponentName}
+                  onChange={(event) => {
+                    setOpponentName(
+                      event.target.value,
+                    );
+                  }}
+                  className="
+                    w-full rounded-xl border
+                    border-slate-300 bg-white
+                    px-4 py-2.5 outline-none
+                    transition
+                    focus:border-amber-500
+                    focus:ring-2
+                    focus:ring-amber-100
+                  "
+                >
+                  <option value="">
+                    Seleziona la squadra
+                  </option>
+
+                  {configuredOpponentTeamNames.map(
+                    (teamName) => (
+                      <option
+                        key={teamName}
+                        value={teamName}
+                      >
+                        {teamName}
+                      </option>
+                    ),
+                  )}
+                </select>
+              ) : (
+                /*
+                 * Campo manuale mantenuto per chi
+                 * non usa la configurazione opzionale.
+                 */
+                <input
+                  id="opponent-name"
+                  type="text"
+                  required
+                  value={opponentName}
+                  onChange={(event) => {
+                    setOpponentName(
+                      event.target.value,
+                    );
+                  }}
+                  placeholder="Es. Team Marco"
+                  className="
+                    w-full rounded-xl border
+                    border-slate-300 bg-white
+                    px-4 py-2.5 outline-none
+                    transition
+                    focus:border-amber-500
+                    focus:ring-2
+                    focus:ring-amber-100
+                  "
+                />
+              )}
+
 
               <p className="mt-1 text-xs text-slate-500">
-                Usa sempre lo stesso nome per gli acquisti della stessa squadra.
+                {hasConfiguredOpponentTeams
+                  ? "Seleziona una delle squadre inserite nella configurazione."
+                  : "Usa sempre lo stesso nome per gli acquisti della stessa squadra."}
               </p>
             </div>
           )}
@@ -850,9 +946,9 @@ export default function AuctionMarket({
                     shadow-sm transition
 
                     ${isActive
-                                ? roleButtonClasses.active
-                                : roleButtonClasses.inactive
-                              }
+                      ? roleButtonClasses.active
+                      : roleButtonClasses.inactive
+                    }
                   `}
                 >
                   {role}
@@ -861,9 +957,9 @@ export default function AuctionMarket({
                     className={`
                     ml-1 text-xs
                     ${isActive
-                                ? "opacity-90"
-                                : "opacity-70"
-                              }
+                        ? "opacity-90"
+                        : "opacity-70"
+                      }
                   `}
                   >
                     ({remainingSlots[role]})
@@ -875,44 +971,6 @@ export default function AuctionMarket({
         </div>
       </div>
 
-      {/* Suggerimenti strategici per il ruolo selezionato */}
-      {purchaseOwner === "ME" && (
-        <details className="mt-4 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
-          <summary className="cursor-pointer list-none px-4 py-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-bold text-emerald-950">
-                  Assistente strategico
-                </p>
-
-                <p className="mt-0.5 text-xs text-emerald-700">
-                  Budget, suggerimenti e giocatori consigliati
-                </p>
-              </div>
-
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-800">
-                Apri
-              </span>
-            </div>
-          </summary>
-
-          <div className="border-t border-emerald-200 p-3">
-            <AuctionSuggestions
-              players={availablePlayers}
-              role={activeRole}
-              config={config}
-              purchases={myPurchases}
-              maximumBid={maximumBid}
-              remainingBudget={remainingBudget}
-              remainingSlots={remainingSlots}
-              dynamicRoleBudgets={
-                dynamicRoleBudgets
-              }
-              onSelectPlayer={selectPlayer}
-            />
-          </div>
-        </details>
-      )}
 
       {purchaseOwner === "OPPONENT" && (
         <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -927,7 +985,7 @@ export default function AuctionMarket({
        * - lista giocatori a sinistra;
        * - riepilogo acquisto a destra.
        */}
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
 
         {/* Ricerca e lista */}
         <div>
@@ -935,10 +993,10 @@ export default function AuctionMarket({
             htmlFor="auction-player-search"
             className="mb-2 block text-sm font-semibold"
           >
-            Cerca tra i{" "}
-            {AUCTION_ROLE_NAMES[
+            Cerca tra{" "}
+            {AUCTION_ROLE_SEARCH_LABELS[
               activeRole
-            ].toLowerCase()}
+            ]}
           </label>
 
           <input
@@ -1097,433 +1155,576 @@ export default function AuctionMarket({
         </div>
 
 
-        {/* Pannello acquisto */}
-        <aside className="h-fit rounded-xl bg-slate-100 p-4 xl:sticky xl:top-4">
-          <h3 className="text-lg font-bold">
-            Riepilogo acquisto
-          </h3>
+        {/* Colonna decisionale */}
+        <div className="space-y-3 self-start xl:sticky xl:top-4">
 
-          {!selectedPlayer && (
-            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-              <p className="font-semibold text-slate-700">
-                Nessun giocatore selezionato
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Scegli un giocatore dalla lista per vedere
-                quotazione, consiglio e prezzo massimo.
-              </p>
-            </div>
-          )}
-
-
-          {selectedPlayer && (
-            <form
-              onSubmit={handlePurchase}
-              className="mt-4"
+          {/* Assistente strategico */}
+          {purchaseOwner === "ME" && (
+            <details
+              className="
+                group overflow-hidden
+                rounded-xl border
+                border-emerald-200
+                bg-emerald-50
+              "
             >
-              {/* Giocatore selezionato */}
-              <div className="rounded-xl bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold">
-                      {selectedPlayer.name}
+              <summary
+                className="
+                  cursor-pointer list-none
+                  px-4 py-3
+                "
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-emerald-950">
+                      Assistente strategico
                     </p>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      {
-                        selectedPlayer.team
-                      }
+                    <p className="mt-0.5 truncate text-xs text-emerald-700">
+                      Budget e giocatori consigliati
                     </p>
                   </div>
 
                   <span
-                    className={`
-                      rounded-full
-                      px-2 py-1
-                      text-xs font-bold
-                      ${ROLE_BADGE_CLASSES[
-                      selectedPlayer.role
-                      ]
-                      }
-                    `}
+                    className="
+                      shrink-0 rounded-full
+                      bg-white px-3 py-1.5
+                      text-xs font-semibold
+                      text-emerald-800
+                      shadow-sm
+                    "
                   >
-                    {selectedPlayer.role}
+                    <span className="group-open:hidden">
+                      Apri
+                    </span>
+
+                    <span className="hidden group-open:inline">
+                      Chiudi
+                    </span>
                   </span>
                 </div>
+              </summary>
 
-                <dl className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-slate-500">
-                      Punteggio AI
-                    </dt>
-
-                    <dd className="font-semibold">
-                      {selectedPlayer.overall_score.toFixed(
-                        2,
-                      )}
-                    </dd>
-                  </div>
-
-                  {/* Quotazione originale */}
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-slate-500">
-                      Quotazione iniziale
-                    </dt>
-
-                    <dd className="font-semibold text-slate-500">
-                      {selectedPlayer.recommended_price}
-                    </dd>
-                  </div>
-
-
-                  {/* Quotazione aggiornata */}
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-slate-500">
-                      Quotazione dinamica
-                    </dt>
-
-                    <dd className="font-bold text-emerald-700">
-                      {selectedValuation
-                        ?.dynamicRecommendedPrice ??
-                        selectedPlayer.recommended_price}
-                    </dd>
-                  </div>
-
-
-                  {/* Andamento della quotazione */}
-                  {selectedValuation && (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">
-                        Andamento
-                      </dt>
-
-                      <dd
-                        className={`
-                          font-semibold
-
-                          ${selectedValuation.marketTrend ===
-                            "In rialzo"
-                            ? "text-red-700"
-                            : selectedValuation.marketTrend ===
-                              "In ribasso"
-                              ? "text-emerald-700"
-                              : "text-slate-700"
-                          }
-                        `}
-                      >
-                        {selectedValuation.marketTrend}
-                      </dd>
-                    </div>
-                  )}
-
-
-                  {/* Tetto prudente */}
-                  {purchaseOwner === "ME" &&
-                    selectedValuation && (
-                      <div className="flex justify-between gap-3">
-                        <dt className="text-slate-500">
-                          Tetto prudente
-                        </dt>
-
-                        <dd className="font-semibold">
-                          {selectedValuation.personalMaximumBid}
-                        </dd>
-                      </div>
-                    )}
-
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-slate-500">
-                      Titolarità
-                    </dt>
-
-                    <dd className="font-semibold">
-                      {formatPercentage(
-                        selectedPlayer.starting_probability,
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-
-              {/* Prezzo pagato */}
-              <div className="mt-4">
-                <label
-                  htmlFor="purchase-price"
-                  className="mb-2 block text-sm font-semibold"
-                >
-                  Prezzo pagato
-                </label>
-
-                <input
-                  id="purchase-price"
-                  type="number"
-                  min={
-                    config.minimumBid
+              <div
+                className="
+                  max-h-[calc(100dvh-12rem)]
+                  overflow-y-auto
+                  border-t border-emerald-200
+                  p-3
+                "
+              >
+                <AuctionSuggestions
+                  players={availablePlayers}
+                  role={activeRole}
+                  config={config}
+                  purchases={myPurchases}
+                  maximumBid={maximumBid}
+                  remainingBudget={remainingBudget}
+                  remainingSlots={remainingSlots}
+                  dynamicRoleBudgets={
+                    dynamicRoleBudgets
                   }
-                  max={
-                    purchaseOwner === "ME"
-                      ? maximumBid
-                      : undefined
-                  }
-                  step="1"
-                  value={purchasePrice}
-                  onChange={(event) => {
-                    setPurchasePrice(
-                      event.target.value,
-                    );
-                  }}
-                  className="
-                    w-full rounded-xl
-                    border border-slate-300
-                    bg-white px-4 py-3
-                    text-xl font-bold
-                    outline-none transition
-                    focus:border-emerald-600
-                    focus:ring-2
-                    focus:ring-emerald-100
-                  "
+                  onSelectPlayer={selectPlayer}
                 />
               </div>
+            </details>
+          )}
 
-              {/* Assistente strategico */}
-              {auctionAdvice && (
-                <section
-                  className={`
-      mt-4 rounded-xl border p-4
-      ${AUCTION_ADVICE_CLASSES[
-                    auctionAdvice.tone
-                    ]
-                    }
-    `}
-                >
-                  {/* Valutazione principale */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">
-                        Valutazione Fantasy AI
+
+          {/* Riepilogo dell'acquisto */}
+          <aside className="rounded-xl bg-slate-100 p-3">
+            <h3 className="text-base font-bold">
+              Riepilogo acquisto
+            </h3>
+
+            {!selectedPlayer && (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                <p className="font-semibold text-slate-700">
+                  Nessun giocatore selezionato
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Scegli un giocatore dalla lista per vedere
+                  quotazione, consiglio e prezzo massimo.
+                </p>
+              </div>
+            )}
+
+
+            {selectedPlayer && (
+              <form
+                onSubmit={handlePurchase}
+                className="mt-3 space-y-3"
+              >
+                {/*
+                * Riepilogo compatto del giocatore.
+                *
+                * Mostriamo immediatamente soltanto
+                * le informazioni più importanti.
+                */}
+                <section className="rounded-xl bg-white p-3">
+                  {/* Nome, squadra e ruolo */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-slate-950">
+                        {selectedPlayer.name}
                       </p>
 
-                      <p className="mt-1 text-xl font-bold">
-                        {auctionAdvice.label}
-                      </p>
-
-                      <p className="mt-1 text-sm opacity-80">
-                        {auctionAdvice.description}
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {selectedPlayer.team}
                       </p>
                     </div>
 
-                    <span className="w-fit rounded-full bg-white/70 px-3 py-1 text-sm font-bold">
-                      {auctionAdvice.differenceFromRecommended ===
-                        0
-                        ? "Prezzo consigliato"
-                        : auctionAdvice.differenceFromRecommended <
-                          0
-                          ? `${Math.abs(
-                            auctionAdvice.differenceFromRecommended,
-                          )} crediti sotto`
-                          : `${auctionAdvice.differenceFromRecommended} crediti sopra`}
+                    <span
+                      className={`
+                        shrink-0 rounded-full
+                        px-2 py-1
+                        text-xs font-bold
+
+                        ${ROLE_BADGE_CLASSES[
+                        selectedPlayer.role
+                        ]}
+                      `}
+                    >
+                      {selectedPlayer.role}
                     </span>
                   </div>
 
 
-                  {/* Dati principali del consiglio */}
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-xs opacity-70">
-                        Quotazione dinamica
+                  {/* Dati principali */}
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    {/* Punteggio Fantasy AI */}
+                    <div className="rounded-lg bg-slate-50 px-2 py-2">
+                      <p className="text-[10px] text-slate-500">
+                        Punteggio AI
                       </p>
 
-                      <p className="mt-1 font-bold">
+                      <p className="mt-0.5 text-sm font-bold">
+                        {selectedPlayer.overall_score.toFixed(
+                          2,
+                        )}
+                      </p>
+                    </div>
+
+
+                    {/* Quotazione dinamica */}
+                    <div className="rounded-lg bg-emerald-50 px-2 py-2">
+                      <p className="text-[10px] text-emerald-700">
+                        Quotazione
+                      </p>
+
+                      <p className="mt-0.5 text-sm font-bold text-emerald-800">
                         {selectedValuation
                           ?.dynamicRecommendedPrice ??
                           selectedPlayer.recommended_price}
                       </p>
+
+                      {selectedValuation
+                        ?.dynamicRecommendedPrice !==
+                        selectedPlayer.recommended_price && (
+                          <p className="mt-0.5 text-[9px] text-slate-400">
+                            Iniziale{" "}
+                            {selectedPlayer.recommended_price}
+                          </p>
+                        )}
                     </div>
 
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-xs opacity-70">
-                        Tetto strategico
+
+                    {/* Titolarità */}
+                    <div className="rounded-lg bg-slate-50 px-2 py-2">
+                      <p className="text-[10px] text-slate-500">
+                        Titolarità
                       </p>
 
-                      <p className="mt-1 font-bold">
-                        {
-                          auctionAdvice.strategicMaximumBid
-                        }
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-xs opacity-70">
-                        Budget dopo l&apos;acquisto
-                      </p>
-
-                      <p className="mt-1 font-bold">
-                        {
-                          auctionAdvice.remainingBudgetAfterPurchase
-                        }
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-xs opacity-70">
-                        Crediti da conservare
-                      </p>
-
-                      <p className="mt-1 font-bold">
-                        {
-                          auctionAdvice.minimumCreditsToReserve
-                        }
+                      <p className="mt-0.5 text-sm font-bold">
+                        {formatPercentage(
+                          selectedPlayer.starting_probability,
+                        )}
                       </p>
                     </div>
                   </div>
 
 
-                  {/* Situazione del budget per il ruolo */}
-                  <div className="mt-3 rounded-lg bg-white/70 p-3 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <span className="opacity-70">
-                        Budget previsto ruolo
-                      </span>
+                  {/* Andamento e tetto prudente */}
+                  {selectedValuation && (
+                    <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500">
+                          Andamento:
+                        </span>
 
-                      <strong>
-                        {auctionAdvice.plannedRoleBudget}
-                      </strong>
+                        <strong
+                          className={`
+                            ${selectedValuation.marketTrend ===
+                              "In rialzo"
+                              ? "text-red-700"
+                              : selectedValuation.marketTrend ===
+                                "In ribasso"
+                                ? "text-emerald-700"
+                                : "text-slate-700"
+                            }
+                          `}
+                        >
+                          {selectedValuation.marketTrend}
+                        </strong>
+                      </div>
+
+                      {purchaseOwner === "ME" && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-500">
+                            Tetto:
+                          </span>
+
+                          <strong>
+                            {
+                              selectedValuation
+                                .personalMaximumBid
+                            }
+                          </strong>
+                        </div>
+                      )}
                     </div>
+                  )}
+                </section>
 
-                    <div className="mt-2 flex justify-between gap-3">
-                      <span className="opacity-70">
-                        Spesa dopo l&apos;acquisto
-                      </span>
 
-                      <strong>
-                        {auctionAdvice.spentInRoleAfter}
-                      </strong>
-                    </div>
+                {/* Prezzo pagato */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <label
+                      htmlFor="purchase-price"
+                      className="text-xs font-semibold"
+                    >
+                      Prezzo pagato
+                    </label>
 
-                    <div className="mt-2 flex justify-between gap-3">
-                      <span className="opacity-70">
-                        Situazione del piano
-                      </span>
-
-                      <strong>
-                        {auctionAdvice.roleBudgetDifference >=
-                          0
-                          ? `${auctionAdvice.roleBudgetDifference} crediti disponibili`
-                          : `${Math.abs(
-                            auctionAdvice.roleBudgetDifference,
-                          )} crediti oltre il piano`}
-                      </strong>
-                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      Minimo {config.minimumBid}
+                    </span>
                   </div>
 
+                  <input
+                    id="purchase-price"
+                    type="number"
+                    min={config.minimumBid}
+                    max={
+                      purchaseOwner === "ME"
+                        ? maximumBid
+                        : undefined
+                    }
+                    step="1"
+                    value={purchasePrice}
+                    onChange={(event) => {
+                      setPurchasePrice(
+                        event.target.value,
+                      );
+                    }}
+                    className="
+                      w-full rounded-xl
+                      border border-slate-300
+                      bg-white px-3 py-2.5
+                      text-lg font-bold
+                      outline-none transition
+                      focus:border-emerald-600
+                      focus:ring-2
+                      focus:ring-emerald-100
+                    "
+                  />
+                </div>
 
-                  {/* Avvisi */}
-                  {auctionAdvice.warnings.length >
-                    0 && (
-                      <div className="mt-3 rounded-lg bg-white/70 p-3 text-sm">
-                        <p className="font-semibold">
-                          Attenzione
+
+                {/* Valutazione principale dell'assistente */}
+                {auctionAdvice && (
+                  <section
+                    className={`
+                      rounded-xl border p-3
+
+                      ${AUCTION_ADVICE_CLASSES[
+                      auctionAdvice.tone
+                      ]}
+                    `}
+                  >
+                    {/* Giudizio immediatamente visibile */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+                          Valutazione Fantasy AI
                         </p>
 
-                        <div className="mt-2 space-y-1">
-                          {auctionAdvice.warnings.map(
-                            (warning) => (
-                              <p key={warning}>
-                                • {warning}
-                              </p>
-                            ),
-                          )}
-                        </div>
+                        <p className="mt-0.5 text-base font-bold">
+                          {auctionAdvice.label}
+                        </p>
                       </div>
-                    )}
-                </section>
-              )}
 
-              {/* Informazioni sul budget */}
-              <div className="mt-4 rounded-xl bg-white p-4 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-slate-500">
-                    Budget residuo
-                  </span>
+                      <span className="shrink-0 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold">
+                        {auctionAdvice
+                          .differenceFromRecommended === 0
+                          ? "Prezzo consigliato"
+                          : auctionAdvice
+                            .differenceFromRecommended < 0
+                            ? `${Math.abs(
+                              auctionAdvice
+                                .differenceFromRecommended,
+                            )} sotto`
+                            : `${auctionAdvice
+                              .differenceFromRecommended} sopra`}
+                      </span>
+                    </div>
 
-                  <strong>
-                    {remainingBudget}
-                  </strong>
+                    <p className="mt-1 text-xs leading-relaxed opacity-80">
+                      {auctionAdvice.description}
+                    </p>
+
+
+                    {/*
+                    * Le informazioni secondarie
+                    * rimangono disponibili, ma non
+                    * occupano spazio finché non servono.
+                    */}
+                    <details
+                      className="
+                        group mt-3 overflow-hidden
+                        rounded-lg bg-white/60
+                      "
+                    >
+                      <summary
+                        className="
+                          flex cursor-pointer
+                          list-none items-center
+                          justify-between gap-3
+                          px-3 py-2
+                          text-xs font-semibold
+                        "
+                      >
+                        <span>
+                          Dettagli strategici
+                        </span>
+
+                        <span className="opacity-70">
+                          <span className="group-open:hidden">
+                            Apri
+                          </span>
+
+                          <span className="hidden group-open:inline">
+                            Chiudi
+                          </span>
+                        </span>
+                      </summary>
+
+
+                      <div className="border-t border-white/70 p-3">
+                        {/* Indicatori economici */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-white/70 px-2 py-2">
+                            <p className="text-[10px] opacity-70">
+                              Quotazione dinamica
+                            </p>
+
+                            <p className="mt-0.5 text-sm font-bold">
+                              {selectedValuation
+                                ?.dynamicRecommendedPrice ??
+                                selectedPlayer.recommended_price}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-white/70 px-2 py-2">
+                            <p className="text-[10px] opacity-70">
+                              Tetto strategico
+                            </p>
+
+                            <p className="mt-0.5 text-sm font-bold">
+                              {
+                                auctionAdvice
+                                  .strategicMaximumBid
+                              }
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-white/70 px-2 py-2">
+                            <p className="text-[10px] opacity-70">
+                              Budget dopo
+                            </p>
+
+                            <p className="mt-0.5 text-sm font-bold">
+                              {
+                                auctionAdvice
+                                  .remainingBudgetAfterPurchase
+                              }
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-white/70 px-2 py-2">
+                            <p className="text-[10px] opacity-70">
+                              Da conservare
+                            </p>
+
+                            <p className="mt-0.5 text-sm font-bold">
+                              {
+                                auctionAdvice
+                                  .minimumCreditsToReserve
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+
+                        {/* Situazione del ruolo */}
+                        <div className="mt-2 space-y-1.5 rounded-lg bg-white/70 px-3 py-2 text-xs">
+                          <div className="flex justify-between gap-3">
+                            <span className="opacity-70">
+                              Budget previsto ruolo
+                            </span>
+
+                            <strong>
+                              {
+                                auctionAdvice
+                                  .plannedRoleBudget
+                              }
+                            </strong>
+                          </div>
+
+                          <div className="flex justify-between gap-3">
+                            <span className="opacity-70">
+                              Spesa dopo l&apos;acquisto
+                            </span>
+
+                            <strong>
+                              {
+                                auctionAdvice
+                                  .spentInRoleAfter
+                              }
+                            </strong>
+                          </div>
+
+                          <div className="flex justify-between gap-3">
+                            <span className="opacity-70">
+                              Situazione del piano
+                            </span>
+
+                            <strong className="text-right">
+                              {auctionAdvice
+                                .roleBudgetDifference >= 0
+                                ? `${auctionAdvice
+                                  .roleBudgetDifference} disponibili`
+                                : `${Math.abs(
+                                  auctionAdvice
+                                    .roleBudgetDifference,
+                                )} oltre il piano`}
+                            </strong>
+                          </div>
+                        </div>
+
+
+                        {/* Eventuali avvisi */}
+                        {auctionAdvice.warnings.length >
+                          0 && (
+                            <div className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-xs">
+                              <p className="font-semibold">
+                                Attenzione
+                              </p>
+
+                              <div className="mt-1 space-y-1">
+                                {auctionAdvice.warnings.map(
+                                  (warning) => (
+                                    <p key={warning}>
+                                      • {warning}
+                                    </p>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </details>
+                  </section>
+                )}
+
+
+                {/* Riepilogo rapido del budget */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-white px-2 py-2 text-center">
+                    <p className="text-[10px] text-slate-500">
+                      Residuo
+                    </p>
+
+                    <p className="mt-0.5 text-sm font-bold">
+                      {remainingBudget}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-white px-2 py-2 text-center">
+                    <p className="text-[10px] text-slate-500">
+                      Offerta max
+                    </p>
+
+                    <p className="mt-0.5 text-sm font-bold">
+                      {maximumBid}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-white px-2 py-2 text-center">
+                    <p className="text-[10px] text-slate-500">
+                      Slot ruolo
+                    </p>
+
+                    <p className="mt-0.5 text-sm font-bold">
+                      {
+                        remainingSlots[
+                        selectedPlayer.role
+                        ]
+                      }
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-2 flex justify-between gap-3">
-                  <span className="text-slate-500">
-                    Offerta massima
-                  </span>
 
-                  <strong>
-                    {maximumBid}
-                  </strong>
-                </div>
+                {/* Conferma acquisto */}
+                <button
+                  type="submit"
+                  disabled={!canRegisterPurchase}
+                  className={`
+                    w-full rounded-xl
+                    px-4 py-2.5
+                    text-xs font-semibold
+                    transition
 
-                <div className="mt-2 flex justify-between gap-3">
-                  <span className="text-slate-500">
-                    Slot ruolo
-                  </span>
-
-                  <strong>
-                    {
-                      remainingSlots[
-                      selectedPlayer.role
-                      ]
+                    ${canRegisterPurchase
+                      ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                      : "cursor-not-allowed bg-slate-300 text-slate-500"
                     }
-                  </strong>
-                </div>
-              </div>
+                  `}
+                >
+                  {purchaseOwner === "OPPONENT"
+                    ? "Registra acquisto avversario"
+                    : auctionAdvice?.label ===
+                      "Da evitare"
+                      ? "Registra comunque"
+                      : "Registra acquisto"}
+                </button>
+              </form>
+            )}
 
 
-              {/* Conferma acquisto */}
-              <button
-                type="submit"
-                disabled={!canRegisterPurchase}
+            {/* Messaggio finale */}
+            {feedback && (
+              <div
                 className={`
-                  mt-4 w-full rounded-xl
-                  px-5 py-3 text-sm
-                  font-semibold transition
+                  mt-4 rounded-xl
+                  border p-4 text-sm
+                  font-semibold
 
-                  ${canRegisterPurchase
-                    ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                    : "cursor-not-allowed bg-slate-300 text-slate-500"
+                  ${feedback.type ===
+                    "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-red-200 bg-red-50 text-red-800"
                   }
                 `}
               >
-                {purchaseOwner === "OPPONENT"
-                  ? "Registra acquisto avversario"
-                  : auctionAdvice?.label ===
-                    "Da evitare"
-                    ? "Registra comunque"
-                    : "Registra acquisto"}
-              </button>
-            </form>
-          )}
-
-
-          {/* Messaggio finale */}
-          {feedback && (
-            <div
-              className={`
-                mt-4 rounded-xl
-                border p-4 text-sm
-                font-semibold
-
-                ${feedback.type ===
-                  "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-                }
-              `}
-            >
-              {feedback.message}
-            </div>
-          )}
-        </aside>
+                {feedback.message}
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
     </section>
   );

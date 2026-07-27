@@ -105,6 +105,13 @@ function cloneAuctionConfig(
     budgetDistribution: {
       ...config.budgetDistribution,
     },
+
+    opponentTeamNames: [
+      ...(
+        config.opponentTeamNames ??
+        []
+      ),
+    ],
   };
 }
 
@@ -194,6 +201,34 @@ export function useAuctionSession() {
               parsedSession.config
                 .auctionMode ??
               "ROLE_BY_ROLE",
+
+            /*
+             * Le vecchie sessioni non contengono
+             * ancora i nomi preconfigurati.
+             */
+            opponentTeamNames:
+              Array.isArray(
+                parsedSession.config
+                  .opponentTeamNames,
+              )
+                ? parsedSession.config
+                  .opponentTeamNames
+                  .filter(
+                    (
+                      teamName,
+                    ): teamName is string =>
+                      typeof teamName ===
+                      "string",
+                  )
+                  .map(
+                    (teamName) =>
+                      teamName.trim(),
+                  )
+                  .filter(
+                    (teamName) =>
+                      teamName !== "",
+                  )
+                : [],
           },
         };
 
@@ -546,6 +581,42 @@ export function useAuctionSession() {
       )
     ) {
       return "Inserisci il nome della squadra avversaria.";
+    }
+
+    /*
+    * Quando sono stati configurati nomi
+    * predefiniti, accettiamo solamente
+    * una delle squadre presenti nell'elenco.
+    */
+    const configuredOpponentNames =
+      session.config
+        .opponentTeamNames ?? [];
+
+    if (
+      purchase.ownerType === "OPPONENT" &&
+      configuredOpponentNames.length > 0
+    ) {
+      const normalizedOwnerName =
+        purchase.ownerName
+          ?.trim()
+          .toLocaleLowerCase(
+            "it-IT",
+          );
+
+      const isConfiguredTeam =
+        configuredOpponentNames.some(
+          (teamName) =>
+            teamName
+              .trim()
+              .toLocaleLowerCase(
+                "it-IT",
+              ) ===
+            normalizedOwnerName,
+        );
+
+      if (!isConfiguredTeam) {
+        return "Seleziona una squadra avversaria presente nella configurazione.";
+      }
     }
 
     /*

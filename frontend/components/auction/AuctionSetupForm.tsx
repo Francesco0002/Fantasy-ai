@@ -59,6 +59,13 @@ function createDefaultConfig(): AuctionConfig {
     budgetDistribution: {
       ...DEFAULT_AUCTION_CONFIG.budgetDistribution,
     },
+
+    opponentTeamNames: [
+      ...(
+        DEFAULT_AUCTION_CONFIG
+          .opponentTeamNames ?? []
+      ),
+    ],
   };
 }
 
@@ -81,6 +88,33 @@ function parseNumericInput(
 
 
 /*
+ * Crea l'elenco dei nomi avversari
+ * in base al numero dei partecipanti.
+ *
+ * Il numero degli avversari è:
+ * partecipanti totali - la nostra squadra.
+ */
+function resizeOpponentTeamNames(
+  participants: number,
+  currentNames: string[] = [],
+): string[] {
+  const opponentsCount =
+    Math.max(
+      participants - 1,
+      0,
+    );
+
+  return Array.from(
+    {
+      length: opponentsCount,
+    },
+    (_, index) =>
+      currentNames[index] ?? "",
+  );
+}
+
+
+/*
  * Controlla la configurazione e restituisce
  * il primo errore trovato.
  *
@@ -98,6 +132,62 @@ function getConfigError(
     config.participants < 2
   ) {
     return "Il numero di partecipanti deve essere almeno 2.";
+  }
+
+  /*
+  * Controlliamo i nomi soltanto
+  * quando l'opzione è stata attivata.
+  */
+  const opponentTeamNames =
+    config.opponentTeamNames ?? [];
+
+  if (opponentTeamNames.length > 0) {
+    const expectedOpponentCount =
+      config.participants - 1;
+
+    if (
+      opponentTeamNames.length !==
+      expectedOpponentCount
+    ) {
+      return `Inserisci esattamente ${expectedOpponentCount} squadre avversarie.`;
+    }
+
+    const trimmedNames =
+      opponentTeamNames.map(
+        (teamName) =>
+          teamName.trim(),
+      );
+
+    if (
+      trimmedNames.some(
+        (teamName) =>
+          teamName === "",
+      )
+    ) {
+      return "Inserisci il nome di tutte le squadre avversarie.";
+    }
+
+    /*
+     * Normalizziamo i nomi per impedire
+     * duplicati come:
+     *
+     * Team Marco
+     * team marco
+     */
+    const normalizedNames =
+      trimmedNames.map(
+        (teamName) =>
+          teamName.toLocaleLowerCase(
+            "it-IT",
+          ),
+      );
+
+    if (
+      new Set(normalizedNames).size !==
+      normalizedNames.length
+    ) {
+      return "I nomi delle squadre avversarie non possono essere duplicati.";
+    }
   }
 
   if (
@@ -192,6 +282,16 @@ export default function AuctionSetupForm({
     );
 
   /*
+  * Indica se l'utente desidera
+  * configurare in anticipo i nomi
+  * delle squadre avversarie.
+  */
+  const [
+    usePredefinedOpponentNames,
+    setUsePredefinedOpponentNames,
+  ] = useState(false);
+
+  /*
    * Calcoliamo la percentuale complessiva
    * assegnata ai quattro ruoli.
    */
@@ -274,6 +374,57 @@ export default function AuctionSetupForm({
 
 
   /*
+  * Attiva o disattiva la configurazione
+  * preventiva delle squadre avversarie.
+  */
+  function toggleOpponentTeamNames(
+    enabled: boolean,
+  ) {
+    setUsePredefinedOpponentNames(
+      enabled,
+    );
+
+    setConfig((currentConfig) => ({
+      ...currentConfig,
+
+      opponentTeamNames: enabled
+        ? resizeOpponentTeamNames(
+          currentConfig.participants,
+          currentConfig.opponentTeamNames,
+        )
+        : [],
+    }));
+  }
+
+
+  /*
+   * Aggiorna il nome di una specifica
+   * squadra avversaria.
+   */
+  function updateOpponentTeamName(
+    index: number,
+    value: string,
+  ) {
+    setConfig((currentConfig) => {
+      const updatedNames = [
+        ...(
+          currentConfig
+            .opponentTeamNames ?? []
+        ),
+      ];
+
+      updatedNames[index] = value;
+
+      return {
+        ...currentConfig,
+        opponentTeamNames:
+          updatedNames,
+      };
+    });
+  }
+
+
+  /*
    * Avvia la sessione soltanto
    * quando la configurazione è valida.
    */
@@ -303,6 +454,17 @@ export default function AuctionSetupForm({
       budgetDistribution: {
         ...config.budgetDistribution,
       },
+
+      opponentTeamNames:
+        usePredefinedOpponentNames
+          ? (
+            config.opponentTeamNames ??
+            []
+          ).map(
+            (teamName) =>
+              teamName.trim(),
+          )
+          : [],
     });
   }
 
@@ -312,6 +474,10 @@ export default function AuctionSetupForm({
    */
   function handleReset() {
     setConfig(createDefaultConfig());
+
+    setUsePredefinedOpponentNames(
+      false,
+    );
   }
 
 
@@ -383,18 +549,30 @@ export default function AuctionSetupForm({
               step="1"
               value={config.participants}
               onChange={(event) => {
+                const participants =
+                  Math.max(
+                    0,
+                    Math.trunc(
+                      parseNumericInput(
+                        event.target.value,
+                      ),
+                    ),
+                  );
+
                 setConfig(
                   (currentConfig) => ({
                     ...currentConfig,
 
-                    participants: Math.max(
-                      0,
-                      Math.trunc(
-                        parseNumericInput(
-                          event.target.value,
-                        ),
-                      ),
-                    ),
+                    participants,
+
+                    opponentTeamNames:
+                      usePredefinedOpponentNames
+                        ? resizeOpponentTeamNames(
+                          participants,
+                          currentConfig
+                            .opponentTeamNames,
+                        )
+                        : [],
                   }),
                 );
               }}
@@ -521,14 +699,14 @@ export default function AuctionSetupForm({
                 }));
               }}
               className="
-      w-full rounded-xl border
-      border-slate-300 bg-white
-      px-4 py-3 outline-none
-      transition
-      focus:border-emerald-600
-      focus:ring-2
-      focus:ring-emerald-100
-    "
+                w-full rounded-xl border
+                border-slate-300 bg-white
+                px-4 py-3 outline-none
+                transition
+                focus:border-emerald-600
+                focus:ring-2
+                focus:ring-emerald-100
+              "
             >
               <option value="ROLE_BY_ROLE">
                 {
@@ -551,6 +729,118 @@ export default function AuctionSetupForm({
                 ? "Le quotazioni reagiscono soprattutto agli acquisti dello stesso ruolo. Il budget residuo viene trasferito quando il ruolo è completato."
                 : "Ogni acquisto influenza gradualmente le quotazioni e i budget di tutti i ruoli ancora incompleti."}
             </p>
+          </div>
+          {/* Configurazione opzionale delle squadre avversarie */}
+          <div className="md:col-span-2">
+            <div
+              className="
+      rounded-xl border
+      border-slate-200
+      bg-slate-50 p-4
+    "
+            >
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={
+                    usePredefinedOpponentNames
+                  }
+                  onChange={(event) => {
+                    toggleOpponentTeamNames(
+                      event.target.checked,
+                    );
+                  }}
+                  className="
+          mt-1 h-4 w-4
+          rounded border-slate-300
+          accent-emerald-700
+        "
+                />
+
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Inserisci i nomi delle squadre avversarie
+                  </span>
+
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Durante l&apos;asta potrai scegliere
+                    la squadra da un menu, senza riscriverne
+                    ogni volta il nome.
+                  </span>
+                </span>
+              </label>
+
+
+              {usePredefinedOpponentNames && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">
+                      Squadre avversarie
+                    </p>
+
+                    <span
+                      className="
+              rounded-full bg-white
+              px-2.5 py-1
+              text-xs font-semibold
+              text-slate-600
+            "
+                    >
+                      {Math.max(
+                        config.participants - 1,
+                        0,
+                      )} squadre
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {Array.from({
+                      length: Math.max(
+                        config.participants - 1,
+                        0,
+                      ),
+                    }).map((_, index) => (
+                      <div key={index}>
+                        <label
+                          htmlFor={`opponent-team-${index}`}
+                          className="mb-1.5 block text-xs font-semibold text-slate-600"
+                        >
+                          Squadra avversaria{" "}
+                          {index + 1}
+                        </label>
+
+                        <input
+                          id={`opponent-team-${index}`}
+                          type="text"
+                          value={
+                            config
+                              .opponentTeamNames?.[
+                            index
+                            ] ?? ""
+                          }
+                          onChange={(event) => {
+                            updateOpponentTeamName(
+                              index,
+                              event.target.value,
+                            );
+                          }}
+                          placeholder={`Nome squadra ${index + 1}`}
+                          className="
+                  w-full rounded-xl
+                  border border-slate-300
+                  bg-white px-4 py-2.5
+                  outline-none transition
+                  focus:border-emerald-600
+                  focus:ring-2
+                  focus:ring-emerald-100
+                "
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
