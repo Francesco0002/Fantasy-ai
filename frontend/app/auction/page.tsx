@@ -106,7 +106,7 @@ export default function AuctionPage() {
 
 
   return (
-    <main className="min-h-screen bg-slate-100 py-6 text-slate-900">
+    <main className="auction-page-enter min-h-screen bg-slate-100 py-6 text-slate-900">
       <div
         className="
           mx-auto w-full

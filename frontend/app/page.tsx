@@ -2,13 +2,6 @@
 
 
 /*
- * Link permette di aprire
- * la modalità asta.
- */
-import Link from "next/link";
-
-
-/*
  * Finestra utilizzata per scegliere
  * il secondo giocatore del confronto.
  */
@@ -36,6 +29,11 @@ import PlayerCard from "../components/PlayerCard";
  * useMemo permette di calcolare la lista ordinata
  * soltanto quando cambiano i giocatori o il criterio scelto.
  */
+import type {
+  MouseEvent,
+} from "react";
+
+
 import {
   useMemo,
   useState,
@@ -190,6 +188,40 @@ export default function Home() {
     setCompareBasePlayer,
   ] = useState<Player | null>(null);
 
+  /*
+  * Comunica al componente globale
+  * di avviare la transizione verso l'asta.
+  */
+  function handleOpenAuction(
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    const buttonRectangle =
+      event.currentTarget
+        .getBoundingClientRect();
+
+
+    const originX =
+      buttonRectangle.left +
+      buttonRectangle.width / 2;
+
+    const originY =
+      buttonRectangle.top +
+      buttonRectangle.height / 2;
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "fantasy-ai:open-auction",
+        {
+          detail: {
+            originX,
+            originY,
+          },
+        },
+      ),
+    );
+  }
+
 
   return (
     /*
@@ -214,17 +246,22 @@ export default function Home() {
           </p>
 
           {/* Accesso alla modalità asta */}
-          <Link
-            href="/auction"
+          <button
+            type="button"
+            onClick={handleOpenAuction}
             className="
-              mt-5 inline-flex rounded-xl
+              mt-5 inline-flex items-center
+              justify-center rounded-xl
               bg-emerald-700 px-5 py-3
               text-sm font-semibold text-white
-              transition hover:bg-emerald-800
+
+              transition-colors
+              duration-200
+              hover:bg-emerald-800
             "
           >
             Apri modalità asta
-          </Link>
+          </button>
         </header>
 
 
