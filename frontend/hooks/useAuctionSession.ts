@@ -1,6 +1,14 @@
 "use client";
 
 /*
+ * Calcolo della distribuzione dinamica
+ * del budget tra i ruoli incompleti.
+ */
+import {
+  calculateDynamicRoleBudgets,
+} from "../lib/auction-budget";
+
+/*
  * Hook React utilizzati per conservare
  * la sessione d'asta e calcolare dati derivati.
  */
@@ -346,9 +354,39 @@ export function useAuctionSession() {
 
 
   /*
- * Numero complessivo di slot
- * ancora da completare.
- */
+  * Budget attualmente consigliato
+  * per ogni ruolo.
+  *
+  * Si aggiorna automaticamente dopo
+  * acquisti, annullamenti e completamenti.
+  */
+  const dynamicRoleBudgets =
+    useMemo(() => {
+      if (!session) {
+        return {
+          P: 0,
+          D: 0,
+          C: 0,
+          A: 0,
+        };
+      }
+
+      return calculateDynamicRoleBudgets(
+        session.config,
+        session.remainingBudget,
+        remainingSlots,
+        spentByRole,
+      );
+    }, [
+      session,
+      remainingSlots,
+    ]);
+
+
+  /*
+  * Numero complessivo di slot
+  * ancora da completare.
+  */
   const totalRemainingSlots = useMemo(() => {
     return (
       remainingSlots.P +
@@ -554,6 +592,7 @@ export function useAuctionSession() {
     spentByRole,
     purchasedByRole,
     remainingSlots,
+    dynamicRoleBudgets,
     maximumBid,
 
     /*

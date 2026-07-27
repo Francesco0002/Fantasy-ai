@@ -82,6 +82,11 @@ type AuctionSuggestionsProps = {
         number
     >;
 
+    dynamicRoleBudgets: Record<
+        AuctionRole,
+        number
+    >;
+
     /*
      * Permette di selezionare direttamente
      * uno dei giocatori suggeriti.
@@ -161,6 +166,7 @@ export default function AuctionSuggestions({
     maximumBid,
     remainingBudget,
     remainingSlots,
+    dynamicRoleBudgets,
     onSelectPlayer,
 }: AuctionSuggestionsProps) {
     /*
@@ -182,41 +188,36 @@ export default function AuctionSuggestions({
 
 
     /*
-     * Budget inizialmente previsto
-     * per il ruolo corrente.
-     */
-    const plannedRoleBudget =
+    * Budget iniziale usato solamente
+    * come riferimento.
+    */
+    const initialRoleBudget =
         calculateRoleBudget(
             config,
             role,
         );
 
-
     /*
-     * Budget previsto ancora disponibile
-     * nel piano iniziale.
+     * Budget effettivamente disponibile ora.
+     *
+     * Questo valore tiene conto di risparmi
+     * e spese eccessive negli altri ruoli.
      */
     const remainingRoleBudget =
-        Math.max(
-            plannedRoleBudget -
-            spentInRole,
-            0,
-        );
+        dynamicRoleBudgets[role];
 
     /*
-    * Differenza tra budget previsto
-    * e crediti effettivamente spesi.
-    *
-    * Positivo: budget ancora disponibile.
-    * Negativo: budget superato.
+     * Budget totale aggiornato del ruolo.
+     */
+    const updatedRoleBudget =
+        spentInRole +
+        remainingRoleBudget;
+
+
+    /*
+    * Slot ancora da completare
+    * nel ruolo attualmente selezionato.
     */
-    const roleBudgetBalance =
-        plannedRoleBudget - spentInRole;
-
-    /*
- * Slot ancora da completare
- * nel ruolo attualmente selezionato.
- */
     const remainingRoleSlots =
         remainingSlots[role];
 
@@ -231,25 +232,25 @@ export default function AuctionSuggestions({
 
 
     /*
-     * Consideriamo il budget vicino al limite
-     * quando rimane meno del 10% del piano iniziale.
-     */
+    * La strategia risparmio viene attivata
+    * quando il budget dinamico rimasto è vicino
+    * al minimo necessario per completare il ruolo.
+    */
     const criticalBudgetThreshold =
         Math.max(
             minimumCreditsForRole,
             Math.round(
-                plannedRoleBudget * 0.1,
+                initialRoleBudget * 0.1,
             ),
         );
 
 
     /*
-     * Il ruolo è in situazione critica quando:
-     * - il budget previsto è stato superato;
-     * - oppure il budget rimasto è molto basso.
-     */
+    * Consideriamo critica la situazione
+    * quando il budget dinamico rimasto
+    * è vicino al minimo necessario.
+    */
     const isRoleBudgetCritical =
-        spentInRole >= plannedRoleBudget ||
         remainingRoleBudget <=
         criticalBudgetThreshold;
 
@@ -279,13 +280,15 @@ export default function AuctionSuggestions({
 
 
     /*
-     * Quando il budget del ruolo è critico,
-     * utilizziamo un tetto prudente basato
-     * sul budget medio disponibile per slot.
-     */
+    * Il tetto di emergenza non può superare:
+    * - il massimo tecnicamente spendibile;
+    * - il budget dinamico del ruolo;
+    * - il budget medio prudente per slot.
+    */
     const emergencyBudget =
         Math.min(
             maximumBid,
+            remainingRoleBudget,
             Math.max(
                 config.minimumBid,
                 averageBudgetPerSlot,
@@ -571,11 +574,15 @@ export default function AuctionSuggestions({
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl bg-white p-4">
                     <p className="text-xs text-slate-500">
-                        Budget previsto
+                        Budget aggiornato
                     </p>
 
                     <p className="mt-1 text-xl font-bold">
-                        {plannedRoleBudget}
+                        {updatedRoleBudget}
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                        Iniziale: {initialRoleBudget}
                     </p>
                 </div>
 
@@ -591,27 +598,24 @@ export default function AuctionSuggestions({
 
                 <div className="rounded-xl bg-white p-4">
                     <p className="text-xs text-slate-500">
-                        Scostamento
+                        Disponibile ora
                     </p>
 
                     <p
                         className={`
-                            mt-1 text-xl font-bold
-                            ${roleBudgetBalance >= 0
-                                                    ? "text-emerald-700"
-                                                    : "text-red-700"
-                                                }
-                        `}
+        mt-1 text-xl font-bold
+        ${remainingRoleBudget >
+                                criticalBudgetThreshold
+                                ? "text-emerald-700"
+                                : "text-amber-700"
+                            }
+      `}
                     >
-                        {roleBudgetBalance >= 0
-                            ? `+${roleBudgetBalance}`
-                            : roleBudgetBalance}
+                        {remainingRoleBudget}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
-                        {roleBudgetBalance >= 0
-                            ? "crediti ancora previsti"
-                            : "crediti oltre il piano"}
+                        Dopo la ridistribuzione
                     </p>
                 </div>
             </div>
@@ -624,11 +628,8 @@ export default function AuctionSuggestions({
                     </p>
 
                     <p className="mt-1 text-sm">
-                        {roleBudgetBalance < 0
-                            ? `Budget del ruolo superato di ${Math.abs(
-                                roleBudgetBalance,
-                            )} crediti.`
-                            : `Restano ${remainingRoleBudget} crediti del budget previsto.`}
+                        Restano {remainingRoleBudget} crediti
+                        dinamicamente assegnati a questo ruolo.
                         {" "}
                         I suggerimenti privilegiano la convenienza
                         titolarità/prezzo.

@@ -3,6 +3,13 @@
 
 /*
  * Componente che mostra
+ * l'avanzamento della rosa.
+ */
+import AuctionRosterProgress from "../../components/auction/AuctionRosterProgress";
+
+
+/*
+ * Componente che mostra
  * la rosa acquistata.
  */
 import AuctionRoster from "../../components/auction/AuctionRoster";
@@ -34,15 +41,6 @@ import { useAuctionSession } from "../../hooks/useAuctionSession";
  */
 import AuctionSetupForm from "../../components/auction/AuctionSetupForm";
 
-/*
- * Funzioni e costanti della modalità asta.
- */
-import {
-  AUCTION_ROLES,
-  AUCTION_ROLE_NAMES,
-  calculateRoleBudget,
-} from "../../lib/auction-config";
-
 
 /*
  * Pagina iniziale della modalità asta.
@@ -57,6 +55,7 @@ export default function AuctionPage() {
     isStorageReady,
     spentByRole,
     remainingSlots,
+    dynamicRoleBudgets,
     maximumBid,
     startAuction,
     resetAuction,
@@ -233,6 +232,16 @@ export default function AuctionPage() {
                 </div>
               </section>
 
+              {/* Avanzamento della rosa */}
+              <AuctionRosterProgress
+                config={startedConfig}
+                remainingSlots={remainingSlots}
+                spentByRole={spentByRole}
+                dynamicRoleBudgets={
+                  dynamicRoleBudgets
+                }
+              />
+
               {/* Ricerca e registrazione degli acquisti */}
               <AuctionMarket
                 config={startedConfig}
@@ -240,6 +249,9 @@ export default function AuctionPage() {
                   session?.remainingBudget ?? 0
                 }
                 remainingSlots={remainingSlots}
+                dynamicRoleBudgets={
+                  dynamicRoleBudgets
+                }
                 purchases={
                   session?.purchases ?? []
                 }
@@ -258,72 +270,6 @@ export default function AuctionPage() {
                   removePurchase
                 }
               />
-
-              {/* Distribuzione per ruolo */}
-              <section className="rounded-2xl bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-bold">
-                  Strategia iniziale
-                </h2>
-
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {AUCTION_ROLES.map(
-                    (role) => (
-                      <div
-                        key={role}
-                        className="rounded-xl bg-slate-100 p-4"
-                      >
-                        <p className="font-semibold">
-                          {
-                            AUCTION_ROLE_NAMES[
-                            role
-                            ]
-                          }
-                        </p>
-
-                        <dl className="mt-3 space-y-2 text-sm">
-                          {/* Slot ancora disponibili */}
-                          <div className="flex justify-between gap-3">
-                            <dt className="text-slate-500">
-                              Slot liberi
-                            </dt>
-
-                            <dd className="font-semibold">
-                              {remainingSlots[role]} /{" "}
-                              {startedConfig.rosterSlots[role]}
-                            </dd>
-                          </div>
-
-                          {/* Budget inizialmente consigliato */}
-                          <div className="flex justify-between gap-3">
-                            <dt className="text-slate-500">
-                              Budget previsto
-                            </dt>
-
-                            <dd className="font-semibold">
-                              {calculateRoleBudget(
-                                startedConfig,
-                                role,
-                              )}
-                            </dd>
-                          </div>
-
-                          {/* Crediti già spesi nel ruolo */}
-                          <div className="flex justify-between gap-3">
-                            <dt className="text-slate-500">
-                              Speso
-                            </dt>
-
-                            <dd className="font-semibold">
-                              {spentByRole[role]}
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </section>
-
 
               {/* Informazioni sul salvataggio */}
               <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">

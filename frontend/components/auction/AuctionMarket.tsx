@@ -71,6 +71,15 @@ import {
  * Proprietà ricevute dal pannello.
  */
 type AuctionMarketProps = {
+  /*
+  * Budget aggiornato disponibile
+  * per ogni ruolo.
+  */
+  dynamicRoleBudgets: Record<
+    AuctionRole,
+    number
+  >;
+
   config: AuctionConfig;
 
   remainingBudget: number;
@@ -130,6 +139,7 @@ export default function AuctionMarket({
   config,
   remainingBudget,
   remainingSlots,
+  dynamicRoleBudgets,
   purchases,
   maximumBid,
   onRegisterPurchase,
@@ -462,6 +472,9 @@ export default function AuctionMarket({
         }
         remainingSlots={
           remainingSlots
+        }
+        dynamicRoleBudgets={
+          dynamicRoleBudgets
         }
         onSelectPlayer={
           selectPlayer
