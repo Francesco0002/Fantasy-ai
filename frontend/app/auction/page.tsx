@@ -6,17 +6,11 @@ import {
 
 
 /*
- * Componente che mostra
- * l'avanzamento della rosa.
+ * Pannelli laterali compatti:
+ * - rosa personale a sinistra;
+ * - acquisti avversari a destra.
  */
-import AuctionRosterProgress from "../../components/auction/AuctionRosterProgress";
-
-
-/*
- * Componente che mostra
- * la rosa acquistata.
- */
-import AuctionRoster from "../../components/auction/AuctionRoster";
+import AuctionSidePanels from "../../components/auction/AuctionSidePanels";
 
 
 /*
@@ -171,6 +165,25 @@ export default function AuctionPage() {
           startedConfig && (
             <div className="space-y-6">
 
+              <AuctionSidePanels
+                config={startedConfig}
+                purchases={
+                  session?.purchases ?? []
+                }
+                remainingBudget={
+                  session?.remainingBudget ?? 0
+                }
+                remainingSlots={
+                  remainingSlots
+                }
+                dynamicRoleBudgets={
+                  dynamicRoleBudgets
+                }
+                onRemovePurchase={
+                  removePurchase
+                }
+              />
+
               {/* Conferma */}
               <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
                 <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
@@ -252,16 +265,6 @@ export default function AuctionPage() {
                 </div>
               </section>
 
-              {/* Avanzamento della rosa */}
-              <AuctionRosterProgress
-                config={startedConfig}
-                remainingSlots={remainingSlots}
-                spentByRole={spentByRole}
-                dynamicRoleBudgets={
-                  dynamicRoleBudgets
-                }
-              />
-
               {/* Ricerca e registrazione degli acquisti */}
               <AuctionMarket
                 config={startedConfig}
@@ -272,7 +275,7 @@ export default function AuctionPage() {
                 dynamicRoleBudgets={
                   dynamicRoleBudgets
                 }
-                
+
                 purchases={
                   session?.purchases ?? []
                 }
@@ -282,16 +285,6 @@ export default function AuctionPage() {
                 maximumBid={maximumBid}
                 onRegisterPurchase={
                   registerPurchase
-                }
-              />
-
-              {/* Rosa acquistata */}
-              <AuctionRoster
-                purchases={
-                  session?.purchases ?? []
-                }
-                onRemovePurchase={
-                  removePurchase
                 }
               />
 
