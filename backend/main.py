@@ -14,6 +14,16 @@ from typing import Literal
 # il CSV contenente prezzi e valutazioni.
 import pandas as pd
 
+# Classe base degli errori generati
+# durante la comunicazione con il database.
+from sqlalchemy.exc import SQLAlchemyError
+
+# Funzione utilizzata per verificare
+# la connessione PostgreSQL.
+from backend.database import (
+    check_database_connection,
+)
+
 # FastAPI crea l'applicazione web.
 #
 # HTTPException permette di restituire errori HTTP,
@@ -26,6 +36,11 @@ from fastapi import FastAPI, HTTPException, Query
 # CORSMiddleware permette al frontend Next.js
 # di effettuare richieste HTTP verso FastAPI.
 from fastapi.middleware.cors import CORSMiddleware
+
+# Endpoint dedicati alla modalità asta.
+from backend.auction_routes import (
+    router as auction_router,
+)
 
 # Risaliamo dalla cartella backend
 # alla cartella principale fantasy-ai.
@@ -87,6 +102,13 @@ app.add_middleware(
 
     # Permettiamo tutti gli header HTTP.
     allow_headers=["*"],
+)
+
+
+# Aggiungiamo gli endpoint
+# dedicati alle sessioni d'asta.
+app.include_router(
+    auction_router
 )
 
 
@@ -181,6 +203,31 @@ def health_check() -> dict:
         "status": "ok",
         "players_available": len(players),
         "prices_file": PRICES_PATH.name,
+    }
+    
+    
+@app.get("/health/database")
+def database_health_check() -> dict:
+    """
+    Controlla che il backend riesca
+    a comunicare con PostgreSQL.
+    """
+
+    try:
+        check_database_connection()
+
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Il database PostgreSQL "
+                "non è raggiungibile."
+            ),
+        ) from error
+
+    return {
+        "status": "ok",
+        "database": "connected",
     }
 
 
