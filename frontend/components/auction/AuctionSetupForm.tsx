@@ -1,5 +1,9 @@
 "use client";
 
+
+import CustomSelect from
+  "../ui/CustomSelect";
+
 /*
  * Hook React utilizzato per conservare
  * la configurazione inserita dall'utente.
@@ -39,6 +43,30 @@ import type {
 type AuctionSetupFormProps = {
   onStart: (config: AuctionConfig) => void;
 };
+
+
+/*
+ * Opzioni disponibili per la modalità
+ * con cui vengono chiamati i giocatori.
+ */
+const AUCTION_MODE_OPTIONS: readonly {
+  value: AuctionConfig["auctionMode"];
+  label: string;
+}[] = [
+    {
+      value: "ROLE_BY_ROLE",
+      label:
+        AUCTION_MODE_NAMES
+          .ROLE_BY_ROLE,
+    },
+
+    {
+      value: "FULL_RANDOM",
+      label:
+        AUCTION_MODE_NAMES
+          .FULL_RANDOM,
+    },
+  ];
 
 
 /*
@@ -686,42 +714,21 @@ export default function AuctionSetupForm({
               Modalità dell&apos;asta
             </label>
 
-            <select
+            <CustomSelect
               id="auction-mode"
               value={config.auctionMode}
-              onChange={(event) => {
-                setConfig((currentConfig) => ({
-                  ...currentConfig,
-
-                  auctionMode:
-                    event.target
-                      .value as AuctionConfig["auctionMode"],
-                }));
+              options={AUCTION_MODE_OPTIONS}
+              tone="emerald"
+              placeholder="Seleziona la modalità"
+              onChange={(auctionMode) => {
+                setConfig(
+                  (currentConfig) => ({
+                    ...currentConfig,
+                    auctionMode,
+                  }),
+                );
               }}
-              className="
-                w-full rounded-xl border
-                border-slate-300 bg-white
-                px-4 py-3 outline-none
-                transition
-                focus:border-emerald-600
-                focus:ring-2
-                focus:ring-emerald-100
-              "
-            >
-              <option value="ROLE_BY_ROLE">
-                {
-                  AUCTION_MODE_NAMES
-                    .ROLE_BY_ROLE
-                }
-              </option>
-
-              <option value="FULL_RANDOM">
-                {
-                  AUCTION_MODE_NAMES
-                    .FULL_RANDOM
-                }
-              </option>
-            </select>
+            />
 
             <p className="mt-2 text-xs text-slate-500">
               {config.auctionMode ===

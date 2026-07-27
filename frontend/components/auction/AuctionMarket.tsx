@@ -1,5 +1,10 @@
 "use client";
 
+
+import CustomSelect from
+  "../ui/CustomSelect";
+
+
 /*
  * Calcola la quotazione aggiornata
  * dei giocatori durante l'asta.
@@ -489,13 +494,9 @@ export default function AuctionMarket({
 
 
   /*
-   * Seleziona un giocatore e propone
-   * automaticamente un prezzo iniziale.
-   */
-  /*
- * Seleziona un giocatore e propone
- * automaticamente un prezzo iniziale.
- */
+  * Seleziona un giocatore e propone
+  * automaticamente un prezzo iniziale.
+  */
   function selectPlayer(
     player: Player,
   ) {
@@ -845,40 +846,21 @@ export default function AuctionMarket({
                  * Menu mostrato quando i nomi
                  * sono stati configurati in anticipo.
                  */
-                <select
+                <CustomSelect
                   id="opponent-name"
-                  required
                   value={opponentName}
-                  onChange={(event) => {
-                    setOpponentName(
-                      event.target.value,
-                    );
-                  }}
-                  className="
-                    w-full rounded-xl border
-                    border-slate-300 bg-white
-                    px-4 py-2.5 outline-none
-                    transition
-                    focus:border-amber-500
-                    focus:ring-2
-                    focus:ring-amber-100
-                  "
-                >
-                  <option value="">
-                    Seleziona la squadra
-                  </option>
-
-                  {configuredOpponentTeamNames.map(
-                    (teamName) => (
-                      <option
-                        key={teamName}
-                        value={teamName}
-                      >
-                        {teamName}
-                      </option>
-                    ),
+                  tone="amber"
+                  placeholder="Seleziona la squadra"
+                  options={configuredOpponentTeamNames.map(
+                    (teamName) => ({
+                      value: teamName,
+                      label: teamName,
+                    }),
                   )}
-                </select>
+                  onChange={(teamName) => {
+                    setOpponentName(teamName);
+                  }}
+                />
               ) : (
                 /*
                  * Campo manuale mantenuto per chi
