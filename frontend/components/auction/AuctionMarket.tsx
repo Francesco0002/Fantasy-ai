@@ -1,6 +1,15 @@
 "use client";
 
 /*
+ * Calcola la quotazione aggiornata
+ * dei giocatori durante l'asta.
+ */
+import {
+  calculateDynamicPlayerValuation,
+} from "../../lib/auction-valuation";
+
+
+/*
  * Pannello con i migliori giocatori
  * compatibili con il budget corrente.
  */
@@ -234,32 +243,97 @@ export default function AuctionMarket({
 
 
   /*
-* Consiglio strategico calcolato
-* sul giocatore e sul prezzo correnti.
-*/
+  * Quotazione dinamica del giocatore
+  * attualmente selezionato.
+  *
+  * Viene aggiornata dopo ogni acquisto,
+  * annullamento e ridistribuzione del budget.
+  */
+  const selectedValuation = useMemo(() => {
+    if (!selectedPlayer) {
+      return null;
+    }
+
+    return calculateDynamicPlayerValuation({
+      player: selectedPlayer,
+      config,
+      purchases,
+      remainingBudget,
+      remainingSlots,
+      dynamicRoleBudgets,
+      maximumBid,
+    });
+  }, [
+    selectedPlayer,
+    config,
+    purchases,
+    remainingBudget,
+    remainingSlots,
+    dynamicRoleBudgets,
+    maximumBid,
+  ]);
+
+
+
+  /*
+  * Consiglio strategico calcolato
+  * utilizzando le quotazioni dinamiche.
+  */
   const auctionAdvice = useMemo(() => {
-    /*
-     * Non mostriamo una valutazione
-     * senza giocatore o senza prezzo.
-     */
     if (
       !selectedPlayer ||
+      !selectedValuation ||
       purchasePrice.trim() === ""
     ) {
       return null;
     }
 
+    /*
+     * Creiamo una copia del giocatore
+     * sostituendo le quotazioni originali
+     * con quelle aggiornate.
+     */
+    const dynamicallyValuedPlayer: Player = {
+      ...selectedPlayer,
+
+      recommended_min:
+        selectedValuation
+          .dynamicRecommendedMin,
+
+      recommended_price:
+        selectedValuation
+          .dynamicRecommendedPrice,
+
+      recommended_max:
+        selectedValuation
+          .dynamicRecommendedMax,
+
+      absolute_max:
+        selectedValuation
+          .dynamicAbsoluteMax,
+    };
+
     return createAuctionAdvice({
-      player: selectedPlayer,
+      player: dynamicallyValuedPlayer,
       bid: Number(purchasePrice),
       config,
       remainingBudget,
       remainingSlots,
       purchases,
+
+      /*
+       * Il vincolo tecnico complessivo
+       * rimane maximumBid.
+       *
+       * Questo permette di superare il piano
+       * di un ruolo, ridistribuendo poi
+       * il budget degli altri ruoli.
+       */
       maximumBid,
     });
   }, [
     selectedPlayer,
+    selectedValuation,
     purchasePrice,
     config,
     remainingBudget,
@@ -280,20 +354,32 @@ export default function AuctionMarket({
     setFeedback(null);
 
     /*
-     * Il prezzo proposto:
-     * - non scende sotto l'offerta minima;
-     * - non supera l'offerta massima possibile.
+     * Calcoliamo la quotazione aggiornata
+     * nel momento in cui il giocatore
+     * viene selezionato.
      */
-    const suggestedPrice = Math.min(
-      Math.max(
-        player.recommended_price,
-        config.minimumBid,
-      ),
-      maximumBid,
-    );
+    const valuation =
+      calculateDynamicPlayerValuation({
+        player,
+        config,
+        purchases,
+        remainingBudget,
+        remainingSlots,
+        dynamicRoleBudgets,
+        maximumBid,
+      });
 
+    /*
+     * Inseriamo automaticamente
+     * il prezzo dinamico suggerito.
+     */
     setPurchasePrice(
-      String(suggestedPrice),
+      String(
+        Math.max(
+          valuation.suggestedBid,
+          config.minimumBid,
+        ),
+      ),
     );
   }
 
@@ -369,6 +455,21 @@ export default function AuctionMarket({
 
       purchasePrice:
         parsedPrice,
+
+      /*
+       * Quotazione originale del dataset.
+       */
+      baseRecommendedPriceAtPurchase:
+        selectedPlayer.recommended_price,
+
+      /*
+       * Quotazione aggiornata nel momento
+       * esatto in cui viene registrato l'acquisto.
+       */
+      dynamicRecommendedPriceAtPurchase:
+        selectedValuation
+          ?.dynamicRecommendedPrice ??
+        selectedPlayer.recommended_price,
 
       purchasedAt:
         new Date().toISOString(),
@@ -556,6 +657,17 @@ export default function AuctionMarket({
               <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
                 {availablePlayers.map(
                   (player) => {
+                    const playerValuation =
+                      calculateDynamicPlayerValuation({
+                        player,
+                        config,
+                        purchases,
+                        remainingBudget,
+                        remainingSlots,
+                        dynamicRoleBudgets,
+                        maximumBid,
+                      });
+
                     const isSelected =
                       selectedPlayer?.player_id ===
                       player.player_id;
@@ -619,10 +731,21 @@ export default function AuctionMarket({
                           </p>
 
                           <p className="mt-1 text-xs text-slate-500">
-                            Prezzo{" "}
-                            {
-                              player.recommended_price
-                            }
+                            Quotazione{" "}
+                            <strong className="text-slate-700">
+                              {
+                                playerValuation
+                                  .dynamicRecommendedPrice
+                              }
+                            </strong>
+
+                            {playerValuation
+                              .dynamicRecommendedPrice !==
+                              player.recommended_price && (
+                                <span className="ml-1 text-slate-400">
+                                  ({player.recommended_price} iniziale)
+                                </span>
+                              )}
                           </p>
                         </div>
                       </button>
@@ -695,17 +818,71 @@ export default function AuctionMarket({
                     </dd>
                   </div>
 
+                  {/* Quotazione originale */}
                   <div className="flex justify-between gap-3">
                     <dt className="text-slate-500">
-                      Prezzo consigliato
+                      Quotazione iniziale
                     </dt>
 
-                    <dd className="font-semibold">
-                      {
-                        selectedPlayer.recommended_price
-                      }
+                    <dd className="font-semibold text-slate-500">
+                      {selectedPlayer.recommended_price}
                     </dd>
                   </div>
+
+
+                  {/* Quotazione aggiornata */}
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-slate-500">
+                      Quotazione dinamica
+                    </dt>
+
+                    <dd className="font-bold text-emerald-700">
+                      {selectedValuation
+                        ?.dynamicRecommendedPrice ??
+                        selectedPlayer.recommended_price}
+                    </dd>
+                  </div>
+
+
+                  {/* Andamento della quotazione */}
+                  {selectedValuation && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-slate-500">
+                        Andamento
+                      </dt>
+
+                      <dd
+                        className={`
+                          font-semibold
+
+                          ${selectedValuation.marketTrend ===
+                            "In rialzo"
+                            ? "text-red-700"
+                            : selectedValuation.marketTrend ===
+                              "In ribasso"
+                              ? "text-emerald-700"
+                              : "text-slate-700"
+                          }
+                        `}
+                      >
+                        {selectedValuation.marketTrend}
+                      </dd>
+                    </div>
+                  )}
+
+
+                  {/* Tetto prudente */}
+                  {selectedValuation && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-slate-500">
+                        Tetto prudente
+                      </dt>
+
+                      <dd className="font-semibold">
+                        {selectedValuation.personalMaximumBid}
+                      </dd>
+                    </div>
+                  )}
 
                   <div className="flex justify-between gap-3">
                     <dt className="text-slate-500">
@@ -803,13 +980,13 @@ export default function AuctionMarket({
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="rounded-lg bg-white/70 p-3">
                       <p className="text-xs opacity-70">
-                        Prezzo consigliato
+                        Quotazione dinamica
                       </p>
 
                       <p className="mt-1 font-bold">
-                        {
-                          selectedPlayer.recommended_price
-                        }
+                        {selectedValuation
+                          ?.dynamicRecommendedPrice ??
+                          selectedPlayer.recommended_price}
                       </p>
                     </div>
 

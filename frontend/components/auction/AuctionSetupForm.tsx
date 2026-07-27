@@ -11,6 +11,7 @@ import { useState } from "react";
  * condivise della modalità asta.
  */
 import {
+  AUCTION_MODE_NAMES,
   AUCTION_ROLES,
   AUCTION_ROLE_NAMES,
   calculateRoleBudget,
@@ -496,6 +497,60 @@ export default function AuctionSetupForm({
                 focus:ring-emerald-100
               "
             />
+          </div>
+
+          {/* Modalità dell'asta */}
+          <div className="md:col-span-2">
+            <label
+              htmlFor="auction-mode"
+              className="mb-2 block text-sm font-semibold"
+            >
+              Modalità dell&apos;asta
+            </label>
+
+            <select
+              id="auction-mode"
+              value={config.auctionMode}
+              onChange={(event) => {
+                setConfig((currentConfig) => ({
+                  ...currentConfig,
+
+                  auctionMode:
+                    event.target
+                      .value as AuctionConfig["auctionMode"],
+                }));
+              }}
+              className="
+      w-full rounded-xl border
+      border-slate-300 bg-white
+      px-4 py-3 outline-none
+      transition
+      focus:border-emerald-600
+      focus:ring-2
+      focus:ring-emerald-100
+    "
+            >
+              <option value="ROLE_BY_ROLE">
+                {
+                  AUCTION_MODE_NAMES
+                    .ROLE_BY_ROLE
+                }
+              </option>
+
+              <option value="FULL_RANDOM">
+                {
+                  AUCTION_MODE_NAMES
+                    .FULL_RANDOM
+                }
+              </option>
+            </select>
+
+            <p className="mt-2 text-xs text-slate-500">
+              {config.auctionMode ===
+                "ROLE_BY_ROLE"
+                ? "Le quotazioni reagiscono soprattutto agli acquisti dello stesso ruolo. Il budget residuo viene trasferito quando il ruolo è completato."
+                : "Ogni acquisto influenza gradualmente le quotazioni e i budget di tutti i ruoli ancora incompleti."}
+            </p>
           </div>
         </div>
       </section>

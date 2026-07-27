@@ -3,6 +3,7 @@
  */
 import type {
   AuctionConfig,
+  AuctionMode,
   AuctionRole,
 } from "../types/auction";
 
@@ -19,6 +20,8 @@ export const DEFAULT_AUCTION_CONFIG: AuctionConfig = {
   participants: 8,
   startingBudget: 500,
   minimumBid: 1,
+
+  auctionMode: "ROLE_BY_ROLE",
 
   /*
    * Composizione classica della rosa:
@@ -44,6 +47,21 @@ export const DEFAULT_AUCTION_CONFIG: AuctionConfig = {
     C: 0.26,
     A: 0.50,
   },
+};
+
+
+/*
+ * Nomi mostrati nell'interfaccia.
+ */
+export const AUCTION_MODE_NAMES: Record<
+  AuctionMode,
+  string
+> = {
+  ROLE_BY_ROLE:
+    "Random ruolo per ruolo",
+
+  FULL_RANDOM:
+    "Totalmente random",
 };
 
 

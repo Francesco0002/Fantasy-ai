@@ -164,7 +164,25 @@ export function useAuctionSession() {
           parsedSession,
         )
       ) {
-        setSession(parsedSession);
+        /*
+         * Le sessioni create prima
+         * dell'introduzione di auctionMode
+         * vengono considerate ruolo per ruolo.
+         */
+        const restoredSession: AuctionSession = {
+          ...parsedSession,
+
+          config: {
+            ...parsedSession.config,
+
+            auctionMode:
+              parsedSession.config
+                .auctionMode ??
+              "ROLE_BY_ROLE",
+          },
+        };
+
+        setSession(restoredSession);
       } else {
         /*
          * Eliminiamo eventuali dati corrotti.
@@ -376,10 +394,12 @@ export function useAuctionSession() {
         session.remainingBudget,
         remainingSlots,
         spentByRole,
+        session.purchases,
       );
     }, [
       session,
       remainingSlots,
+      spentByRole,
     ]);
 
 

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  AUCTION_MODE_NAMES,
+} from "../../lib/auction-config";
+
 
 /*
  * Componente che mostra
@@ -174,6 +178,16 @@ export default function AuctionPage() {
                 <h2 className="mt-2 text-2xl font-bold text-emerald-950">
                   {startedConfig.leagueName}
                 </h2>
+
+                <p className="mt-2 text-sm font-semibold text-emerald-800">
+                  Modalità:{" "}
+                  {
+                    AUCTION_MODE_NAMES[
+                    startedConfig.auctionMode ??
+                    "ROLE_BY_ROLE"
+                    ]
+                  }
+                </p>
 
                 <p className="mt-2 text-emerald-800">
                   La sessione è pronta per essere avviata.

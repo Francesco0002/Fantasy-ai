@@ -39,6 +39,15 @@ export type BudgetDistribution = {
 
 
 /*
+ * Modalità con cui vengono chiamati
+ * i giocatori durante l'asta.
+ */
+export type AuctionMode =
+  | "ROLE_BY_ROLE"
+  | "FULL_RANDOM";
+
+
+/*
  * Configurazione generale dell'asta.
  */
 export type AuctionConfig = {
@@ -74,6 +83,16 @@ export type AuctionConfig = {
    * Ripartizione consigliata del budget.
    */
   budgetDistribution: BudgetDistribution;
+
+  /*
+  * ROLE_BY_ROLE:
+  * si completa un ruolo prima di passare al successivo.
+  *
+  * FULL_RANDOM:
+  * i giocatori di tutti i ruoli possono uscire
+  * in qualsiasi momento.
+  */
+  auctionMode: AuctionMode;
 };
 
 
@@ -90,17 +109,22 @@ export type AuctionPurchase = {
   role: AuctionRole;
 
   /*
-   * Prezzo pagato per il giocatore.
+   * Prezzo realmente pagato.
    */
   purchasePrice: number;
 
   /*
-   * Data e ora in cui è stato
-   * registrato l'acquisto.
+   * Quotazione originale.
    */
+  baseRecommendedPriceAtPurchase?: number;
+
+  /*
+   * Quotazione dinamica dell'asta.
+   */
+  dynamicRecommendedPriceAtPurchase?: number;
+
   purchasedAt: string;
 };
-
 
 /*
  * Stato completo di una sessione d'asta.
