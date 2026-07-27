@@ -537,7 +537,7 @@ export default function AuctionSuggestions({
 
 
     return (
-        <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <section className="rounded-xl bg-transparent p-1">
             {/* Intestazione */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>

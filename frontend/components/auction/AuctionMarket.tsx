@@ -134,6 +134,66 @@ type Feedback = {
 
 
 /*
+ * Colori dei pulsanti utilizzati
+ * per selezionare il ruolo.
+ *
+ * Ogni ruolo mantiene i colori
+ * già utilizzati nel resto dell'applicazione.
+ */
+const AUCTION_ROLE_BUTTON_CLASSES: Record<
+  AuctionRole,
+  {
+    active: string;
+    inactive: string;
+  }
+> = {
+  /*
+   * Portieri: giallo/ambra.
+   */
+  P: {
+    active:
+      "border-amber-500 bg-amber-500 text-slate-950 ring-2 ring-amber-200",
+
+    inactive:
+      "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
+  },
+
+  /*
+   * Difensori: verde.
+   */
+  D: {
+    active:
+      "border-emerald-600 bg-emerald-600 text-white ring-2 ring-emerald-200",
+
+    inactive:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
+  },
+
+  /*
+   * Centrocampisti: blu.
+   */
+  C: {
+    active:
+      "border-blue-600 bg-blue-600 text-white ring-2 ring-blue-200",
+
+    inactive:
+      "border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100",
+  },
+
+  /*
+   * Attaccanti: rosso.
+   */
+  A: {
+    active:
+      "border-red-600 bg-red-600 text-white ring-2 ring-red-200",
+
+    inactive:
+      "border-red-200 bg-red-50 text-red-800 hover:bg-red-100",
+  },
+};
+
+
+/*
  * Trasforma una probabilità da 0-1
  * in una percentuale.
  */
@@ -646,167 +706,212 @@ export default function AuctionMarket({
 
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm">
+    <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
       {/* Intestazione */}
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
-          Mercato
-        </p>
 
-        <h2 className="mt-1 text-2xl font-bold">
-          Registra un acquisto
-        </h2>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">
+              Mercato dell&apos;asta
+            </h2>
 
-        <p className="mt-2 text-sm text-slate-500">
-          Cerca il giocatore, selezionalo e inserisci il prezzo finale dell&apos;asta.
-        </p>
-      </div>
-
-      {/* Destinatario dell'acquisto */}
-      <div className="mt-6">
-        <p className="mb-2 text-sm font-semibold">
-          Chi ha acquistato il giocatore?
-        </p>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => {
-              changePurchaseOwner("ME");
-            }}
-            className={`
-        rounded-xl border px-4 py-3
-        text-sm font-semibold transition
-
-        ${purchaseOwner === "ME"
-                ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }
-      `}
-          >
-            Acquistato da me
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              changePurchaseOwner(
-                "OPPONENT",
-              );
-            }}
-            className={`
-        rounded-xl border px-4 py-3
-        text-sm font-semibold transition
-
-        ${purchaseOwner === "OPPONENT"
-                ? "border-amber-500 bg-amber-50 text-amber-800"
-                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }
-      `}
-          >
-            Acquistato da un avversario
-          </button>
-        </div>
-
-        {purchaseOwner === "OPPONENT" && (
-          <div className="mt-3">
-            <label
-              htmlFor="opponent-name"
-              className="mb-2 block text-sm font-semibold"
-            >
-              Nome squadra avversaria
-            </label>
-
-            <input
-              id="opponent-name"
-              type="text"
-              required={
-                purchaseOwner === "OPPONENT"
-              }
-              value={opponentName}
-              onChange={(event) => {
-                setOpponentName(
-                  event.target.value,
-                );
-              }}
-              placeholder="Es. Team Marco"
-              className="
-                w-full rounded-xl border
-                border-slate-300 bg-white
-                px-4 py-3 outline-none
-                transition
-                focus:border-amber-500
-                focus:ring-2
-                focus:ring-amber-100
-              "
-            />
-            <p className="mt-2 text-xs text-slate-500">
-              Usa sempre lo stesso nome per registrare
-              gli acquisti della stessa squadra.
+            <p className="mt-1 text-sm text-slate-500">
+              Seleziona un giocatore e registra il prezzo finale.
             </p>
           </div>
-        )}
+
+          <p className="text-xs text-slate-400">
+            Quotazioni aggiornate automaticamente
+          </p>
+        </div>
       </div>
 
+      {/*
+      * Destinatario e ruolo sulla stessa riga
+      * quando lo schermo è abbastanza largo.
+      *
+      * Su smartphone restano uno sotto l'altro.
+      */}
+      <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        {/* Destinatario dell'acquisto */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Destinatario
+          </p>
 
-      {/* Selezione del ruolo */}
-      <div className="mt-6 grid grid-cols-4 gap-2">
-        {AUCTION_ROLES.map((role) => {
-          return (
+          <div className="grid grid-cols-2 gap-2">
+            {/* Acquisto personale */}
             <button
-              key={role}
               type="button"
               onClick={() => {
-                changeRole(role);
+                changePurchaseOwner("ME");
               }}
               className={`
-          rounded-xl px-3 py-3
-          text-sm font-semibold
-          transition
+          rounded-xl border px-3 py-2.5
+          text-sm font-semibold transition
 
-          ${activeRole === role
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          ${purchaseOwner === "ME"
+                  ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }
         `}
             >
-              {role}
-
-              <span className="ml-1 text-xs">
-                ({remainingSlots[role]})
-              </span>
+              La mia rosa
             </button>
-          );
-        })}
+
+            {/* Acquisto avversario */}
+            <button
+              type="button"
+              onClick={() => {
+                changePurchaseOwner(
+                  "OPPONENT",
+                );
+              }}
+              className={`
+          rounded-xl border px-3 py-2.5
+          text-sm font-semibold transition
+
+          ${purchaseOwner === "OPPONENT"
+                  ? "border-amber-500 bg-amber-50 text-amber-800"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }
+        `}
+            >
+              Squadra avversaria
+            </button>
+          </div>
+
+          {/* Nome della squadra avversaria */}
+          {purchaseOwner === "OPPONENT" && (
+            <div className="mt-3">
+              <label
+                htmlFor="opponent-name"
+                className="mb-2 block text-sm font-semibold"
+              >
+                Nome squadra avversaria
+              </label>
+
+              <input
+                id="opponent-name"
+                type="text"
+                required
+                value={opponentName}
+                onChange={(event) => {
+                  setOpponentName(
+                    event.target.value,
+                  );
+                }}
+                placeholder="Es. Team Marco"
+                className="
+                  w-full rounded-xl border
+                  border-slate-300 bg-white
+                  px-4 py-2.5 outline-none
+                  transition
+                  focus:border-amber-500
+                  focus:ring-2
+                  focus:ring-amber-100
+                "
+              />
+
+              <p className="mt-1 text-xs text-slate-500">
+                Usa sempre lo stesso nome per gli acquisti della stessa squadra.
+              </p>
+            </div>
+          )}
+        </div>
+
+
+        {/* Selezione del ruolo */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Ruolo
+          </p>
+
+          <div className="grid grid-cols-4 gap-2">
+            {AUCTION_ROLES.map((role) => {
+              const roleButtonClasses =
+                AUCTION_ROLE_BUTTON_CLASSES[role];
+
+              const isActive =
+                activeRole === role;
+
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    changeRole(role);
+                  }}
+                  className={`
+                    rounded-xl border
+                    px-3 py-2.5
+                    text-sm font-bold
+                    shadow-sm transition
+
+                    ${isActive
+                                ? roleButtonClasses.active
+                                : roleButtonClasses.inactive
+                              }
+                  `}
+                >
+                  {role}
+
+                  <span
+                    className={`
+                    ml-1 text-xs
+                    ${isActive
+                                ? "opacity-90"
+                                : "opacity-70"
+                              }
+                  `}
+                  >
+                    ({remainingSlots[role]})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Suggerimenti strategici per il ruolo selezionato */}
       {purchaseOwner === "ME" && (
-        <AuctionSuggestions
-          players={availablePlayers}
-          role={activeRole}
-          config={config}
+        <details className="mt-4 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
+          <summary className="cursor-pointer list-none px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-emerald-950">
+                  Assistente strategico
+                </p>
 
-          /*
-           * I suggerimenti personali devono
-           * considerare solamente la nostra rosa.
-           */
-          purchases={myPurchases}
+                <p className="mt-0.5 text-xs text-emerald-700">
+                  Budget, suggerimenti e giocatori consigliati
+                </p>
+              </div>
 
-          maximumBid={maximumBid}
-          remainingBudget={
-            remainingBudget
-          }
-          remainingSlots={
-            remainingSlots
-          }
-          dynamicRoleBudgets={
-            dynamicRoleBudgets
-          }
-          onSelectPlayer={
-            selectPlayer
-          }
-        />
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-800">
+                Apri
+              </span>
+            </div>
+          </summary>
+
+          <div className="border-t border-emerald-200 p-3">
+            <AuctionSuggestions
+              players={availablePlayers}
+              role={activeRole}
+              config={config}
+              purchases={myPurchases}
+              maximumBid={maximumBid}
+              remainingBudget={remainingBudget}
+              remainingSlots={remainingSlots}
+              dynamicRoleBudgets={
+                dynamicRoleBudgets
+              }
+              onSelectPlayer={selectPlayer}
+            />
+          </div>
+        </details>
       )}
 
       {purchaseOwner === "OPPONENT" && (
@@ -822,7 +927,7 @@ export default function AuctionMarket({
        * - lista giocatori a sinistra;
        * - riepilogo acquisto a destra.
        */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
 
         {/* Ricerca e lista */}
         <div>
@@ -889,7 +994,7 @@ export default function AuctionMarket({
             !error &&
             availablePlayers.length >
             0 && (
-              <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
+              <div className="mt-3 max-h-[calc(100vh-250px)] min-h-[420px] space-y-2 overflow-y-auto pr-1">
                 {availablePlayers.map(
                   (player) => {
                     const playerValuation =
@@ -993,14 +1098,21 @@ export default function AuctionMarket({
 
 
         {/* Pannello acquisto */}
-        <aside className="h-fit rounded-2xl bg-slate-100 p-5 lg:sticky lg:top-5">
+        <aside className="h-fit rounded-xl bg-slate-100 p-4 xl:sticky xl:top-4">
           <h3 className="text-lg font-bold">
             Riepilogo acquisto
           </h3>
 
           {!selectedPlayer && (
-            <div className="mt-4 rounded-xl bg-white p-5 text-sm text-slate-500">
-              Seleziona un giocatore dalla lista.
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
+              <p className="font-semibold text-slate-700">
+                Nessun giocatore selezionato
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Scegli un giocatore dalla lista per vedere
+                quotazione, consiglio e prezzo massimo.
+              </p>
             </div>
           )}
 

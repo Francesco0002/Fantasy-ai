@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Mantiene stabile lo spazio destinato
+ * alla scrollbar verticale.
+ */
+html {
+  scrollbar-gutter: stable;
+}

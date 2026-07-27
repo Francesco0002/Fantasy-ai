@@ -106,8 +106,17 @@ export default function AuctionPage() {
 
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-900">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-slate-100 py-6 text-slate-900">
+      <div
+        className="
+          mx-auto w-full
+          max-w-[1600px]
+          px-4
+          md:px-16
+          lg:px-20
+          xl:px-24
+        "
+      >
 
         {/* Navigazione */}
         <Link
@@ -119,7 +128,7 @@ export default function AuctionPage() {
 
 
         {/* Intestazione */}
-        <header className="mt-6 mb-8">
+        <header className="mt-4 mb-5">
           <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
             Fantasy AI
           </p>
@@ -184,86 +193,86 @@ export default function AuctionPage() {
                 }
               />
 
-              {/* Conferma */}
-              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-                <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
-                  Configurazione completata
-                </p>
+              {/* Riepilogo compatto della sessione */}
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  {/* Informazioni sulla lega */}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                        Asta attiva
+                      </p>
 
-                <h2 className="mt-2 text-2xl font-bold text-emerald-950">
-                  {startedConfig.leagueName}
-                </h2>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                        {
+                          AUCTION_MODE_NAMES[
+                          startedConfig.auctionMode ??
+                          "ROLE_BY_ROLE"
+                          ]
+                        }
+                      </span>
+                    </div>
 
-                <p className="mt-2 text-sm font-semibold text-emerald-800">
-                  Modalità:{" "}
-                  {
-                    AUCTION_MODE_NAMES[
-                    startedConfig.auctionMode ??
-                    "ROLE_BY_ROLE"
-                    ]
-                  }
-                </p>
+                    <h2 className="mt-2 truncate text-xl font-bold">
+                      {startedConfig.leagueName}
+                    </h2>
 
-                <p className="mt-2 text-emerald-800">
-                  La sessione è pronta per essere avviata.
-                </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {startedConfig.participants} partecipanti ·{" "}
+                      {startedConfig.startingBudget} crediti iniziali
+                    </p>
+                  </div>
+
+
+                  {/* Dati principali */}
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[660px]">
+                    <div className="rounded-xl bg-emerald-700 px-4 py-3 text-white">
+                      <p className="text-xs text-emerald-100">
+                        Budget residuo
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {session?.remainingBudget ?? 0}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-100 px-4 py-3">
+                      <p className="text-xs text-slate-500">
+                        Crediti spesi
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {totalSpent}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-100 px-4 py-3">
+                      <p className="text-xs text-slate-500">
+                        La mia rosa
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {myPurchases.length}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {opponentPurchases.length} avversari
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-100 px-4 py-3">
+                      <p className="text-xs text-slate-500">
+                        Slot liberi
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {totalRemainingSlots}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </section>
 
-
-              {/* Stato generale della sessione */}
-              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Budget ancora disponibile */}
-                <div className="rounded-2xl bg-emerald-700 p-5 text-white shadow-sm">
-                  <p className="text-sm text-emerald-100">
-                    Budget residuo
-                  </p>
-
-                  <p className="mt-1 text-3xl font-bold">
-                    {session?.remainingBudget ?? 0}
-                  </p>
-
-                  <p className="mt-2 text-xs text-emerald-100">
-                    su {startedConfig.startingBudget} iniziali
-                  </p>
-                </div>
-
-                {/* Crediti già spesi */}
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">
-                    Crediti spesi
-                  </p>
-
-                  <p className="mt-1 text-3xl font-bold">
-                    {totalSpent}
-                  </p>
-                </div>
-
-                {/* Giocatori acquistati */}
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">
-                    Giocatori acquistati
-                  </p>
-
-                  <p className="mt-1 text-3xl font-bold">
-                    {myPurchases.length}
-                  </p>
-
-                  <p className="mt-2 text-xs text-slate-500">
-                    {opponentPurchases.length} assegnati agli avversari
-                  </p>
-                </div>
-
-                {/* Slot ancora da completare */}
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">
-                    Slot ancora liberi
-                  </p>
-
-                  <p className="mt-1 text-3xl font-bold">
-                    {totalRemainingSlots}
-                  </p>
-                </div>
-              </section>
 
               {/* Ricerca e registrazione degli acquisti */}
               <AuctionMarket
@@ -288,38 +297,32 @@ export default function AuctionPage() {
                 }
               />
 
-              {/* Informazioni sul salvataggio */}
-              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
-                <p className="font-semibold">
-                  Sessione salvata automaticamente
-                </p>
+              {/* Barra finale compatta */}
+              <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Sessione salvata automaticamente
+                  </p>
 
-                <p className="mt-1 text-sm">
-                  Configurazione, budget e acquisti vengono conservati in questo browser. Potrai aggiornare la pagina e continuare l&apos;asta senza perdere i dati.
-                </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Budget, acquisti e quotazioni restano salvati in questo browser.
+                  </p>
+                </div>
 
-                <p className="mt-2 text-xs text-emerald-700">
-                  Il salvataggio non è ancora sincronizzato tra dispositivi diversi.
-                </p>
-              </section>
-
-
-              {/* Modifica configurazione */}
-              <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={handleResetAuction}
                   className="
-                  rounded-xl border
-                  border-slate-300 bg-white
-                  px-5 py-3 text-sm
-                  font-semibold transition
-                  hover:bg-slate-100
-                "
+                    shrink-0 rounded-xl border
+                    border-slate-300 bg-white
+                    px-4 py-2 text-sm
+                    font-semibold transition
+                    hover:bg-slate-100
+                  "
                 >
                   Termina e riconfigura
                 </button>
-              </div>
+              </section>
             </div>
           )}
       </div>
