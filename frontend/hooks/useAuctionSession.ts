@@ -535,6 +535,20 @@ export function useAuctionSession() {
     }
 
     /*
+    * Per gli acquisti avversari è necessario
+    * indicare la squadra proprietaria.
+    */
+    if (
+      purchase.ownerType === "OPPONENT" &&
+      (
+        !purchase.ownerName ||
+        purchase.ownerName.trim() === ""
+      )
+    ) {
+      return "Inserisci il nome della squadra avversaria.";
+    }
+
+    /*
      * Il prezzo deve essere intero
      * e rispettare l'offerta minima.
      */

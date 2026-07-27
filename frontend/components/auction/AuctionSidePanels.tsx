@@ -77,6 +77,65 @@ type OpenPanel =
 
 
 /*
+ * Riepilogo completo di una squadra avversaria.
+ */
+type OpponentTeamSummary = {
+  /*
+   * Identificatore normalizzato usato
+   * per evitare duplicati dovuti
+   * a maiuscole e minuscole.
+   */
+  key: string;
+
+  /*
+   * Nome mostrato nell'interfaccia.
+   */
+  name: string;
+
+  /*
+   * Acquisti registrati per la squadra.
+   */
+  purchases: AuctionPurchase[];
+
+  /*
+   * Spesa totale registrata.
+   */
+  totalSpent: number;
+
+  /*
+   * Budget ancora disponibile.
+   */
+  remainingBudget: number;
+
+  /*
+   * Eventuale superamento del budget.
+   */
+  overspending: number;
+
+  /*
+   * Giocatori acquistati per ruolo.
+   */
+  purchasedByRole: Record<
+    AuctionRole,
+    number
+  >;
+
+  /*
+   * Slot ancora liberi per ruolo.
+   */
+  remainingSlotsByRole: Record<
+    AuctionRole,
+    number
+  >;
+
+  /*
+   * Percentuale di completamento.
+   */
+  completionPercentage: number;
+};
+
+
+/*
  * Colore della barra di avanzamento
  * associato a ciascun ruolo.
  */
@@ -191,16 +250,6 @@ export default function AuctionSidePanels({
 
 
   /*
-   * Prezzo medio degli acquisti avversari.
-   */
-  const opponentAveragePrice =
-    opponentPurchases.length > 0
-      ? opponentTotalSpent /
-      opponentPurchases.length
-      : 0;
-
-
-  /*
    * Numero totale di slot previsti.
    */
   const totalRosterSlots =
@@ -218,6 +267,204 @@ export default function AuctionSidePanels({
     remainingSlots.D +
     remainingSlots.C +
     remainingSlots.A;
+
+
+  /*
+  * Raggruppa gli acquisti avversari
+  * in base al nome della squadra.
+  */
+  const opponentTeams =
+    useMemo<OpponentTeamSummary[]>(
+      () => {
+        const teamsMap = new Map<
+          string,
+          {
+            name: string;
+            purchases: AuctionPurchase[];
+          }
+        >();
+
+
+        opponentPurchases.forEach(
+          (purchase) => {
+            const teamName =
+              purchase.ownerName
+                ?.trim() ||
+              "Squadra non specificata";
+
+            /*
+             * Normalizziamo il nome:
+             *
+             * "Team Marco"
+             * e
+             * "team marco"
+             *
+             * vengono considerati la stessa squadra.
+             */
+            const normalizedKey =
+              teamName.toLocaleLowerCase(
+                "it-IT",
+              );
+
+            const existingTeam =
+              teamsMap.get(
+                normalizedKey,
+              );
+
+            if (existingTeam) {
+              existingTeam.purchases.push(
+                purchase,
+              );
+
+              return;
+            }
+
+            teamsMap.set(
+              normalizedKey,
+              {
+                name: teamName,
+                purchases: [
+                  purchase,
+                ],
+              },
+            );
+          },
+        );
+
+
+        return Array.from(
+          teamsMap.entries(),
+        )
+          .map(
+            ([
+              normalizedKey,
+              team,
+            ]) => {
+              const totalSpent =
+                team.purchases.reduce(
+                  (
+                    total,
+                    purchase,
+                  ) =>
+                    total +
+                    purchase.purchasePrice,
+                  0,
+                );
+
+
+              const purchasedByRole: Record<
+                AuctionRole,
+                number
+              > = {
+                P: 0,
+                D: 0,
+                C: 0,
+                A: 0,
+              };
+
+
+              team.purchases.forEach(
+                (purchase) => {
+                  purchasedByRole[
+                    purchase.role
+                  ] += 1;
+                },
+              );
+
+
+              const remainingSlotsByRole: Record<
+                AuctionRole,
+                number
+              > = {
+                P: Math.max(
+                  config.rosterSlots.P -
+                  purchasedByRole.P,
+                  0,
+                ),
+
+                D: Math.max(
+                  config.rosterSlots.D -
+                  purchasedByRole.D,
+                  0,
+                ),
+
+                C: Math.max(
+                  config.rosterSlots.C -
+                  purchasedByRole.C,
+                  0,
+                ),
+
+                A: Math.max(
+                  config.rosterSlots.A -
+                  purchasedByRole.A,
+                  0,
+                ),
+              };
+
+
+              const rawRemainingBudget =
+                config.startingBudget -
+                totalSpent;
+
+
+              const completionPercentage =
+                totalRosterSlots > 0
+                  ? Math.round(
+                    (
+                      team.purchases
+                        .length /
+                      totalRosterSlots
+                    ) *
+                    100,
+                  )
+                  : 0;
+
+
+              return {
+                key: normalizedKey,
+                name: team.name,
+                purchases:
+                  team.purchases,
+
+                totalSpent,
+
+                remainingBudget:
+                  Math.max(
+                    rawRemainingBudget,
+                    0,
+                  ),
+
+                overspending:
+                  Math.max(
+                    -rawRemainingBudget,
+                    0,
+                  ),
+
+                purchasedByRole,
+                remainingSlotsByRole,
+                completionPercentage,
+              };
+            },
+          )
+          .sort(
+            (
+              firstTeam,
+              secondTeam,
+            ) =>
+              firstTeam.name.localeCompare(
+                secondTeam.name,
+                "it-IT",
+              ),
+          );
+      },
+      [
+        opponentPurchases,
+        config,
+        totalRosterSlots,
+      ],
+    );
+
+
 
 
   /*
@@ -908,43 +1155,43 @@ export default function AuctionSidePanels({
                   </div>
 
 
+                  {/* Riepilogo generale degli avversari */}
                   <div className="mt-5 grid grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-slate-100 p-3">
+                      <p className="text-xs text-slate-500">
+                        Squadre
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {opponentTeams.length}
+                      </p>
+                    </div>
+
                     <div className="rounded-xl bg-slate-100 p-3">
                       <p className="text-xs text-slate-500">
                         Acquisti
                       </p>
 
                       <p className="mt-1 text-xl font-bold">
-                        {
-                          opponentPurchases.length
-                        }
+                        {opponentPurchases.length}
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-slate-100 p-3">
-                      <p className="text-xs text-slate-500">
-                        Crediti
+                    <div className="rounded-xl bg-amber-100 p-3 text-amber-900">
+                      <p className="text-xs text-amber-700">
+                        Crediti spesi
                       </p>
 
                       <p className="mt-1 text-xl font-bold">
                         {opponentTotalSpent}
                       </p>
                     </div>
-
-                    <div className="rounded-xl bg-amber-100 p-3 text-amber-900">
-                      <p className="text-xs text-amber-700">
-                        Media
-                      </p>
-
-                      <p className="mt-1 text-xl font-bold">
-                        {
-                          opponentAveragePrice.toFixed(
-                            1,
-                          )
-                        }
-                      </p>
-                    </div>
                   </div>
+
+                  <p className="mt-3 text-xs text-slate-500">
+                    I budget sono calcolati sugli acquisti
+                    avversari che hai registrato.
+                  </p>
 
 
                   {opponentPurchases.length ===
@@ -962,183 +1209,387 @@ export default function AuctionSidePanels({
                     )}
 
 
+                  {/* Rose delle squadre avversarie */}
                   <div className="mt-6 space-y-3">
-                    {AUCTION_ROLES.map(
-                      (role) => {
-                        const rolePurchases =
-                          opponentPurchases.filter(
-                            (purchase) =>
-                              purchase.role ===
-                              role,
-                          );
+                    {opponentTeams.map(
+                      (opponentTeam) => {
+                        const totalTeamRemainingSlots =
+                          opponentTeam
+                            .remainingSlotsByRole.P +
+                          opponentTeam
+                            .remainingSlotsByRole.D +
+                          opponentTeam
+                            .remainingSlotsByRole.C +
+                          opponentTeam
+                            .remainingSlotsByRole.A;
 
-                        if (
-                          rolePurchases.length ===
-                          0
-                        ) {
-                          return null;
-                        }
 
                         return (
                           <details
-                            key={role}
+                            key={opponentTeam.key}
                             className="
-                            overflow-hidden
-                            rounded-xl border
-                            border-amber-200
-                          "
+            overflow-hidden
+            rounded-xl border
+            border-amber-200
+            bg-white
+          "
                           >
+                            {/* Intestazione della squadra */}
                             <summary
                               className="
-                              cursor-pointer
-                              list-none bg-amber-50
-                              px-4 py-3
-                            "
+              cursor-pointer list-none
+              bg-amber-50 px-4 py-4
+            "
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                  <span
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <p className="font-bold text-amber-950">
+                                    {opponentTeam.name}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-amber-800">
+                                    {
+                                      opponentTeam
+                                        .purchases.length
+                                    }{" "}
+                                    giocatori acquistati
+                                  </p>
+                                </div>
+
+                                <div className="text-right">
+                                  <p className="text-xs text-slate-500">
+                                    Budget residuo
+                                  </p>
+
+                                  <p
                                     className={`
-                                    rounded-full
-                                    px-2 py-1
-                                    text-xs font-bold
-                                    ${ROLE_BADGE_CLASSES[
-                                      role
-                                      ]}
-                                  `}
+                    mt-1 text-xl font-bold
+
+                    ${opponentTeam
+                                        .remainingBudget >
+                                        0
+                                        ? "text-emerald-700"
+                                        : "text-red-700"
+                                      }
+                  `}
                                   >
-                                    {role}
+                                    {
+                                      opponentTeam
+                                        .remainingBudget
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+
+
+                              {/* Avanzamento della squadra */}
+                              <div className="mt-4">
+                                <div className="flex justify-between gap-3 text-xs text-slate-600">
+                                  <span>
+                                    Rosa{" "}
+                                    {
+                                      opponentTeam
+                                        .purchases.length
+                                    }
+                                    /{totalRosterSlots}
                                   </span>
 
-                                  <span className="font-semibold">
+                                  <span>
                                     {
-                                      AUCTION_ROLE_NAMES[
-                                      role
-                                      ]
+                                      opponentTeam
+                                        .completionPercentage
                                     }
+                                    %
                                   </span>
                                 </div>
 
-                                <span className="text-sm text-amber-800">
-                                  {
-                                    rolePurchases.length
-                                  }
-                                </span>
+                                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-amber-100">
+                                  <div
+                                    className="h-full rounded-full bg-amber-500 transition-all"
+                                    style={{
+                                      width:
+                                        `${Math.min(
+                                          opponentTeam
+                                            .completionPercentage,
+                                          100,
+                                        )}%`,
+                                    }}
+                                  />
+                                </div>
                               </div>
                             </summary>
 
-                            <div className="space-y-2 border-t border-amber-200 p-4">
-                              {rolePurchases
-                                .slice()
-                                .reverse()
-                                .map(
-                                  (purchase) => {
-                                    const referencePrice =
-                                      purchase
-                                        .dynamicRecommendedPriceAtPurchase ??
-                                      purchase
-                                        .baseRecommendedPriceAtPurchase ??
-                                      purchase.purchasePrice;
 
-                                    const difference =
-                                      purchase.purchasePrice -
-                                      referencePrice;
+                            {/* Dettagli della squadra */}
+                            <div className="border-t border-amber-200 p-4">
+                              {/* Informazioni economiche */}
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="rounded-lg bg-slate-100 p-3">
+                                  <p className="text-xs text-slate-500">
+                                    Iniziale
+                                  </p>
+
+                                  <p className="mt-1 font-bold">
+                                    {config.startingBudget}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-lg bg-slate-100 p-3">
+                                  <p className="text-xs text-slate-500">
+                                    Speso
+                                  </p>
+
+                                  <p className="mt-1 font-bold">
+                                    {
+                                      opponentTeam
+                                        .totalSpent
+                                    }
+                                  </p>
+                                </div>
+
+                                <div className="rounded-lg bg-emerald-50 p-3">
+                                  <p className="text-xs text-emerald-700">
+                                    Residuo
+                                  </p>
+
+                                  <p className="mt-1 font-bold text-emerald-800">
+                                    {
+                                      opponentTeam
+                                        .remainingBudget
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+
+
+                              {/* Eventuale superamento */}
+                              {opponentTeam.overspending >
+                                0 && (
+                                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                                    Budget superato di{" "}
+                                    {
+                                      opponentTeam
+                                        .overspending
+                                    }{" "}
+                                    crediti.
+                                  </div>
+                                )}
+
+
+                              {/* Slot per ruolo */}
+                              <div className="mt-4 grid grid-cols-4 gap-2">
+                                {AUCTION_ROLES.map(
+                                  (role) => (
+                                    <div
+                                      key={role}
+                                      className="rounded-lg bg-slate-100 p-2 text-center"
+                                    >
+                                      <span
+                                        className={`
+                        inline-flex rounded-full
+                        px-2 py-1 text-xs
+                        font-bold
+                        ${ROLE_BADGE_CLASSES[
+                                          role
+                                          ]}
+                      `}
+                                      >
+                                        {role}
+                                      </span>
+
+                                      <p className="mt-2 text-sm font-bold">
+                                        {
+                                          opponentTeam
+                                            .purchasedByRole[
+                                          role
+                                          ]
+                                        }
+                                        /
+                                        {
+                                          config.rosterSlots[
+                                          role
+                                          ]
+                                        }
+                                      </p>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+
+                              <p className="mt-3 text-xs text-slate-500">
+                                Mancano{" "}
+                                {totalTeamRemainingSlots} giocatori
+                                per completare la rosa.
+                              </p>
+
+
+                              {/* Giocatori divisi per ruolo */}
+                              <div className="mt-5 space-y-4">
+                                {AUCTION_ROLES.map(
+                                  (role) => {
+                                    const rolePurchases =
+                                      opponentTeam
+                                        .purchases.filter(
+                                          (purchase) =>
+                                            purchase.role ===
+                                            role,
+                                        );
+
+                                    if (
+                                      rolePurchases.length ===
+                                      0
+                                    ) {
+                                      return null;
+                                    }
 
                                     return (
-                                      <div
-                                        key={
-                                          purchase.playerId
-                                        }
-                                        className="
-                                        rounded-lg
-                                        border
-                                        border-amber-200
-                                        bg-amber-50
-                                        p-3
-                                      "
-                                      >
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div>
-                                            <p className="text-sm font-semibold">
-                                              {
-                                                purchase.playerName
-                                              }
-                                            </p>
-
-                                            <p className="text-xs text-slate-500">
-                                              {
-                                                purchase.team
-                                              }
-                                              {" · "}
-                                              {
-                                                purchase.ownerName ??
-                                                "Avversario"
-                                              }
-                                            </p>
-                                          </div>
-
-                                          <strong>
-                                            {
-                                              purchase.purchasePrice
-                                            }
-                                          </strong>
-                                        </div>
-
-                                        <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                                          <span className="text-slate-500">
-                                            Quotazione:{" "}
-                                            {referencePrice}
-                                          </span>
-
+                                      <section key={role}>
+                                        <div className="flex items-center gap-2">
                                           <span
-                                            className={
-                                              difference > 0
-                                                ? "font-semibold text-red-700"
-                                                : difference < 0
-                                                  ? "font-semibold text-emerald-700"
-                                                  : "font-semibold text-slate-600"
-                                            }
+                                            className={`
+                            rounded-full
+                            px-2 py-1 text-xs
+                            font-bold
+                            ${ROLE_BADGE_CLASSES[
+                                              role
+                                              ]}
+                          `}
                                           >
-                                            {difference > 0
-                                              ? `+${difference} sopra`
-                                              : difference < 0
-                                                ? `${Math.abs(
-                                                  difference,
-                                                )} sotto`
-                                                : "Prezzo corretto"}
+                                            {role}
                                           </span>
-                                        </div>
 
-                                        <div className="mt-2 flex justify-between gap-3">
-                                          <span className="text-xs text-slate-400">
+                                          <p className="text-sm font-bold">
                                             {
-                                              formatPurchaseTime(
-                                                purchase.purchasedAt,
-                                              )
+                                              AUCTION_ROLE_NAMES[
+                                              role
+                                              ]
                                             }
-                                          </span>
-
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              handleRemovePurchase(
-                                                purchase,
-                                              );
-                                            }}
-                                            className="
-                                            text-xs
-                                            font-semibold
-                                            text-red-700
-                                            hover:underline
-                                          "
-                                          >
-                                            Annulla
-                                          </button>
+                                          </p>
                                         </div>
-                                      </div>
+
+
+                                        <div className="mt-2 space-y-2">
+                                          {rolePurchases
+                                            .slice()
+                                            .reverse()
+                                            .map(
+                                              (purchase) => {
+                                                const referencePrice =
+                                                  purchase
+                                                    .dynamicRecommendedPriceAtPurchase ??
+                                                  purchase
+                                                    .baseRecommendedPriceAtPurchase ??
+                                                  purchase
+                                                    .purchasePrice;
+
+                                                const difference =
+                                                  purchase
+                                                    .purchasePrice -
+                                                  referencePrice;
+
+
+                                                return (
+                                                  <article
+                                                    key={
+                                                      purchase
+                                                        .playerId
+                                                    }
+                                                    className="
+                                    rounded-lg border
+                                    border-slate-200
+                                    p-3
+                                  "
+                                                  >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                      <div>
+                                                        <p className="text-sm font-semibold">
+                                                          {
+                                                            purchase
+                                                              .playerName
+                                                          }
+                                                        </p>
+
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                          {
+                                                            purchase
+                                                              .team
+                                                          }
+                                                        </p>
+                                                      </div>
+
+                                                      <div className="text-right">
+                                                        <p className="text-xs text-slate-500">
+                                                          Pagato
+                                                        </p>
+
+                                                        <p className="font-bold">
+                                                          {
+                                                            purchase
+                                                              .purchasePrice
+                                                          }
+                                                        </p>
+                                                      </div>
+                                                    </div>
+
+
+                                                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                                                      <div>
+                                                        <p className="text-xs text-slate-500">
+                                                          Quotazione:{" "}
+                                                          {
+                                                            referencePrice
+                                                          }
+                                                        </p>
+
+                                                        <p
+                                                          className={`
+                                          mt-1 text-xs
+                                          font-semibold
+
+                                          ${difference > 0
+                                                              ? "text-red-700"
+                                                              : difference < 0
+                                                                ? "text-emerald-700"
+                                                                : "text-slate-600"
+                                                            }
+                                        `}
+                                                        >
+                                                          {difference > 0
+                                                            ? `+${difference} sopra quotazione`
+                                                            : difference < 0
+                                                              ? `${Math.abs(
+                                                                difference,
+                                                              )} sotto quotazione`
+                                                              : "Prezzo corretto"}
+                                                        </p>
+                                                      </div>
+
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          handleRemovePurchase(
+                                                            purchase,
+                                                          );
+                                                        }}
+                                                        className="
+                                        text-xs font-semibold
+                                        text-red-700
+                                        hover:underline
+                                      "
+                                                      >
+                                                        Annulla
+                                                      </button>
+                                                    </div>
+                                                  </article>
+                                                );
+                                              },
+                                            )}
+                                        </div>
+                                      </section>
                                     );
                                   },
                                 )}
+                              </div>
                             </div>
                           </details>
                         );

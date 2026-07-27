@@ -545,8 +545,7 @@ export default function AuctionMarket({
 
       ownerName:
         purchaseOwner === "OPPONENT"
-          ? opponentName.trim() ||
-          "Avversario"
+          ? opponentName.trim()
           : undefined,
 
       /*
@@ -616,9 +615,17 @@ export default function AuctionMarket({
   const numericPurchasePrice =
     Number(purchasePrice);
 
+  /*
+  * Un acquisto avversario è valido quando:
+  * - è stato selezionato un giocatore;
+  * - è stato indicato il nome della squadra;
+  * - il prezzo è un intero valido;
+  * - il prezzo rispetta l'offerta minima.
+  */
   const isOpponentPurchaseValid =
     purchaseOwner === "OPPONENT" &&
     selectedPlayer !== null &&
+    opponentName.trim() !== "" &&
     purchasePrice.trim() !== "" &&
     Number.isFinite(
       numericPurchasePrice,
@@ -713,13 +720,16 @@ export default function AuctionMarket({
             <input
               id="opponent-name"
               type="text"
+              required={
+                purchaseOwner === "OPPONENT"
+              }
               value={opponentName}
               onChange={(event) => {
                 setOpponentName(
                   event.target.value,
                 );
               }}
-              placeholder="Facoltativo"
+              placeholder="Es. Team Marco"
               className="
                 w-full rounded-xl border
                 border-slate-300 bg-white
@@ -730,6 +740,10 @@ export default function AuctionMarket({
                 focus:ring-amber-100
               "
             />
+            <p className="mt-2 text-xs text-slate-500">
+              Usa sempre lo stesso nome per registrare
+              gli acquisti della stessa squadra.
+            </p>
           </div>
         )}
       </div>
