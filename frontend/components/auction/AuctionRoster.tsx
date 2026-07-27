@@ -76,7 +76,38 @@ export default function AuctionRoster({
   onRemovePurchase,
 }: AuctionRosterProps) {
   /*
-   * Dividiamo gli acquisti per ruolo.
+  * Dividiamo la rosa personale
+  * dagli acquisti degli avversari.
+  */
+  const myPurchases = useMemo(() => {
+    return purchases.filter(
+      (purchase) =>
+        /*
+         * Le vecchie sessioni senza ownerType
+         * vengono considerate acquisti personali.
+         */
+        purchase.ownerType === "ME" ||
+        purchase.ownerType === undefined,
+    );
+  }, [purchases]);
+
+
+  /*
+   * Acquisti effettuati dagli avversari.
+   */
+  const opponentPurchases =
+    useMemo(() => {
+      return purchases.filter(
+        (purchase) =>
+          purchase.ownerType ===
+          "OPPONENT",
+      );
+    }, [purchases]);
+
+
+  /*
+   * Dividiamo gli acquisti personali
+   * per ruolo.
    */
   const purchasesByRole = useMemo(() => {
     const result: Record<
@@ -89,24 +120,26 @@ export default function AuctionRoster({
       A: [],
     };
 
-    purchases.forEach((purchase) => {
-      result[purchase.role].push(purchase);
+    myPurchases.forEach((purchase) => {
+      result[purchase.role].push(
+        purchase,
+      );
     });
 
     return result;
-  }, [purchases]);
+  }, [myPurchases]);
 
 
   /*
    * Calcoliamo la spesa totale.
    */
   const totalSpent = useMemo(() => {
-    return purchases.reduce(
+    return myPurchases.reduce(
       (total, purchase) =>
         total + purchase.purchasePrice,
       0,
     );
-  }, [purchases]);
+  }, [myPurchases]);
 
 
   /*
@@ -153,7 +186,7 @@ export default function AuctionRoster({
             </p>
 
             <p className="mt-1 font-bold">
-              {purchases.length}
+              {myPurchases.length}
             </p>
           </div>
 
@@ -171,7 +204,7 @@ export default function AuctionRoster({
 
 
       {/* Rosa ancora vuota */}
-      {purchases.length === 0 && (
+      {myPurchases.length === 0 && (
         <div className="mt-6 rounded-xl bg-slate-100 p-8 text-center">
           <p className="font-semibold text-slate-700">
             Nessun giocatore acquistato
@@ -185,7 +218,7 @@ export default function AuctionRoster({
 
 
       {/* Acquisti suddivisi per ruolo */}
-      {purchases.length > 0 && (
+      {myPurchases.length > 0 && (
         <div className="mt-6 space-y-6">
           {AUCTION_ROLES.map((role) => {
             const rolePurchases =
@@ -297,6 +330,124 @@ export default function AuctionRoster({
           })}
         </div>
       )}
+      {/* Acquisti degli avversari */}
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">
+              Mercato della lega
+            </p>
+
+            <h3 className="mt-1 text-xl font-bold">
+              Acquisti degli avversari
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Questi giocatori non appartengono alla tua rosa,
+              ma influenzano le quotazioni dinamiche.
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-amber-100 px-4 py-3 text-center text-amber-900">
+            <p className="text-xs text-amber-700">
+              Registrati
+            </p>
+
+            <p className="mt-1 font-bold">
+              {opponentPurchases.length}
+            </p>
+          </div>
+        </div>
+
+
+        {opponentPurchases.length === 0 && (
+          <div className="mt-4 rounded-xl bg-slate-100 p-6 text-center text-sm text-slate-500">
+            Nessun acquisto avversario registrato.
+          </div>
+        )}
+
+
+        {opponentPurchases.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {opponentPurchases
+              .slice()
+              .reverse()
+              .map((purchase) => (
+                <article
+                  key={purchase.playerId}
+                  className="
+              flex flex-col gap-4
+              rounded-xl border
+              border-amber-200 bg-amber-50
+              p-4 sm:flex-row
+              sm:items-center
+              sm:justify-between
+            "
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold">
+                        {purchase.playerName}
+                      </p>
+
+                      <span
+                        className={`
+                    rounded-full px-2 py-1
+                    text-xs font-bold
+                    ${ROLE_BADGE_CLASSES[
+                          purchase.role
+                          ]}
+                  `}
+                      >
+                        {purchase.role}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {purchase.team}
+                    </p>
+
+                    <p className="mt-1 text-xs text-amber-700">
+                      Acquistato da{" "}
+                      {purchase.ownerName ??
+                        "Avversario"}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">
+                        Prezzo pagato
+                      </p>
+
+                      <p className="text-xl font-bold">
+                        {purchase.purchasePrice}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleRemovePurchase(
+                          purchase,
+                        );
+                      }}
+                      className="
+                  rounded-xl border
+                  border-red-200 bg-white
+                  px-4 py-2 text-sm
+                  font-semibold text-red-700
+                  transition hover:bg-red-50
+                "
+                    >
+                      Annulla
+                    </button>
+                  </div>
+                </article>
+              ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

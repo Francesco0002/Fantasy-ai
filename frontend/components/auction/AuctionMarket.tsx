@@ -55,6 +55,7 @@ import {
 import type {
   AuctionConfig,
   AuctionPurchase,
+  AuctionPurchaseOwner,
   AuctionRole,
 } from "../../types/auction";
 
@@ -99,6 +100,14 @@ type AuctionMarketProps = {
   >;
 
   purchases: AuctionPurchase[];
+
+  /*
+  * Solamente gli acquisti dell'utente.
+  *
+  * Sono usati per i consigli personali
+  * e per il calcolo della spesa.
+  */
+  myPurchases: AuctionPurchase[];
 
   maximumBid: number;
 
@@ -150,6 +159,7 @@ export default function AuctionMarket({
   remainingSlots,
   dynamicRoleBudgets,
   purchases,
+  myPurchases,
   maximumBid,
   onRegisterPurchase,
 }: AuctionMarketProps) {
@@ -181,6 +191,28 @@ export default function AuctionMarket({
    */
   const [purchasePrice, setPurchasePrice] =
     useState("");
+
+
+  /*
+  * Indica chi ha acquistato
+  * il giocatore selezionato.
+  */
+  const [
+    purchaseOwner,
+    setPurchaseOwner,
+  ] = useState<AuctionPurchaseOwner>(
+    "ME",
+  );
+
+
+  /*
+   * Nome facoltativo della squadra avversaria.
+   */
+  const [
+    opponentName,
+    setOpponentName,
+  ] = useState("");
+
 
   /*
    * Messaggio di conferma o errore.
@@ -281,6 +313,7 @@ export default function AuctionMarket({
   */
   const auctionAdvice = useMemo(() => {
     if (
+      purchaseOwner !== "ME" ||
       !selectedPlayer ||
       !selectedValuation ||
       purchasePrice.trim() === ""
@@ -319,7 +352,11 @@ export default function AuctionMarket({
       config,
       remainingBudget,
       remainingSlots,
-      purchases,
+      /*
+      * Il consiglio personale deve considerare
+      * soltanto la nostra spesa.
+      */
+      purchases: myPurchases,
 
       /*
        * Il vincolo tecnico complessivo
@@ -332,13 +369,14 @@ export default function AuctionMarket({
       maximumBid,
     });
   }, [
+    purchaseOwner,
     selectedPlayer,
     selectedValuation,
     purchasePrice,
     config,
     remainingBudget,
     remainingSlots,
-    purchases,
+    myPurchases,
     maximumBid,
   ]);
 
@@ -347,6 +385,10 @@ export default function AuctionMarket({
    * Seleziona un giocatore e propone
    * automaticamente un prezzo iniziale.
    */
+  /*
+ * Seleziona un giocatore e propone
+ * automaticamente un prezzo iniziale.
+ */
   function selectPlayer(
     player: Player,
   ) {
@@ -354,9 +396,8 @@ export default function AuctionMarket({
     setFeedback(null);
 
     /*
-     * Calcoliamo la quotazione aggiornata
-     * nel momento in cui il giocatore
-     * viene selezionato.
+     * Calcoliamo la valutazione del giocatore
+     * nel momento in cui viene selezionato.
      */
     const valuation =
       calculateDynamicPlayerValuation({
@@ -370,13 +411,55 @@ export default function AuctionMarket({
       });
 
     /*
-     * Inseriamo automaticamente
-     * il prezzo dinamico suggerito.
+     * Per un acquisto personale proponiamo
+     * il prezzo suggerito in base al budget.
+     *
+     * Per un acquisto avversario proponiamo
+     * la quotazione dinamica di mercato.
      */
+    const proposedPrice =
+      purchaseOwner === "ME"
+        ? valuation.suggestedBid
+        : valuation.dynamicRecommendedPrice;
+
     setPurchasePrice(
       String(
         Math.max(
-          valuation.suggestedBid,
+          proposedPrice,
+          config.minimumBid,
+        ),
+      ),
+    );
+  }
+
+
+  /*
+ * Cambia il destinatario dell'acquisto.
+ */
+  function changePurchaseOwner(
+    owner: AuctionPurchaseOwner,
+  ) {
+    setPurchaseOwner(owner);
+    setFeedback(null);
+
+    /*
+     * Se esiste già un giocatore selezionato,
+     * aggiorniamo anche il prezzo proposto.
+     */
+    if (!selectedValuation) {
+      return;
+    }
+
+    const proposedPrice =
+      owner === "ME"
+        ? selectedValuation.suggestedBid
+        : selectedValuation
+          .dynamicRecommendedPrice;
+
+    setPurchasePrice(
+      String(
+        Math.max(
+          proposedPrice,
           config.minimumBid,
         ),
       ),
@@ -424,6 +507,7 @@ export default function AuctionMarket({
     * "Da evitare" chiediamo una conferma aggiuntiva.
     */
     if (
+      purchaseOwner === "ME" &&
       auctionAdvice?.label ===
       "Da evitare"
     ) {
@@ -455,6 +539,15 @@ export default function AuctionMarket({
 
       purchasePrice:
         parsedPrice,
+
+      ownerType:
+        purchaseOwner,
+
+      ownerName:
+        purchaseOwner === "OPPONENT"
+          ? opponentName.trim() ||
+          "Avversario"
+          : undefined,
 
       /*
        * Quotazione originale del dataset.
@@ -494,14 +587,55 @@ export default function AuctionMarket({
     const purchasedPlayerName =
       selectedPlayer.name;
 
+    /*
+     * Prepariamo un messaggio diverso
+     * in base a chi ha acquistato il giocatore.
+     */
+    const destination =
+      purchaseOwner === "ME"
+        ? "nella tua rosa"
+        : `da ${opponentName.trim() ||
+        "un avversario"
+        }`;
+
     setFeedback({
       type: "success",
-      message: `${purchasedPlayerName} acquistato per ${parsedPrice} crediti.`,
+
+      message:
+        `${purchasedPlayerName} acquistato ${destination} per ${parsedPrice} crediti.`,
     });
 
     setSelectedPlayer(null);
     setPurchasePrice("");
   }
+
+
+  /*
+ * Validazione acquisto avversario.
+ */
+  const numericPurchasePrice =
+    Number(purchasePrice);
+
+  const isOpponentPurchaseValid =
+    purchaseOwner === "OPPONENT" &&
+    selectedPlayer !== null &&
+    purchasePrice.trim() !== "" &&
+    Number.isFinite(
+      numericPurchasePrice,
+    ) &&
+    Number.isInteger(
+      numericPurchasePrice,
+    ) &&
+    numericPurchasePrice >=
+    config.minimumBid;
+
+  const canRegisterPurchase =
+    purchaseOwner === "ME"
+      ? Boolean(
+        auctionAdvice
+          ?.isPurchaseValid,
+      )
+      : isOpponentPurchaseValid;
 
 
   return (
@@ -521,35 +655,106 @@ export default function AuctionMarket({
         </p>
       </div>
 
+      {/* Destinatario dell'acquisto */}
+      <div className="mt-6">
+        <p className="mb-2 text-sm font-semibold">
+          Chi ha acquistato il giocatore?
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              changePurchaseOwner("ME");
+            }}
+            className={`
+        rounded-xl border px-4 py-3
+        text-sm font-semibold transition
+
+        ${purchaseOwner === "ME"
+                ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }
+      `}
+          >
+            Acquistato da me
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              changePurchaseOwner(
+                "OPPONENT",
+              );
+            }}
+            className={`
+        rounded-xl border px-4 py-3
+        text-sm font-semibold transition
+
+        ${purchaseOwner === "OPPONENT"
+                ? "border-amber-500 bg-amber-50 text-amber-800"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }
+      `}
+          >
+            Acquistato da un avversario
+          </button>
+        </div>
+
+        {purchaseOwner === "OPPONENT" && (
+          <div className="mt-3">
+            <label
+              htmlFor="opponent-name"
+              className="mb-2 block text-sm font-semibold"
+            >
+              Nome squadra avversaria
+            </label>
+
+            <input
+              id="opponent-name"
+              type="text"
+              value={opponentName}
+              onChange={(event) => {
+                setOpponentName(
+                  event.target.value,
+                );
+              }}
+              placeholder="Facoltativo"
+              className="
+                w-full rounded-xl border
+                border-slate-300 bg-white
+                px-4 py-3 outline-none
+                transition
+                focus:border-amber-500
+                focus:ring-2
+                focus:ring-amber-100
+              "
+            />
+          </div>
+        )}
+      </div>
+
 
       {/* Selezione del ruolo */}
       <div className="mt-6 grid grid-cols-4 gap-2">
         {AUCTION_ROLES.map((role) => {
-          const hasAvailableSlots =
-            remainingSlots[role] > 0;
-
           return (
             <button
               key={role}
               type="button"
-              disabled={
-                !hasAvailableSlots
-              }
               onClick={() => {
                 changeRole(role);
               }}
               className={`
-                rounded-xl px-3 py-3
-                text-sm font-semibold
-                transition
+          rounded-xl px-3 py-3
+          text-sm font-semibold
+          transition
 
-                ${activeRole === role
+          ${activeRole === role
                   ? "bg-slate-900 text-white"
-                  : hasAvailableSlots
-                    ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    : "cursor-not-allowed bg-slate-100 text-slate-400"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }
-              `}
+        `}
             >
               {role}
 
@@ -562,25 +767,41 @@ export default function AuctionMarket({
       </div>
 
       {/* Suggerimenti strategici per il ruolo selezionato */}
-      <AuctionSuggestions
-        players={availablePlayers}
-        role={activeRole}
-        config={config}
-        purchases={purchases}
-        maximumBid={maximumBid}
-        remainingBudget={
-          remainingBudget
-        }
-        remainingSlots={
-          remainingSlots
-        }
-        dynamicRoleBudgets={
-          dynamicRoleBudgets
-        }
-        onSelectPlayer={
-          selectPlayer
-        }
-      />
+      {purchaseOwner === "ME" && (
+        <AuctionSuggestions
+          players={availablePlayers}
+          role={activeRole}
+          config={config}
+
+          /*
+           * I suggerimenti personali devono
+           * considerare solamente la nostra rosa.
+           */
+          purchases={myPurchases}
+
+          maximumBid={maximumBid}
+          remainingBudget={
+            remainingBudget
+          }
+          remainingSlots={
+            remainingSlots
+          }
+          dynamicRoleBudgets={
+            dynamicRoleBudgets
+          }
+          onSelectPlayer={
+            selectPlayer
+          }
+        />
+      )}
+
+      {purchaseOwner === "OPPONENT" && (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          L&apos;acquisto verrà utilizzato per aggiornare
+          le quotazioni del mercato, ma non modificherà
+          il tuo budget o gli slot della tua rosa.
+        </div>
+      )}
 
       {/*
        * Layout:
@@ -872,17 +1093,18 @@ export default function AuctionMarket({
 
 
                   {/* Tetto prudente */}
-                  {selectedValuation && (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">
-                        Tetto prudente
-                      </dt>
+                  {purchaseOwner === "ME" &&
+                    selectedValuation && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-slate-500">
+                          Tetto prudente
+                        </dt>
 
-                      <dd className="font-semibold">
-                        {selectedValuation.personalMaximumBid}
-                      </dd>
-                    </div>
-                  )}
+                        <dd className="font-semibold">
+                          {selectedValuation.personalMaximumBid}
+                        </dd>
+                      </div>
+                    )}
 
                   <div className="flex justify-between gap-3">
                     <dt className="text-slate-500">
@@ -914,7 +1136,11 @@ export default function AuctionMarket({
                   min={
                     config.minimumBid
                   }
-                  max={maximumBid}
+                  max={
+                    purchaseOwner === "ME"
+                      ? maximumBid
+                      : undefined
+                  }
                   step="1"
                   value={purchasePrice}
                   onChange={(event) => {
@@ -1130,24 +1356,24 @@ export default function AuctionMarket({
               {/* Conferma acquisto */}
               <button
                 type="submit"
-                disabled={
-                  !auctionAdvice?.isPurchaseValid
-                }
+                disabled={!canRegisterPurchase}
                 className={`
                   mt-4 w-full rounded-xl
                   px-5 py-3 text-sm
                   font-semibold transition
 
-                  ${auctionAdvice?.isPurchaseValid
+                  ${canRegisterPurchase
                     ? "bg-emerald-700 text-white hover:bg-emerald-800"
                     : "cursor-not-allowed bg-slate-300 text-slate-500"
                   }
                 `}
               >
-                {auctionAdvice?.label ===
-                  "Da evitare"
-                  ? "Registra comunque"
-                  : "Registra acquisto"}
+                {purchaseOwner === "OPPONENT"
+                  ? "Registra acquisto avversario"
+                  : auctionAdvice?.label ===
+                    "Da evitare"
+                    ? "Registra comunque"
+                    : "Registra acquisto"}
               </button>
             </form>
           )}

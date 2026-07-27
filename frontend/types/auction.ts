@@ -47,6 +47,11 @@ export type AuctionMode =
   | "FULL_RANDOM";
 
 
+export type AuctionPurchaseOwner =
+  | "ME"
+  | "OPPONENT";
+
+
 /*
  * Configurazione generale dell'asta.
  */
@@ -112,6 +117,19 @@ export type AuctionPurchase = {
    * Prezzo realmente pagato.
    */
   purchasePrice: number;
+
+  /*
+   * Indica se il giocatore è stato
+   * acquistato dall'utente oppure
+   * da un altro partecipante.
+   */
+  ownerType: AuctionPurchaseOwner;
+
+  /*
+   * Nome opzionale della squadra
+   * che ha acquistato il giocatore.
+   */
+  ownerName?: string;
 
   /*
    * Quotazione originale.

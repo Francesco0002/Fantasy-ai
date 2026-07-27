@@ -165,12 +165,27 @@ export function useAuctionSession() {
         )
       ) {
         /*
-         * Le sessioni create prima
-         * dell'introduzione di auctionMode
-         * vengono considerate ruolo per ruolo.
-         */
+        * Le vecchie sessioni non possiedono
+        * ancora ownerType.
+        *
+        * Tutti gli acquisti già salvati vengono
+        * considerati acquisti dell'utente.
+        */
+        const restoredPurchases =
+          parsedSession.purchases.map(
+            (purchase) => ({
+              ...purchase,
+
+              ownerType:
+                purchase.ownerType ??
+                "ME",
+            }),
+          );
+
         const restoredSession: AuctionSession = {
           ...parsedSession,
+
+          purchases: restoredPurchases,
 
           config: {
             ...parsedSession.config,
@@ -276,16 +291,46 @@ export function useAuctionSession() {
 
 
   /*
-   * Calcola quanto è stato speso
-   * per ciascun ruolo.
-   */
-  const spentByRole = useMemo(() => {
-    if (!session) {
-      return {
-        ...EMPTY_ROLE_VALUES,
-      };
-    }
+  * Giocatori acquistati dall'utente.
+  *
+  * Solamente questi acquisti modificano:
+  * - budget;
+  * - slot;
+  * - rosa personale;
+  * - budget dinamici dei ruoli.
+  */
+  const myPurchases = useMemo(() => {
+    return (
+      session?.purchases.filter(
+        (purchase) =>
+          purchase.ownerType === "ME",
+      ) ?? []
+    );
+  }, [session]);
 
+
+  /*
+   * Giocatori acquistati dagli avversari.
+   *
+   * Questi acquisti influenzano il mercato,
+   * ma non la nostra situazione economica.
+   */
+  const opponentPurchases = useMemo(() => {
+    return (
+      session?.purchases.filter(
+        (purchase) =>
+          purchase.ownerType ===
+          "OPPONENT",
+      ) ?? []
+    );
+  }, [session]);
+
+
+  /*
+  * Calcola quanto abbiamo speso
+  * personalmente per ciascun ruolo.
+  */
+  const spentByRole = useMemo(() => {
     const result: Record<
       AuctionRole,
       number
@@ -293,7 +338,7 @@ export function useAuctionSession() {
       ...EMPTY_ROLE_VALUES,
     };
 
-    session.purchases.forEach(
+    myPurchases.forEach(
       (purchase) => {
         result[purchase.role] +=
           purchase.purchasePrice;
@@ -301,20 +346,14 @@ export function useAuctionSession() {
     );
 
     return result;
-  }, [session]);
+  }, [myPurchases]);
 
 
   /*
-   * Calcola quanti giocatori sono stati
-   * acquistati per ciascun ruolo.
-   */
+  * Calcola quanti giocatori abbiamo
+  * acquistato personalmente per ruolo.
+  */
   const purchasedByRole = useMemo(() => {
-    if (!session) {
-      return {
-        ...EMPTY_ROLE_VALUES,
-      };
-    }
-
     const result: Record<
       AuctionRole,
       number
@@ -322,14 +361,14 @@ export function useAuctionSession() {
       ...EMPTY_ROLE_VALUES,
     };
 
-    session.purchases.forEach(
+    myPurchases.forEach(
       (purchase) => {
         result[purchase.role] += 1;
       },
     );
 
     return result;
-  }, [session]);
+  }, [myPurchases]);
 
 
   /*
@@ -394,7 +433,7 @@ export function useAuctionSession() {
         session.remainingBudget,
         remainingSlots,
         spentByRole,
-        session.purchases,
+        myPurchases,
       );
     }, [
       session,
@@ -459,12 +498,9 @@ export function useAuctionSession() {
 
 
   /*
-   * Registra un nuovo acquisto.
-   *
-   * Restituisce:
-   * - null quando l'acquisto è valido;
-   * - un messaggio quando non può essere registrato.
-   */
+  * Registra un acquisto effettuato
+  * dall'utente oppure da un avversario.
+  */
   function registerPurchase(
     purchase: AuctionPurchase,
   ): string | null {
@@ -473,8 +509,8 @@ export function useAuctionSession() {
     }
 
     /*
-     * Un giocatore non può essere acquistato
-     * più di una volta nella stessa sessione.
+     * Un giocatore non può essere assegnato
+     * a più squadre nella stessa asta.
      */
     const isAlreadyPurchased =
       session.purchases.some(
@@ -488,8 +524,19 @@ export function useAuctionSession() {
     }
 
     /*
-     * Il prezzo deve essere un numero intero
-     * almeno uguale all'offerta minima.
+     * Verifichiamo che il proprietario
+     * abbia un valore valido.
+     */
+    if (
+      purchase.ownerType !== "ME" &&
+      purchase.ownerType !== "OPPONENT"
+    ) {
+      return "Tipo di acquisto non valido.";
+    }
+
+    /*
+     * Il prezzo deve essere intero
+     * e rispettare l'offerta minima.
      */
     if (
       !Number.isInteger(
@@ -501,40 +548,38 @@ export function useAuctionSession() {
       return `Il prezzo deve essere almeno ${session.config.minimumBid} crediti.`;
     }
 
+    const isMyPurchase =
+      purchase.ownerType === "ME";
+
     /*
-     * Non si può superare
-     * il budget ancora disponibile.
+     * I vincoli personali vengono applicati
+     * soltanto ai nostri acquisti.
      */
-    if (
-      purchase.purchasePrice >
-      session.remainingBudget
-    ) {
-      return "Il prezzo supera il budget residuo.";
+    if (isMyPurchase) {
+      if (
+        purchase.purchasePrice >
+        session.remainingBudget
+      ) {
+        return "Il prezzo supera il budget residuo.";
+      }
+
+      if (
+        remainingSlots[purchase.role] <= 0
+      ) {
+        return "Non ci sono più slot disponibili per questo ruolo.";
+      }
+
+      if (
+        purchase.purchasePrice >
+        maximumBid
+      ) {
+        return `Puoi spendere al massimo ${maximumBid} crediti, altrimenti non riusciresti a completare la rosa.`;
+      }
     }
 
     /*
-     * Controlliamo che esista ancora
-     * uno slot libero per il ruolo.
-     */
-    if (
-      remainingSlots[purchase.role] <= 0
-    ) {
-      return "Non ci sono più slot disponibili per questo ruolo.";
-    }
-
-    /*
-    * Impediamo di spendere i crediti
-    * necessari per completare gli altri slot.
-    */
-    if (
-      purchase.purchasePrice >
-      maximumBid
-    ) {
-      return `Puoi spendere al massimo ${maximumBid} crediti, altrimenti non riusciresti a completare la rosa.`;
-    }
-
-    /*
-     * Aggiorniamo sessione, budget e acquisti.
+     * Gli acquisti avversari vengono salvati,
+     * ma non modificano il nostro budget.
      */
     setSession((currentSession) => {
       if (!currentSession) {
@@ -545,8 +590,12 @@ export function useAuctionSession() {
         ...currentSession,
 
         remainingBudget:
-          currentSession.remainingBudget -
-          purchase.purchasePrice,
+          isMyPurchase
+            ? currentSession
+              .remainingBudget -
+            purchase.purchasePrice
+            : currentSession
+              .remainingBudget,
 
         purchases: [
           ...currentSession.purchases,
@@ -587,9 +636,15 @@ export function useAuctionSession() {
       return {
         ...currentSession,
 
+        /*
+        * Il rimborso avviene soltanto
+        * se il giocatore apparteneva a noi.
+        */
         remainingBudget:
-          currentSession.remainingBudget +
-          purchaseToRemove.purchasePrice,
+          purchaseToRemove.ownerType === "ME"
+            ? currentSession.remainingBudget +
+            purchaseToRemove.purchasePrice
+            : currentSession.remainingBudget,
 
         purchases:
           currentSession.purchases.filter(
@@ -605,6 +660,9 @@ export function useAuctionSession() {
   return {
     session,
     isStorageReady,
+
+    myPurchases,
+    opponentPurchases,
 
     /*
      * Dati calcolati.

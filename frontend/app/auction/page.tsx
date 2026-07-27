@@ -57,6 +57,8 @@ export default function AuctionPage() {
   const {
     session,
     isStorageReady,
+    myPurchases,
+    opponentPurchases,
     spentByRole,
     remainingSlots,
     dynamicRoleBudgets,
@@ -230,7 +232,11 @@ export default function AuctionPage() {
                   </p>
 
                   <p className="mt-1 text-3xl font-bold">
-                    {session?.purchases.length ?? 0}
+                    {myPurchases.length}
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    {opponentPurchases.length} assegnati agli avversari
                   </p>
                 </div>
 
@@ -266,9 +272,13 @@ export default function AuctionPage() {
                 dynamicRoleBudgets={
                   dynamicRoleBudgets
                 }
+                
                 purchases={
                   session?.purchases ?? []
                 }
+
+                myPurchases={myPurchases}
+
                 maximumBid={maximumBid}
                 onRegisterPurchase={
                   registerPurchase
