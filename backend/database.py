@@ -52,6 +52,22 @@ if not DATABASE_URL:
         "DATABASE_URL non è configurata. "
         "Controlla il file .env nella cartella principale."
     )
+    
+    
+# Render fornisce normalmente un URL
+# con prefisso postgresql://.
+#
+# SQLAlchemy deve invece ricevere
+# postgresql+psycopg:// per utilizzare
+# Psycopg 3, già installato nel progetto.
+if DATABASE_URL.startswith(
+    "postgresql://"
+):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://",
+        "postgresql+psycopg://",
+        1,
+    )
 
 
 # Engine condiviso dall'applicazione.
