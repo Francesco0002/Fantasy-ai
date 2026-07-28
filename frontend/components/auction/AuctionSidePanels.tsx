@@ -616,51 +616,25 @@ export default function AuctionSidePanels({
   return (
     <>
       {/*
-       * Pulsanti compatti per smartphone.
-       */}
+      * Pulsanti compatti per schermi
+      * piccoli e finestre ridimensionate.
+      */}
       <div className="grid grid-cols-3 gap-2 md:hidden">
         <button
           type="button"
           onClick={() => {
-            openSidePanel("MY_ROSTER");
+            openSidePanel(
+              "MY_ROSTER",
+            );
           }}
           className="
-            rounded-xl bg-emerald-700
-            px-4 py-3 text-sm
-            font-semibold text-white
+            min-w-0 rounded-xl
+            bg-emerald-700 px-2 py-3
+            text-xs font-semibold
+            text-white sm:text-sm
           "
         >
           La mia rosa ({myPurchases.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            openSidePanel("OPPONENTS");
-          }}
-          className={`
-            absolute right-full top-[62%]
-            hidden -translate-y-1/2
-            rounded-l-xl
-            bg-amber-600 px-3 py-4
-            text-sm font-semibold
-            text-white shadow-lg
-
-            transition-all
-            duration-200
-            hover:bg-amber-700
-
-            md:block
-            [writing-mode:vertical-rl]
-
-            ${openPanel === null ||
-              openPanel === "OPPONENTS"
-              ? "pointer-events-auto opacity-100"
-              : "pointer-events-none opacity-0"
-            }
-          `}
-        >
-          Avversari ({opponentPurchases.length})
         </button>
 
         <button
@@ -671,12 +645,30 @@ export default function AuctionSidePanels({
             );
           }}
           className="
-            rounded-xl bg-slate-800
-            px-3 py-3 text-sm
-            font-semibold text-white
+            min-w-0 rounded-xl
+            bg-slate-800 px-2 py-3
+            text-xs font-semibold
+            text-white sm:text-sm
           "
         >
           Regole
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            openSidePanel(
+              "OPPONENTS",
+            );
+          }}
+          className="
+            min-w-0 rounded-xl
+            bg-amber-600 px-2 py-3
+            text-xs font-semibold
+            text-white sm:text-sm
+          "
+        >
+          Avversari ({opponentPurchases.length})
         </button>
       </div>
 
@@ -1702,9 +1694,9 @@ export default function AuctionSidePanels({
                 will-change-transform
 
                 ${openPanel === "LEAGUE_RULES"
-                              ? "translate-x-0"
-                              : "translate-x-full"
-                            }
+                  ? "translate-x-0"
+                  : "translate-x-full"
+                }
               `}
             >
               <AuctionLeagueRulesPanel
