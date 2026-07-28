@@ -149,10 +149,6 @@ export default function AuctionLeagueRulesPanel({
           <h2 className="mt-0.5 text-xl font-bold">
             Regole della lega
           </h2>
-
-          <p className="mt-0.5 text-xs text-slate-500">
-            Configurazione utilizzata durante questa asta.
-          </p>
         </div>
 
         <button

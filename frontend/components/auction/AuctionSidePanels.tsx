@@ -754,10 +754,6 @@ export default function AuctionSidePanels({
                     <h2 className="mt-0.5 text-xl font-bold">
                       Rosa personale
                     </h2>
-
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Budget, ruoli e giocatori acquistati.
-                    </p>
                   </div>
 
                   <button
@@ -1214,22 +1210,18 @@ export default function AuctionSidePanels({
                     <h2 className="mt-0.5 text-xl font-bold">
                       Acquisti avversari
                     </h2>
-
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Rose, budget e prezzi registrati.
-                    </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={closeSidePanel}
                     className="
-                shrink-0 rounded-lg
-                bg-slate-100 px-2.5 py-1.5
-                text-xs font-semibold
-                text-slate-700 transition
-                hover:bg-slate-200
-              "
+                      shrink-0 rounded-lg
+                      bg-slate-100 px-2.5 py-1.5
+                      text-xs font-semibold
+                      text-slate-700 transition
+                      hover:bg-slate-200
+                    "
                   >
                     Chiudi
                   </button>

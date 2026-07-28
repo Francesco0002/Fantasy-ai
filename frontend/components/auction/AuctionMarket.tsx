@@ -214,6 +214,17 @@ const AUCTION_ROLE_SEARCH_LABELS: Record<
 
 
 /*
+ * Valori interni utilizzati
+ * dal menu del destinatario.
+ */
+const MY_TEAM_DESTINATION =
+  "__MY_TEAM__";
+
+const MANUAL_OPPONENT_DESTINATION =
+  "__MANUAL_OPPONENT__";
+
+
+/*
  * Trasforma una probabilità da 0-1
  * in una percentuale.
  */
@@ -341,6 +352,70 @@ export default function AuctionMarket({
   const hasConfiguredOpponentTeams =
     configuredOpponentTeamNames.length >
     0;
+
+
+  /*
+  * Squadre disponibili nel menu
+  * mostrato durante l'acquisto.
+  */
+  const purchaseDestinationOptions =
+    useMemo(() => {
+      const myTeamOption = {
+        value: MY_TEAM_DESTINATION,
+        label: "La mia rosa",
+      };
+
+      /*
+       * Quando le squadre sono state
+       * configurate, vengono mostrate
+       * direttamente nel menu.
+       */
+      if (hasConfiguredOpponentTeams) {
+        return [
+          myTeamOption,
+
+          ...configuredOpponentTeamNames.map(
+            (teamName) => ({
+              value:
+                `OPPONENT:${teamName}`,
+
+              label: teamName,
+            }),
+          ),
+        ];
+      }
+
+      /*
+       * Senza squadre preconfigurate
+       * permettiamo l'inserimento manuale.
+       */
+      return [
+        myTeamOption,
+
+        {
+          value:
+            MANUAL_OPPONENT_DESTINATION,
+
+          label: "Squadra avversaria",
+        },
+      ];
+    }, [
+      configuredOpponentTeamNames,
+      hasConfiguredOpponentTeams,
+    ]);
+
+
+  /*
+   * Valore attualmente selezionato
+   * nel menu del destinatario.
+   */
+  const purchaseDestinationValue =
+    purchaseOwner === "ME"
+      ? MY_TEAM_DESTINATION
+      : hasConfiguredOpponentTeams &&
+        opponentName.trim() !== ""
+        ? `OPPONENT:${opponentName}`
+        : MANUAL_OPPONENT_DESTINATION;
 
 
   /*
@@ -586,6 +661,74 @@ export default function AuctionMarket({
 
 
   /*
+  * Cambia il destinatario direttamente
+  * dal riepilogo dell'acquisto.
+  */
+  function changePurchaseDestination(
+    destination: string,
+  ) {
+    /*
+     * Acquisto per la nostra squadra.
+     */
+    if (
+      destination ===
+      MY_TEAM_DESTINATION
+    ) {
+      setOpponentName("");
+
+      changePurchaseOwner("ME");
+
+      return;
+    }
+
+    /*
+     * Acquisto avversario con nome
+     * inserito manualmente.
+     */
+    if (
+      destination ===
+      MANUAL_OPPONENT_DESTINATION
+    ) {
+      setOpponentName("");
+
+      changePurchaseOwner(
+        "OPPONENT",
+      );
+
+      return;
+    }
+
+    /*
+     * Acquisto assegnato a una squadra
+     * già configurata.
+     */
+    const opponentPrefix =
+      "OPPONENT:";
+
+    if (
+      destination.startsWith(
+        opponentPrefix,
+      )
+    ) {
+      const selectedOpponentName =
+        destination
+          .slice(
+            opponentPrefix.length,
+          )
+          .trim();
+
+      setOpponentName(
+        selectedOpponentName,
+      );
+
+      changePurchaseOwner(
+        "OPPONENT",
+      );
+    }
+  }
+
+
+  /*
    * Cambia il ruolo visualizzato.
    */
   function changeRole(
@@ -738,6 +881,14 @@ export default function AuctionMarket({
 
     setSelectedPlayer(null);
     setPurchasePrice("");
+
+    /*
+     * Evita che il prossimo giocatore
+     * venga assegnato per errore alla
+     * squadra precedente.
+     */
+    setPurchaseOwner("ME");
+    setOpponentName("");
   }
 
 
@@ -782,7 +933,7 @@ export default function AuctionMarket({
       {/* Intestazione */}
       <div>
 
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
           <div>
             <h2 className="text-xl font-bold">
               Mercato dell&apos;asta
@@ -792,199 +943,66 @@ export default function AuctionMarket({
               Seleziona un giocatore e registra il prezzo finale.
             </p>
           </div>
-
-          <p className="text-xs text-slate-400">
-            Quotazioni aggiornate automaticamente
-          </p>
         </div>
       </div>
 
-      {/*
-      * Destinatario e ruolo sulla stessa riga
-      * quando lo schermo è abbastanza largo.
-      *
-      * Su smartphone restano uno sotto l'altro.
-      */}
-      <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-        {/* Destinatario dell'acquisto */}
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Destinatario
-          </p>
+      {/* Selezione del ruolo */}
+      <div className="mt-5">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Ruolo
+        </p>
 
-          <div className="grid grid-cols-2 gap-2">
-            {/* Acquisto personale */}
-            <button
-              type="button"
-              onClick={() => {
-                changePurchaseOwner("ME");
-              }}
-              className={`
-                rounded-xl border px-3 py-2.5
-                text-sm font-semibold transition
+        <div className="grid grid-cols-4 gap-2">
+          {AUCTION_ROLES.map((role) => {
+            const roleButtonClasses =
+              AUCTION_ROLE_BUTTON_CLASSES[
+              role
+              ];
 
-                ${purchaseOwner === "ME"
-                  ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }
-              `}
-            >
-              La mia rosa
-            </button>
+            const isActive =
+              activeRole === role;
 
-            {/* Acquisto avversario */}
-            <button
-              type="button"
-              onClick={() => {
-                changePurchaseOwner(
-                  "OPPONENT",
-                );
-              }}
-              className={`
-                rounded-xl border px-3 py-2.5
-                text-sm font-semibold transition
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  changeRole(role);
+                }}
+                className={`
+            rounded-xl border
+            px-3 py-2.5
+            text-sm font-bold
+            shadow-sm transition
 
-                ${purchaseOwner === "OPPONENT"
-                  ? "border-amber-500 bg-amber-50 text-amber-800"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }
-              `}
-            >
-              Squadra avversaria
-            </button>
-          </div>
-
-          {/* Selezione della squadra avversaria */}
-          {purchaseOwner === "OPPONENT" && (
-            <div className="mt-3">
-              <label
-                htmlFor="opponent-name"
-                className="mb-2 block text-sm font-semibold"
+            ${isActive
+                    ? roleButtonClasses.active
+                    : roleButtonClasses.inactive
+                  }
+          `}
               >
-                Squadra avversaria
-              </label>
+                {role}
 
-
-              {hasConfiguredOpponentTeams ? (
-                /*
-                 * Menu mostrato quando i nomi
-                 * sono stati configurati in anticipo.
-                 */
-                <CustomSelect
-                  id="opponent-name"
-                  value={opponentName}
-                  tone="amber"
-                  placeholder="Seleziona la squadra"
-                  options={configuredOpponentTeamNames.map(
-                    (teamName) => ({
-                      value: teamName,
-                      label: teamName,
-                    }),
-                  )}
-                  onChange={(teamName) => {
-                    setOpponentName(teamName);
-                  }}
-                />
-              ) : (
-                /*
-                 * Campo manuale mantenuto per chi
-                 * non usa la configurazione opzionale.
-                 */
-                <input
-                  id="opponent-name"
-                  type="text"
-                  required
-                  value={opponentName}
-                  onChange={(event) => {
-                    setOpponentName(
-                      event.target.value,
-                    );
-                  }}
-                  placeholder="Es. Team Marco"
-                  className="
-                    w-full rounded-xl border
-                    border-slate-300 bg-white
-                    px-4 py-2.5 outline-none
-                    transition
-                    focus:border-amber-500
-                    focus:ring-2
-                    focus:ring-amber-100
-                  "
-                />
-              )}
-
-
-              <p className="mt-1 text-xs text-slate-500">
-                {hasConfiguredOpponentTeams
-                  ? "Seleziona una delle squadre inserite nella configurazione."
-                  : "Usa sempre lo stesso nome per gli acquisti della stessa squadra."}
-              </p>
-            </div>
-          )}
-        </div>
-
-
-        {/* Selezione del ruolo */}
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Ruolo
-          </p>
-
-          <div className="grid grid-cols-4 gap-2">
-            {AUCTION_ROLES.map((role) => {
-              const roleButtonClasses =
-                AUCTION_ROLE_BUTTON_CLASSES[role];
-
-              const isActive =
-                activeRole === role;
-
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => {
-                    changeRole(role);
-                  }}
+                <span
                   className={`
-                    rounded-xl border
-                    px-3 py-2.5
-                    text-sm font-bold
-                    shadow-sm transition
+              ml-1 text-xs
 
-                    ${isActive
-                      ? roleButtonClasses.active
-                      : roleButtonClasses.inactive
+              ${isActive
+                      ? "opacity-90"
+                      : "opacity-70"
                     }
-                  `}
+            `}
                 >
-                  {role}
-
-                  <span
-                    className={`
-                    ml-1 text-xs
-                    ${isActive
-                        ? "opacity-90"
-                        : "opacity-70"
-                      }
-                  `}
-                  >
-                    ({remainingSlots[role]})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  ({remainingSlots[role]})
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
 
-      {purchaseOwner === "OPPONENT" && (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          L&apos;acquisto verrà utilizzato per aggiornare
-          le quotazioni del mercato, ma non modificherà
-          il tuo budget o gli slot della tua rosa.
-        </div>
-      )}
+
 
       {/*
        * Layout:
@@ -1393,6 +1411,88 @@ export default function AuctionMarket({
                   )}
                 </section>
 
+                {/* Destinatario dell'acquisto */}
+                <div>
+                  <label
+                    htmlFor="purchase-destination"
+                    className="mb-1.5 block text-xs font-semibold"
+                  >
+                    Assegna a
+                  </label>
+
+                  <CustomSelect
+                    id="purchase-destination"
+                    value={
+                      purchaseDestinationValue
+                    }
+                    options={
+                      purchaseDestinationOptions
+                    }
+                    tone={
+                      purchaseOwner === "ME"
+                        ? "emerald"
+                        : "amber"
+                    }
+                    placeholder="Seleziona la squadra"
+                    onChange={
+                      changePurchaseDestination
+                    }
+                  />
+
+
+                  {/*
+                  * Inserimento manuale del nome
+                  * quando le squadre non sono state
+                  * configurate prima dell'asta.
+                  */}
+                  {purchaseOwner === "OPPONENT" &&
+                    !hasConfiguredOpponentTeams && (
+                      <div className="mt-3">
+                        <label
+                          htmlFor="opponent-name"
+                          className="mb-1.5 block text-xs font-semibold"
+                        >
+                          Nome squadra avversaria
+                        </label>
+
+                        <input
+                          id="opponent-name"
+                          type="text"
+                          required
+                          value={opponentName}
+                          onChange={(event) => {
+                            setOpponentName(
+                              event.target.value,
+                            );
+                          }}
+                          placeholder="Es. Team Marco"
+                          className="
+                            w-full rounded-xl border
+                            border-slate-300 bg-white
+                            px-3 py-2.5 outline-none
+                            transition
+                            focus:border-amber-500
+                            focus:ring-2
+                            focus:ring-amber-100
+                          "
+                        />
+
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          Usa sempre lo stesso nome per gli acquisti della stessa squadra.
+                        </p>
+                      </div>
+                    )}
+
+
+                  {purchaseOwner === "OPPONENT" && (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      L&apos;acquisto aggiornerà il mercato,
+                      ma non modificherà il budget o gli
+                      slot della tua rosa.
+                    </div>
+                  )}
+                </div>
+
 
                 {/* Prezzo pagato */}
                 <div>
@@ -1706,12 +1806,11 @@ export default function AuctionMarket({
                 >
                   {isRegisteringPurchase
                     ? "Salvataggio..."
-                    : purchaseOwner === "OPPONENT"
-                      ? "Registra acquisto avversario"
-                      : auctionAdvice?.label ===
-                        "Da evitare"
-                        ? "Registra comunque"
-                        : "Registra acquisto"}
+                    : purchaseOwner === "ME" &&
+                      auctionAdvice?.label ===
+                      "Da evitare"
+                      ? "Acquista comunque"
+                      : "Acquista giocatore"}
                 </button>
               </form>
             )}
@@ -1738,6 +1837,6 @@ export default function AuctionMarket({
           </aside>
         </div>
       </div>
-    </section>
+    </section >
   );
 }
