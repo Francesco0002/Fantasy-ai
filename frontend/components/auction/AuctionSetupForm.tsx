@@ -34,6 +34,7 @@ import type {
   AuctionConfig,
   AuctionLeagueRules,
   AuctionRole,
+  AuctionScoringRules,
 } from "../../types/auction";
 
 
@@ -93,6 +94,78 @@ const BUDGET_STRATEGY_OPTIONS: readonly {
     {
       value: "MANUAL",
       label: "Manuale",
+    },
+  ];
+
+
+type EditableScoringField = Exclude<
+  keyof AuctionScoringRules,
+  "goalByRole"
+>;
+
+
+/*
+ * Bonus e malus modificabili
+ * dalla configurazione della lega.
+ */
+const SCORING_RULE_FIELDS: readonly {
+  key: EditableScoringField;
+  label: string;
+  description: string;
+}[] = [
+    {
+      key: "assist",
+      label: "Assist",
+      description:
+        "Bonus assegnato per ogni assist.",
+    },
+    {
+      key: "cleanSheet",
+      label: "Porta inviolata",
+      description:
+        "Bonus per il portiere senza gol subiti.",
+    },
+    {
+      key: "goalConceded",
+      label: "Gol subito",
+      description:
+        "Malus applicato al portiere.",
+    },
+    {
+      key: "penaltyScored",
+      label: "Rigore segnato",
+      description:
+        "Bonus per un rigore realizzato.",
+    },
+    {
+      key: "penaltyMissed",
+      label: "Rigore sbagliato",
+      description:
+        "Malus per un rigore fallito.",
+    },
+    {
+      key: "penaltySaved",
+      label: "Rigore parato",
+      description:
+        "Bonus assegnato al portiere.",
+    },
+    {
+      key: "yellowCard",
+      label: "Ammonizione",
+      description:
+        "Malus per un cartellino giallo.",
+    },
+    {
+      key: "redCard",
+      label: "Espulsione",
+      description:
+        "Malus per un cartellino rosso.",
+    },
+    {
+      key: "ownGoal",
+      label: "Autogol",
+      description:
+        "Malus per un autogol.",
     },
   ];
 
@@ -386,6 +459,40 @@ function getConfigError(
     }
   }
 
+  /*
+ * Tutti i bonus e malus devono
+ * essere numeri compresi tra -20 e 20.
+ */
+  const scoringValues = [
+    ...Object.values(
+      leagueRules
+        .scoring
+        .goalByRole,
+    ),
+
+    leagueRules.scoring.assist,
+    leagueRules.scoring.cleanSheet,
+    leagueRules.scoring.goalConceded,
+    leagueRules.scoring.penaltyScored,
+    leagueRules.scoring.penaltyMissed,
+    leagueRules.scoring.penaltySaved,
+    leagueRules.scoring.yellowCard,
+    leagueRules.scoring.redCard,
+    leagueRules.scoring.ownGoal,
+  ];
+
+  const hasInvalidScoringValue =
+    scoringValues.some(
+      (value) =>
+        !Number.isFinite(value) ||
+        value < -20 ||
+        value > 20,
+    );
+
+  if (hasInvalidScoringValue) {
+    return "I bonus e i malus devono essere compresi tra -20 e 20.";
+  }
+
   if (
     leagueRules
       .midfieldModifier
@@ -633,6 +740,91 @@ export default function AuctionSetupForm({
         ...currentConfig,
         budgetStrategy: "AUTOMATIC",
       });
+    });
+  }
+
+
+  /*
+ * Aggiorna il bonus gol
+ * di uno specifico ruolo.
+ */
+  function updateGoalBonusByRole(
+    role: AuctionRole,
+    value: string,
+  ) {
+    const parsedValue = Math.min(
+      Math.max(
+        parseNumericInput(value),
+        -20,
+      ),
+      20,
+    );
+
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      const updatedScoring:
+        AuctionScoringRules = {
+        ...currentRules.scoring,
+
+        goalByRole: {
+          ...currentRules
+            .scoring
+            .goalByRole,
+
+          [role]: parsedValue,
+        },
+      };
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+          scoring: updatedScoring,
+        },
+      );
+    });
+  }
+
+
+  /*
+   * Aggiorna uno degli altri
+   * bonus o malus della lega.
+   */
+  function updateScoringRule(
+    field: EditableScoringField,
+    value: string,
+  ) {
+    const parsedValue = Math.min(
+      Math.max(
+        parseNumericInput(value),
+        -20,
+      ),
+      20,
+    );
+
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      const updatedScoring:
+        AuctionScoringRules = {
+        ...currentRules.scoring,
+        [field]: parsedValue,
+      };
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+          scoring: updatedScoring,
+        },
+      );
     });
   }
 
@@ -1360,6 +1552,125 @@ export default function AuctionSetupForm({
           Attiva i modificatori utilizzati
           nella tua lega.
         </p>
+
+        {/* Bonus e malus */}
+        <div className="mt-5 rounded-2xl border border-slate-200 p-5">
+          <h3 className="font-semibold">
+            Bonus e malus
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Inserisci i valori previsti dal regolamento.
+            Per i malus usa un numero negativo.
+          </p>
+
+
+          {/* Bonus gol differenziato per ruolo */}
+          <div className="mt-5">
+            <p className="text-sm font-semibold">
+              Bonus gol per ruolo
+            </p>
+
+            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {AUCTION_ROLES.map((role) => (
+                <div
+                  key={role}
+                  className="rounded-xl bg-slate-50 p-4"
+                >
+                  <label
+                    htmlFor={`goal-bonus-${role}`}
+                    className="block text-sm font-semibold"
+                  >
+                    {AUCTION_ROLE_NAMES[role]}
+                  </label>
+
+                  <input
+                    id={`goal-bonus-${role}`}
+                    type="number"
+                    min="-20"
+                    max="20"
+                    step="0.5"
+                    value={
+                      leagueRules
+                        .scoring
+                        .goalByRole[role]
+                    }
+                    onChange={(event) => {
+                      updateGoalBonusByRole(
+                        role,
+                        event.target.value,
+                      );
+                    }}
+                    className="
+                      mt-3 w-full rounded-xl
+                      border border-slate-300
+                      bg-white px-4 py-3
+                      outline-none transition
+                      focus:border-emerald-600
+                      focus:ring-2
+                      focus:ring-emerald-100
+                    "
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+
+          {/* Altri bonus e malus */}
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {SCORING_RULE_FIELDS.map(
+              ({
+                key,
+                label,
+                description,
+              }) => (
+                <div
+                  key={key}
+                  className="rounded-xl bg-slate-50 p-4"
+                >
+                  <label
+                    htmlFor={`scoring-${key}`}
+                    className="block text-sm font-semibold"
+                  >
+                    {label}
+                  </label>
+
+                  <input
+                    id={`scoring-${key}`}
+                    type="number"
+                    min="-20"
+                    max="20"
+                    step="0.5"
+                    value={
+                      leagueRules
+                        .scoring[key]
+                    }
+                    onChange={(event) => {
+                      updateScoringRule(
+                        key,
+                        event.target.value,
+                      );
+                    }}
+                    className="
+                      mt-3 w-full rounded-xl
+                      border border-slate-300
+                      bg-white px-4 py-3
+                      outline-none transition
+                      focus:border-emerald-600
+                      focus:ring-2
+                      focus:ring-emerald-100
+                    "
+                  />
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    {description}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           {/* Modificatore difesa */}

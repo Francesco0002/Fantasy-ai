@@ -28,6 +28,10 @@ import {
 } from "react-dom";
 
 
+import AuctionLeagueRulesPanel from
+  "./AuctionLeagueRulesPanel";
+
+
 /*
  * Proprietà ricevute dal componente.
  */
@@ -78,6 +82,7 @@ type AuctionSidePanelsProps = {
 type OpenPanel =
   | "MY_ROSTER"
   | "OPPONENTS"
+  | "LEAGUE_RULES"
   | null;
 
 
@@ -613,7 +618,7 @@ export default function AuctionSidePanels({
       {/*
        * Pulsanti compatti per smartphone.
        */}
-      <div className="grid grid-cols-2 gap-3 md:hidden">
+      <div className="grid grid-cols-3 gap-2 md:hidden">
         <button
           type="button"
           onClick={() => {
@@ -633,13 +638,45 @@ export default function AuctionSidePanels({
           onClick={() => {
             openSidePanel("OPPONENTS");
           }}
+          className={`
+            absolute right-full top-[62%]
+            hidden -translate-y-1/2
+            rounded-l-xl
+            bg-amber-600 px-3 py-4
+            text-sm font-semibold
+            text-white shadow-lg
+
+            transition-all
+            duration-200
+            hover:bg-amber-700
+
+            md:block
+            [writing-mode:vertical-rl]
+
+            ${openPanel === null ||
+              openPanel === "OPPONENTS"
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0"
+            }
+          `}
+        >
+          Avversari ({opponentPurchases.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            openSidePanel(
+              "LEAGUE_RULES",
+            );
+          }}
           className="
-            rounded-xl bg-amber-600
-            px-4 py-3 text-sm
+            rounded-xl bg-slate-800
+            px-3 py-3 text-sm
             font-semibold text-white
           "
         >
-          Avversari ({opponentPurchases.length})
+          Regole
         </button>
       </div>
 
@@ -1271,18 +1308,18 @@ export default function AuctionSidePanels({
                         <details
                           key={opponentTeam.key}
                           className="
-                      overflow-hidden
-                      rounded-xl border
-                      border-amber-200
-                      bg-white
-                    "
+                            overflow-hidden
+                            rounded-xl border
+                            border-amber-200
+                            bg-white
+                          "
                         >
                           {/* Intestazione compatta della squadra */}
                           <summary
                             className="
-                        cursor-pointer list-none
-                        bg-amber-50 px-3 py-3
-                      "
+                              cursor-pointer list-none
+                              bg-amber-50 px-3 py-3
+                            "
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0 flex-1">
@@ -1326,13 +1363,13 @@ export default function AuctionSidePanels({
 
                                 <p
                                   className={`
-                              text-lg font-bold
+                                    text-lg font-bold
 
-                              ${opponentTeam.remainingBudget > 0
+                                    ${opponentTeam.remainingBudget > 0
                                       ? "text-emerald-700"
                                       : "text-red-700"
                                     }
-                            `}
+                                  `}
                                 >
                                   {opponentTeam.remainingBudget}
                                 </p>
@@ -1629,7 +1666,7 @@ export default function AuctionSidePanels({
                   openPanel === "OPPONENTS"
                 }
                 className="
-                  absolute right-full top-1/2
+                  absolute right-full top-[62%]
                   hidden -translate-y-1/2
                   rounded-l-xl
                   bg-amber-600 px-3 py-4
@@ -1645,6 +1682,79 @@ export default function AuctionSidePanels({
                 "
               >
                 Avversari ({opponentPurchases.length})
+              </button>
+            </div>
+            {/*
+            * Drawer destro dedicato
+            * alle regole della lega.
+            */}
+            <div
+              className={`
+                fixed inset-y-0 right-0 z-[1020]
+                h-dvh
+                w-full max-w-md
+                overflow-visible
+
+                transform-gpu
+                transition-transform
+                duration-[400ms]
+                ease-[cubic-bezier(0.22,1,0.36,1)]
+                will-change-transform
+
+                ${openPanel === "LEAGUE_RULES"
+                              ? "translate-x-0"
+                              : "translate-x-full"
+                            }
+              `}
+            >
+              <AuctionLeagueRulesPanel
+                config={config}
+                onClose={closeSidePanel}
+              />
+
+              {/* Linguetta desktop */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    openPanel ===
+                    "LEAGUE_RULES"
+                  ) {
+                    closeSidePanel();
+                    return;
+                  }
+
+                  openSidePanel(
+                    "LEAGUE_RULES",
+                  );
+                }}
+                aria-expanded={
+                  openPanel ===
+                  "LEAGUE_RULES"
+                }
+                className={`
+                  absolute right-full top-[35%]
+                  hidden -translate-y-1/2
+                  rounded-l-xl
+                  bg-slate-800 px-3 py-4
+                  text-sm font-semibold
+                  text-white shadow-lg
+
+                  transition-all
+                  duration-200
+                  hover:bg-slate-900
+
+                  md:block
+                  [writing-mode:vertical-rl]
+
+                  ${openPanel === null ||
+                    openPanel === "LEAGUE_RULES"
+                    ? "pointer-events-auto opacity-100"
+                    : "pointer-events-none opacity-0"
+                  }
+                `}
+              >
+                Regole della lega
               </button>
             </div>
           </>,

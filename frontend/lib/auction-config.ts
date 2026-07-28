@@ -641,24 +641,152 @@ export const AUCTION_ROLES: AuctionRole[] = [
 
 
 /*
- * Calcola il budget consigliato
- * per un determinato ruolo.
+ * Divide il budget iniziale tra i ruoli
+ * garantendo che la somma finale sia
+ * esattamente uguale al budget disponibile.
+ *
+ * Utilizziamo il metodo dei resti maggiori:
+ *
+ * 1. calcoliamo il budget decimale;
+ * 2. assegniamo inizialmente la parte intera;
+ * 3. distribuiamo i crediti rimasti ai ruoli
+ *    con la parte decimale più alta.
  */
-export function calculateRoleBudget(
+export function calculateRoleBudgets(
   config: AuctionConfig,
-  role: AuctionRole,
-): number {
+): Record<AuctionRole, number> {
   const distribution =
     getEffectiveBudgetDistribution(
       config,
     );
 
-  const percentage =
-    distribution[role];
+  const startingBudget =
+    Math.max(
+      Math.trunc(
+        config.startingBudget,
+      ),
+      0,
+    );
 
-  return Math.round(
-    config.startingBudget * percentage,
+  const allocations =
+    AUCTION_ROLES.map(
+      (role, roleOrder) => {
+        const rawBudget =
+          startingBudget *
+          distribution[role];
+
+        const baseBudget =
+          Math.floor(rawBudget);
+
+        return {
+          role,
+          roleOrder,
+          baseBudget,
+
+          decimalRemainder:
+            rawBudget -
+            baseBudget,
+        };
+      },
+    );
+
+  const roleBudgets:
+    Record<AuctionRole, number> = {
+    P: 0,
+    D: 0,
+    C: 0,
+    A: 0,
+  };
+
+  let assignedBudget = 0;
+
+  for (
+    const allocation
+    of allocations
+  ) {
+    roleBudgets[
+      allocation.role
+    ] = allocation.baseBudget;
+
+    assignedBudget +=
+      allocation.baseBudget;
+  }
+
+  /*
+   * Crediti che non sono ancora stati
+   * assegnati dopo l'arrotondamento
+   * verso il basso.
+   */
+  const remainingCredits =
+    Math.max(
+      startingBudget -
+      assignedBudget,
+      0,
+    );
+
+  /*
+   * I crediti rimanenti vengono assegnati
+   * partendo dai ruoli con il resto
+   * decimale più alto.
+   *
+   * roleOrder rende stabile il risultato
+   * quando due resti sono identici.
+   */
+  const orderedAllocations = [
+    ...allocations,
+  ].sort(
+    (
+      firstAllocation,
+      secondAllocation,
+    ) => {
+      const remainderDifference =
+        secondAllocation
+          .decimalRemainder -
+        firstAllocation
+          .decimalRemainder;
+
+      if (remainderDifference !== 0) {
+        return remainderDifference;
+      }
+
+      return (
+        firstAllocation.roleOrder -
+        secondAllocation.roleOrder
+      );
+    },
   );
+
+  for (
+    let index = 0;
+    index < remainingCredits;
+    index += 1
+  ) {
+    const allocation =
+      orderedAllocations[
+      index %
+      orderedAllocations.length
+      ];
+
+    roleBudgets[
+      allocation.role
+    ] += 1;
+  }
+
+  return roleBudgets;
+}
+
+
+/*
+ * Restituisce il budget intero
+ * assegnato a uno specifico ruolo.
+ */
+export function calculateRoleBudget(
+  config: AuctionConfig,
+  role: AuctionRole,
+): number {
+  return calculateRoleBudgets(
+    config,
+  )[role];
 }
 
 
