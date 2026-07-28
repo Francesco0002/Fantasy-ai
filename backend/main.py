@@ -24,6 +24,10 @@ from backend.database import (
     check_database_connection,
 )
 
+from fastapi.middleware.cors import (
+    CORSMiddleware,
+)
+
 # FastAPI crea l'applicazione web.
 #
 # HTTPException permette di restituire errori HTTP,
@@ -88,22 +92,34 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
 
-    # Permettiamo le richieste solamente
-    # dagli indirizzi definiti sopra.
-    allow_origins=allowed_origins,
+    # Frontend locale.
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
 
-    # Per ora non utilizziamo cookie o autenticazione,
-    # ma abilitiamo questa opzione in previsione futura.
-    allow_credentials=True,
+    # Autorizza tutti i deployment
+    # generati dal progetto su Vercel.
+    allow_origin_regex=(
+        r"^https://[a-zA-Z0-9-]+"
+        r"\.vercel\.app$"
+    ),
 
-    # Permettiamo tutti i metodi HTTP,
-    # come GET, POST, PUT e DELETE.
-    allow_methods=["*"],
+    # Al momento l'API non utilizza
+    # cookie o sessioni di autenticazione.
+    allow_credentials=False,
 
-    # Permettiamo tutti gli header HTTP.
-    allow_headers=["*"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "DELETE",
+        "OPTIONS",
+    ],
+
+    allow_headers=[
+        "Content-Type",
+    ],
 )
-
 
 # Aggiungiamo gli endpoint
 # dedicati alle sessioni d'asta.
