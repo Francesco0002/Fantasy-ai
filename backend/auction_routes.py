@@ -145,6 +145,16 @@ def create_session_response(
             auction_session.auction_mode
         ),
 
+        budgetStrategy=(
+            auction_session
+            .budget_strategy
+        ),
+
+        leagueRules=(
+            auction_session
+            .league_rules
+        ),
+
         status=auction_session.status,
 
         createdAt=(
@@ -549,6 +559,14 @@ def create_auction_session(
 
         auction_mode=(
             request.auctionMode
+        ),
+        budget_strategy=(
+            request.budgetStrategy
+        ),
+
+        league_rules=(
+            request.leagueRules
+            .model_dump()
         ),
     )
 

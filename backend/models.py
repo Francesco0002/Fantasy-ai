@@ -84,6 +84,17 @@ class AuctionSession(Base):
                 "auction_mode_valid"
             ),
         ),
+
+        CheckConstraint(
+            (
+                "budget_strategy IN "
+                "('AUTOMATIC', 'MANUAL')"
+            ),
+            name=(
+                "ck_auction_sessions_"
+                "budget_strategy_valid"
+            ),
+        ),
     )
 
     # Identificativo pubblico della sessione.
@@ -150,6 +161,31 @@ class AuctionSession(Base):
     # }
     budget_distribution: Mapped[
         dict[str, float]
+    ] = mapped_column(
+        JSONB,
+        nullable=False,
+    )
+
+    # AUTOMATIC:
+    # il frontend calcola la distribuzione
+    # in base alle regole della lega.
+    #
+    # MANUAL:
+    # l'utente inserisce direttamente
+    # le percentuali del budget.
+    budget_strategy: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+
+
+    # Bonus, malus e modificatori
+    # configurati per questa sessione.
+    #
+    # La struttura viene salvata come JSONB
+    # perché contiene oggetti e array annidati.
+    league_rules: Mapped[
+        dict[str, object]
     ] = mapped_column(
         JSONB,
         nullable=False,

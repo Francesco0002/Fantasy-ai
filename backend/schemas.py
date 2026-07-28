@@ -38,6 +38,13 @@ AuctionMode = Literal[
 ]
 
 
+# Modalità di gestione del budget.
+AuctionBudgetStrategy = Literal[
+    "AUTOMATIC",
+    "MANUAL",
+]
+
+
 # Possibili destinatari di un acquisto.
 AuctionPurchaseOwner = Literal[
     "ME",
@@ -97,6 +104,237 @@ class BudgetDistributionSchema(BaseModel):
         return self
 
 
+class GoalBonusByRoleSchema(BaseModel):
+    """
+    Bonus assegnato al gol
+    in base al ruolo del giocatore.
+    """
+
+    P: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+    D: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+    C: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+    A: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+
+class AuctionScoringRulesSchema(BaseModel):
+    """
+    Bonus e malus utilizzati
+    dalla lega.
+    """
+
+    goalByRole: GoalBonusByRoleSchema = Field(
+        default_factory=GoalBonusByRoleSchema,
+    )
+
+    assist: float = Field(
+        default=1,
+        ge=-20,
+        le=20,
+    )
+
+    cleanSheet: float = Field(
+        default=1,
+        ge=-20,
+        le=20,
+    )
+
+    goalConceded: float = Field(
+        default=-1,
+        ge=-20,
+        le=20,
+    )
+
+    penaltyScored: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+    penaltyMissed: float = Field(
+        default=-3,
+        ge=-20,
+        le=20,
+    )
+
+    penaltySaved: float = Field(
+        default=3,
+        ge=-20,
+        le=20,
+    )
+
+    yellowCard: float = Field(
+        default=-0.5,
+        ge=-20,
+        le=20,
+    )
+
+    redCard: float = Field(
+        default=-1,
+        ge=-20,
+        le=20,
+    )
+
+    ownGoal: float = Field(
+        default=-2,
+        ge=-20,
+        le=20,
+    )
+
+
+class ModifierBandSchema(BaseModel):
+    """
+    Fascia media-bonus utilizzata
+    dai modificatori.
+    """
+
+    minimumAverage: float = Field(
+        ge=0,
+        le=10,
+    )
+
+    bonus: float = Field(
+        ge=-20,
+        le=20,
+    )
+
+
+def create_default_modifier_bands(
+) -> list[ModifierBandSchema]:
+    """
+    Crea le fasce predefinite
+    senza condividere la stessa lista
+    tra configurazioni differenti.
+    """
+
+    return [
+        ModifierBandSchema(
+            minimumAverage=6,
+            bonus=1,
+        ),
+
+        ModifierBandSchema(
+            minimumAverage=6.25,
+            bonus=2,
+        ),
+
+        ModifierBandSchema(
+            minimumAverage=6.5,
+            bonus=3,
+        ),
+
+        ModifierBandSchema(
+            minimumAverage=7,
+            bonus=6,
+        ),
+    ]
+
+
+class DefenseModifierRulesSchema(BaseModel):
+    """
+    Configurazione del modificatore difesa.
+    """
+
+    enabled: bool = False
+
+    minimumDefenders: int = Field(
+        default=4,
+        ge=1,
+        le=20,
+    )
+
+    includeGoalkeeper: bool = True
+
+    consideredPlayers: int = Field(
+        default=4,
+        ge=1,
+        le=20,
+    )
+
+    bands: list[
+        ModifierBandSchema
+    ] = Field(
+        default_factory=(
+            create_default_modifier_bands
+        ),
+        min_length=1,
+        max_length=20,
+    )
+
+
+class MidfieldModifierRulesSchema(BaseModel):
+    """
+    Configurazione del modificatore
+    centrocampo.
+    """
+
+    enabled: bool = False
+
+    minimumMidfielders: int = Field(
+        default=4,
+        ge=1,
+        le=20,
+    )
+
+    consideredPlayers: int = Field(
+        default=4,
+        ge=1,
+        le=20,
+    )
+
+    bands: list[
+        ModifierBandSchema
+    ] = Field(
+        default_factory=(
+            create_default_modifier_bands
+        ),
+        min_length=1,
+        max_length=20,
+    )
+
+
+class AuctionLeagueRulesSchema(BaseModel):
+    """
+    Regole complete della lega.
+    """
+
+    scoring: AuctionScoringRulesSchema = Field(
+        default_factory=(
+            AuctionScoringRulesSchema
+        ),
+    )
+
+    defenseModifier: DefenseModifierRulesSchema = Field(
+        default_factory=(
+            DefenseModifierRulesSchema
+        ),
+    )
+
+    midfieldModifier: MidfieldModifierRulesSchema = Field(
+        default_factory=(
+            MidfieldModifierRulesSchema
+        ),
+    )
+
+
 class AuctionSessionCreate(BaseModel):
     """
     Dati ricevuti quando il frontend
@@ -129,6 +367,20 @@ class AuctionSessionCreate(BaseModel):
     budgetDistribution: BudgetDistributionSchema
 
     auctionMode: AuctionMode
+
+    # Le vecchie versioni del frontend
+    # che non inviano questo campo
+    # conservano il budget salvato manualmente.
+    budgetStrategy: AuctionBudgetStrategy = (
+        "MANUAL"
+    )
+
+    # Bonus, malus e modificatori.
+    leagueRules: AuctionLeagueRulesSchema = Field(
+        default_factory=(
+            AuctionLeagueRulesSchema
+        ),
+    )
 
     # Nome della squadra dell'utente.
     #
@@ -485,6 +737,11 @@ class AuctionSessionResponse(BaseModel):
     budgetDistribution: BudgetDistributionSchema
 
     auctionMode: AuctionMode
+
+    budgetStrategy: AuctionBudgetStrategy
+
+    leagueRules: AuctionLeagueRulesSchema
+
     status: str
 
     createdAt: datetime
