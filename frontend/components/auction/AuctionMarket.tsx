@@ -1046,7 +1046,16 @@ export default function AuctionMarket({
 
           {/* Caricamento */}
           {isLoading && (
-            <div className="mt-4 rounded-xl bg-slate-100 p-6 text-center text-sm text-slate-600">
+            <div
+              className="
+                mt-3 flex min-h-[420px]
+                items-center justify-center
+                rounded-xl bg-slate-100
+                p-6 text-center text-sm
+                text-slate-600
+                xl:min-h-[calc(100dvh-250px)]
+              "
+            >
               Caricamento dei giocatori...
             </div>
           )}
@@ -1054,7 +1063,17 @@ export default function AuctionMarket({
 
           {/* Errore backend */}
           {!isLoading && error && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+            <div
+              className="
+                mt-3 flex min-h-[420px]
+                items-center justify-center
+                rounded-xl border
+                border-red-200 bg-red-50
+                p-5 text-center text-sm
+                text-red-800
+                xl:min-h-[calc(100dvh-250px)]
+              "
+            >
               {error}
             </div>
           )}
@@ -1065,7 +1084,16 @@ export default function AuctionMarket({
             !error &&
             availablePlayers.length ===
             0 && (
-              <div className="mt-4 rounded-xl bg-slate-100 p-6 text-center text-sm text-slate-600">
+              <div
+                className="
+                  mt-3 flex min-h-[420px]
+                  items-center justify-center
+                  rounded-xl bg-slate-100
+                  p-6 text-center text-sm
+                  text-slate-600
+                  xl:min-h-[calc(100dvh-250px)]
+                "
+              >
                 Nessun giocatore disponibile.
               </div>
             )}
@@ -1076,7 +1104,14 @@ export default function AuctionMarket({
             !error &&
             availablePlayers.length >
             0 && (
-              <div className="mt-3 max-h-[calc(100vh-250px)] min-h-[420px] space-y-2 overflow-y-auto pr-1">
+              <div
+                className="
+                  mt-3 min-h-[420px]
+                  max-h-[calc(100dvh-250px)]
+                  space-y-2 overflow-y-auto pr-1
+                  xl:h-[calc(100dvh-250px)]
+                "
+              >
                 {availablePlayers.map(
                   (player) => {
                     const playerValuation =

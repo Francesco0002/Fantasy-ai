@@ -1,3 +1,8 @@
+import {
+  getLeagueRules,
+} from "./auction-config";
+
+
 /*
  * Tipi utilizzati per descrivere
  * i dati ricevuti dal backend.
@@ -271,6 +276,14 @@ export type AuctionSessionApiResponse = {
   auctionMode:
   AuctionConfig["auctionMode"];
 
+  budgetStrategy: NonNullable<
+    AuctionConfig["budgetStrategy"]
+  >;
+
+  leagueRules: NonNullable<
+    AuctionConfig["leagueRules"]
+  >;
+
   status: string;
 
   createdAt: string;
@@ -321,6 +334,21 @@ export async function createAuctionSession(
 
         auctionMode:
           config.auctionMode,
+
+        /*
+         * Strategia di distribuzione
+         * selezionata durante la configurazione.
+         */
+        budgetStrategy:
+          config.budgetStrategy ??
+          "AUTOMATIC",
+
+        /*
+         * Bonus, malus e modificatori
+         * impostati dall'utente.
+         */
+        leagueRules:
+          getLeagueRules(config),
 
         /*
          * Per ora non chiediamo all'utente

@@ -186,9 +186,9 @@ function mapApiSessionToAuctionSession(
             isUserPurchase
               ? undefined
               : (
-                  ownerTeam?.name ??
-                  "Squadra avversaria"
-                ),
+                ownerTeam?.name ??
+                "Squadra avversaria"
+              ),
 
           baseRecommendedPriceAtPurchase:
             apiPurchase
@@ -277,12 +277,22 @@ function mapApiSessionToAuctionSession(
       auctionMode:
         apiSession.auctionMode,
 
+      /*
+       * Strategia e regole salvate
+       * per questa specifica asta.
+       */
+      budgetStrategy:
+        apiSession.budgetStrategy,
+
+      leagueRules:
+        apiSession.leagueRules,
+
       opponentTeamNames:
         hasCompleteOpponentList
           ? opponentTeams.map(
-              (team) =>
-                team.name,
-            )
+            (team) =>
+              team.name,
+          )
           : [],
     },
 
@@ -386,7 +396,7 @@ export function useAuctionSession() {
          */
         if (
           error instanceof
-            ApiRequestError &&
+          ApiRequestError &&
           error.status === 404
         ) {
           window.localStorage.removeItem(
@@ -722,7 +732,7 @@ export function useAuctionSession() {
 
     if (
       purchase.ownerType ===
-        "OPPONENT" &&
+      "OPPONENT" &&
       (
         !purchase.ownerName ||
         purchase.ownerName.trim() === ""
@@ -765,7 +775,7 @@ export function useAuctionSession() {
 
       if (
         remainingSlots[
-          purchase.role
+        purchase.role
         ] <= 0
       ) {
         return (
