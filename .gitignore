@@ -26,3 +26,12 @@ frontend/out/
 # File di sistema
 .DS_Store
 Thumbs.db
+
+# Dataset grezzi ricevuti dai provider
+data/raw/*.csv
+
+# Copie di sicurezza generate dall'importatore
+data/backups/
+
+# Mantiene la cartella raw nel repository
+!data/raw/.gitkeep
