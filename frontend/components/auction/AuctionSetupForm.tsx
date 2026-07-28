@@ -41,7 +41,9 @@ import type {
  * preme "Inizia asta".
  */
 type AuctionSetupFormProps = {
-  onStart: (config: AuctionConfig) => void;
+  onStart: (
+    config: AuctionConfig,
+  ) => Promise<void>;
 };
 
 
@@ -309,6 +311,17 @@ export default function AuctionSetupForm({
       createDefaultConfig,
     );
 
+
+  /*
+   * Indica se la configurazione
+   * viene salvata nel database.
+   */
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
+  
+
   /*
   * Indica se l'utente desidera
   * configurare in anticipo i nomi
@@ -456,7 +469,7 @@ export default function AuctionSetupForm({
    * Avvia la sessione soltanto
    * quando la configurazione è valida.
    */
-  function handleSubmit(
+  async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
@@ -469,31 +482,37 @@ export default function AuctionSetupForm({
      * Passiamo una copia completa
      * della configurazione alla pagina.
      */
-    onStart({
-      ...config,
+    setIsSubmitting(true);
 
-      leagueName:
-        config.leagueName.trim(),
+    try {
+      await onStart({
+        ...config,
 
-      rosterSlots: {
-        ...config.rosterSlots,
-      },
+        leagueName:
+          config.leagueName.trim(),
 
-      budgetDistribution: {
-        ...config.budgetDistribution,
-      },
+        rosterSlots: {
+          ...config.rosterSlots,
+        },
 
-      opponentTeamNames:
-        usePredefinedOpponentNames
-          ? (
-            config.opponentTeamNames ??
-            []
-          ).map(
-            (teamName) =>
-              teamName.trim(),
-          )
-          : [],
-    });
+        budgetDistribution: {
+          ...config.budgetDistribution,
+        },
+
+        opponentTeamNames:
+          usePredefinedOpponentNames
+            ? (
+              config.opponentTeamNames ??
+              []
+            ).map(
+              (teamName) =>
+                teamName.trim(),
+            )
+            : [],
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
 
@@ -1037,18 +1056,24 @@ export default function AuctionSetupForm({
 
         <button
           type="submit"
-          disabled={configError !== null}
+          disabled={
+            configError !== null ||
+            isSubmitting
+          }
           className={`
             rounded-xl px-5 py-3
             text-sm font-semibold transition
 
-            ${configError === null
+            ${configError === null &&
+              !isSubmitting
               ? "bg-emerald-700 text-white hover:bg-emerald-800"
               : "cursor-not-allowed bg-slate-300 text-slate-500"
             }
           `}
         >
-          Inizia asta
+          {isSubmitting
+            ? "Creazione asta..."
+            : "Inizia asta"}
         </button>
       </div>
     </form>

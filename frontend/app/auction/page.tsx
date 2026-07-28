@@ -51,9 +51,9 @@ export default function AuctionPage() {
   const {
     session,
     isStorageReady,
+    actionError,
     myPurchases,
     opponentPurchases,
-    spentByRole,
     remainingSlots,
     dynamicRoleBudgets,
     maximumBid,
@@ -92,7 +92,7 @@ export default function AuctionPage() {
   * Chiede conferma prima di cancellare
   * definitivamente la sessione salvata.
   */
-  function handleResetAuction() {
+  async function handleResetAuction() {
     const confirmed = window.confirm(
       "Vuoi terminare l'asta? Configurazione, budget e acquisti verranno eliminati.",
     );
@@ -101,7 +101,7 @@ export default function AuctionPage() {
       return;
     }
 
-    resetAuction();
+    await resetAuction();
   }
 
 
@@ -154,6 +154,12 @@ export default function AuctionPage() {
           </section>
         )}
 
+        {actionError && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+            {actionError}
+          </div>
+        )}
+
         {/*
          * Prima dell'avvio mostriamo
          * il modulo di configurazione.
@@ -188,9 +194,9 @@ export default function AuctionPage() {
                 dynamicRoleBudgets={
                   dynamicRoleBudgets
                 }
-                onRemovePurchase={
-                  removePurchase
-                }
+                onRemovePurchase={(playerId) => {
+                  void removePurchase(playerId);
+                }}
               />
 
               {/* Riepilogo compatto della sessione */}
@@ -301,11 +307,11 @@ export default function AuctionPage() {
               <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">
-                    Sessione salvata automaticamente
+                    Sessione salvata nel database
                   </p>
 
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Budget, acquisti e quotazioni restano salvati in questo browser.
+                    Configurazione, squadre e acquisti vengono conservati su PostgreSQL.
                   </p>
                 </div>
 

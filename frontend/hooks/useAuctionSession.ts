@@ -9,8 +9,24 @@ import {
 } from "../lib/auction-budget";
 
 /*
+ * Funzioni che comunicano con FastAPI.
+ */
+import {
+  ApiRequestError,
+  createAuctionPurchase,
+  createAuctionSession,
+  deleteAuctionPurchase,
+  deleteAuctionSession,
+  fetchAuctionSessionById,
+} from "../lib/api";
+
+import type {
+  AuctionSessionApiResponse,
+} from "../lib/api";
+
+/*
  * Hook React utilizzati per conservare
- * la sessione d'asta e calcolare dati derivati.
+ * la sessione e calcolare i dati derivati.
  */
 import {
   useEffect,
@@ -30,20 +46,23 @@ import type {
 
 
 /*
- * Nome utilizzato per salvare la sessione
- * nella memoria locale del browser.
- *
- * La versione finale permette di cambiare
- * struttura in futuro senza confondere
- * i vecchi dati con quelli nuovi.
+ * Nel browser salviamo solamente
+ * l'UUID assegnato dal database.
  */
-const AUCTION_STORAGE_KEY =
+const AUCTION_SESSION_ID_KEY =
+  "fantasy-ai-auction-session-id-v1";
+
+
+/*
+ * Vecchia chiave che conteneva
+ * l'intera sessione nel localStorage.
+ */
+const LEGACY_AUCTION_STORAGE_KEY =
   "fantasy-ai-auction-session-v1";
 
 
 /*
- * Valore vuoto utilizzato quando
- * non esiste ancora una sessione.
+ * Valori vuoti associati ai ruoli.
  */
 const EMPTY_ROLE_VALUES: Record<
   AuctionRole,
@@ -57,40 +76,8 @@ const EMPTY_ROLE_VALUES: Record<
 
 
 /*
- * Controlla che un valore recuperato
- * dal browser abbia almeno la struttura
- * principale di una sessione d'asta.
- */
-function isStoredAuctionSession(
-  value: unknown,
-): value is AuctionSession {
-  if (
-    typeof value !== "object" ||
-    value === null
-  ) {
-    return false;
-  }
-
-  const candidate =
-    value as Partial<AuctionSession>;
-
-  return (
-    candidate.isStarted === true &&
-    typeof candidate.remainingBudget ===
-    "number" &&
-    Number.isFinite(
-      candidate.remainingBudget,
-    ) &&
-    Array.isArray(candidate.purchases) &&
-    typeof candidate.config === "object" &&
-    candidate.config !== null
-  );
-}
-
-
-/*
  * Crea una copia indipendente
- * della configurazione dell'asta.
+ * della configurazione.
  */
 function cloneAuctionConfig(
   config: AuctionConfig,
@@ -117,223 +104,402 @@ function cloneAuctionConfig(
 
 
 /*
+ * Restituisce un messaggio leggibile
+ * partendo da un errore sconosciuto.
+ */
+function getErrorMessage(
+  error: unknown,
+): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return (
+    "Si è verificato un errore "
+    + "durante la comunicazione con il backend."
+  );
+}
+
+
+/*
+ * Converte la risposta FastAPI
+ * nel formato già utilizzato dal frontend.
+ */
+function mapApiSessionToAuctionSession(
+  apiSession: AuctionSessionApiResponse,
+): AuctionSession {
+  /*
+   * Mappa che permette di recuperare
+   * rapidamente una squadra tramite UUID.
+   */
+  const teamsById = new Map(
+    apiSession.teams.map(
+      (team) => [
+        team.id,
+        team,
+      ],
+    ),
+  );
+
+
+  /*
+   * Convertiamo gli acquisti del backend
+   * nel formato AuctionPurchase.
+   */
+  const purchases: AuctionPurchase[] =
+    apiSession.purchases.map(
+      (apiPurchase) => {
+        const ownerTeam =
+          teamsById.get(
+            apiPurchase.teamId,
+          );
+
+        const isUserPurchase =
+          ownerTeam?.isUserTeam === true;
+
+        return {
+          playerId:
+            apiPurchase.playerId,
+
+          playerName:
+            apiPurchase.playerName,
+
+          /*
+           * Nel frontend "team" indica
+           * la squadra reale del calciatore.
+           */
+          team:
+            apiPurchase.playerTeam,
+
+          role:
+            apiPurchase.role,
+
+          purchasePrice:
+            apiPurchase.purchasePrice,
+
+          ownerType:
+            isUserPurchase
+              ? "ME"
+              : "OPPONENT",
+
+          ownerName:
+            isUserPurchase
+              ? undefined
+              : (
+                  ownerTeam?.name ??
+                  "Squadra avversaria"
+                ),
+
+          baseRecommendedPriceAtPurchase:
+            apiPurchase
+              .baseRecommendedPriceAtPurchase ??
+            undefined,
+
+          dynamicRecommendedPriceAtPurchase:
+            apiPurchase
+              .dynamicRecommendedPriceAtPurchase ??
+            undefined,
+
+          purchasedAt:
+            apiPurchase.purchasedAt,
+        };
+      },
+    );
+
+
+  /*
+   * Il budget personale viene ricavato
+   * dagli acquisti della nostra squadra.
+   */
+  const personalSpending =
+    purchases
+      .filter(
+        (purchase) =>
+          purchase.ownerType === "ME",
+      )
+      .reduce(
+        (
+          total,
+          purchase,
+        ) =>
+          total +
+          purchase.purchasePrice,
+        0,
+      );
+
+
+  const opponentTeams =
+    apiSession.teams.filter(
+      (team) =>
+        !team.isUserTeam,
+    );
+
+
+  /*
+   * Consideriamo l'elenco preconfigurato
+   * soltanto quando sono presenti
+   * tutti gli avversari previsti.
+   *
+   * In caso contrario manteniamo
+   * l'inserimento manuale.
+   */
+  const hasCompleteOpponentList =
+    opponentTeams.length ===
+    apiSession.participants - 1;
+
+
+  return {
+    id:
+      apiSession.id,
+
+    config: {
+      leagueName:
+        apiSession.leagueName,
+
+      participants:
+        apiSession.participants,
+
+      startingBudget:
+        apiSession.startingBudget,
+
+      minimumBid:
+        apiSession.minimumBid,
+
+      rosterSlots: {
+        ...apiSession.rosterSlots,
+      },
+
+      budgetDistribution: {
+        ...apiSession
+          .budgetDistribution,
+      },
+
+      auctionMode:
+        apiSession.auctionMode,
+
+      opponentTeamNames:
+        hasCompleteOpponentList
+          ? opponentTeams.map(
+              (team) =>
+                team.name,
+            )
+          : [],
+    },
+
+    remainingBudget:
+      Math.max(
+        apiSession.startingBudget -
+        personalSpending,
+        0,
+      ),
+
+    purchases,
+
+    isStarted: true,
+  };
+}
+
+
+/*
  * Gestisce lo stato completo
  * di una sessione d'asta.
  */
 export function useAuctionSession() {
-  /*
-   * null indica che l'asta
-   * non è ancora stata avviata.
-   */
-  const [session, setSession] =
-    useState<AuctionSession | null>(null);
+  const [
+    session,
+    setSession,
+  ] = useState<AuctionSession | null>(
+    null,
+  );
+
 
   /*
-  * Indica se abbiamo già controllato
-  * la memoria locale del browser.
-  *
-  * Serve a evitare che la pagina mostri
-  * temporaneamente il modulo iniziale
-  * prima di recuperare una sessione salvata.
-  */
+   * Indica se abbiamo terminato
+   * il recupero iniziale dal backend.
+   */
   const [
     isStorageReady,
     setIsStorageReady,
   ] = useState(false);
 
+
   /*
-  * Recupera l'eventuale sessione salvata
-  * quando la pagina viene aperta.
-  */
+   * Errore generale mostrato nella pagina.
+   */
+  const [
+    actionError,
+    setActionError,
+  ] = useState<string | null>(null);
+
+
+  /*
+   * All'apertura della pagina recuperiamo
+   * l'UUID memorizzato nel browser.
+   *
+   * L'intera sessione viene invece
+   * caricata da PostgreSQL.
+   */
   useEffect(() => {
-    try {
-      const storedSession =
+    let isEffectActive = true;
+
+    async function restoreSession() {
+      /*
+       * Eliminiamo il vecchio salvataggio
+       * completo usato prima del database.
+       */
+      window.localStorage.removeItem(
+        LEGACY_AUCTION_STORAGE_KEY,
+      );
+
+      const storedSessionId =
         window.localStorage.getItem(
-          AUCTION_STORAGE_KEY,
+          AUCTION_SESSION_ID_KEY,
         );
 
-      /*
-       * Nessuna sessione precedentemente salvata.
-       */
-      if (!storedSession) {
+      if (!storedSessionId) {
+        if (isEffectActive) {
+          setIsStorageReady(true);
+        }
+
         return;
       }
 
-      const parsedSession: unknown =
-        JSON.parse(storedSession);
-
-      /*
-       * Ripristiniamo solamente dati
-       * con una struttura valida.
-       */
-      if (
-        isStoredAuctionSession(
-          parsedSession,
-        )
-      ) {
-        /*
-        * Le vecchie sessioni non possiedono
-        * ancora ownerType.
-        *
-        * Tutti gli acquisti già salvati vengono
-        * considerati acquisti dell'utente.
-        */
-        const restoredPurchases =
-          parsedSession.purchases.map(
-            (purchase) => ({
-              ...purchase,
-
-              ownerType:
-                purchase.ownerType ??
-                "ME",
-            }),
+      try {
+        const apiSession =
+          await fetchAuctionSessionById(
+            storedSessionId,
           );
 
-        const restoredSession: AuctionSession = {
-          ...parsedSession,
+        if (!isEffectActive) {
+          return;
+        }
 
-          purchases: restoredPurchases,
-
-          config: {
-            ...parsedSession.config,
-
-            auctionMode:
-              parsedSession.config
-                .auctionMode ??
-              "ROLE_BY_ROLE",
-
-            /*
-             * Le vecchie sessioni non contengono
-             * ancora i nomi preconfigurati.
-             */
-            opponentTeamNames:
-              Array.isArray(
-                parsedSession.config
-                  .opponentTeamNames,
-              )
-                ? parsedSession.config
-                  .opponentTeamNames
-                  .filter(
-                    (
-                      teamName,
-                    ): teamName is string =>
-                      typeof teamName ===
-                      "string",
-                  )
-                  .map(
-                    (teamName) =>
-                      teamName.trim(),
-                  )
-                  .filter(
-                    (teamName) =>
-                      teamName !== "",
-                  )
-                : [],
-          },
-        };
-
-        setSession(restoredSession);
-      } else {
-        /*
-         * Eliminiamo eventuali dati corrotti.
-         */
-        window.localStorage.removeItem(
-          AUCTION_STORAGE_KEY,
+        setSession(
+          mapApiSessionToAuctionSession(
+            apiSession,
+          ),
         );
+      } catch (error) {
+        /*
+         * Se la sessione non esiste più,
+         * eliminiamo l'UUID non valido.
+         */
+        if (
+          error instanceof
+            ApiRequestError &&
+          error.status === 404
+        ) {
+          window.localStorage.removeItem(
+            AUCTION_SESSION_ID_KEY,
+          );
+        } else if (isEffectActive) {
+          setActionError(
+            getErrorMessage(error),
+          );
+        }
+      } finally {
+        if (isEffectActive) {
+          setIsStorageReady(true);
+        }
       }
-    } catch (storageError) {
-      /*
-       * Un JSON danneggiato non deve
-       * bloccare il funzionamento del sito.
-       */
-      console.error(
-        "Impossibile recuperare la sessione d'asta:",
-        storageError,
-      );
-
-      window.localStorage.removeItem(
-        AUCTION_STORAGE_KEY,
-      );
-    } finally {
-      setIsStorageReady(true);
     }
+
+    void restoreSession();
+
+    return () => {
+      isEffectActive = false;
+    };
   }, []);
 
+
   /*
-  * Salva automaticamente la sessione
-  * ogni volta che budget, rosa o acquisti cambiano.
-  */
-  useEffect(() => {
-    /*
-     * Non salviamo nulla prima di aver
-     * controllato i dati già presenti.
-     */
-    if (!isStorageReady) {
+   * Crea una nuova sessione
+   * nel database PostgreSQL.
+   */
+  async function startAuction(
+    config: AuctionConfig,
+  ): Promise<void> {
+    setActionError(null);
+
+    try {
+      const apiSession =
+        await createAuctionSession(
+          cloneAuctionConfig(config),
+        );
+
+      const newSession =
+        mapApiSessionToAuctionSession(
+          apiSession,
+        );
+
+      setSession(newSession);
+
+      window.localStorage.setItem(
+        AUCTION_SESSION_ID_KEY,
+        newSession.id,
+      );
+    } catch (error) {
+      setActionError(
+        getErrorMessage(error),
+      );
+    }
+  }
+
+
+  /*
+   * Elimina definitivamente la sessione
+   * dal database e dal browser.
+   */
+  async function resetAuction(
+  ): Promise<void> {
+    setActionError(null);
+
+    if (!session) {
+      window.localStorage.removeItem(
+        AUCTION_SESSION_ID_KEY,
+      );
+
       return;
     }
 
     try {
-      if (session) {
-        window.localStorage.setItem(
-          AUCTION_STORAGE_KEY,
-          JSON.stringify(session),
-        );
-      } else {
-        /*
-         * Quando la sessione viene terminata,
-         * eliminiamo anche il salvataggio.
-         */
+      await deleteAuctionSession(
+        session.id,
+      );
+
+      setSession(null);
+
+      window.localStorage.removeItem(
+        AUCTION_SESSION_ID_KEY,
+      );
+    } catch (error) {
+      /*
+       * Se la sessione era già stata eliminata,
+       * ripuliamo comunque lo stato locale.
+       */
+      if (
+        error instanceof ApiRequestError &&
+        error.status === 404
+      ) {
+        setSession(null);
+
         window.localStorage.removeItem(
-          AUCTION_STORAGE_KEY,
+          AUCTION_SESSION_ID_KEY,
         );
+
+        return;
       }
-    } catch (storageError) {
-      console.error(
-        "Impossibile salvare la sessione d'asta:",
-        storageError,
+
+      setActionError(
+        getErrorMessage(error),
       );
     }
-  }, [session, isStorageReady]);
-
-  /*
-   * Avvia una nuova sessione d'asta.
-   */
-  function startAuction(
-    config: AuctionConfig,
-  ) {
-    const clonedConfig =
-      cloneAuctionConfig(config);
-
-    setSession({
-      config: clonedConfig,
-      remainingBudget:
-        clonedConfig.startingBudget,
-      purchases: [],
-      isStarted: true,
-    });
   }
 
 
   /*
-   * Termina e cancella la sessione corrente.
-   *
-   * Per ora i dati vengono rimossi
-   * solamente dalla memoria del browser.
+   * Acquisti appartenenti all'utente.
    */
-  function resetAuction() {
-    setSession(null);
-  }
-
-
-  /*
-  * Giocatori acquistati dall'utente.
-  *
-  * Solamente questi acquisti modificano:
-  * - budget;
-  * - slot;
-  * - rosa personale;
-  * - budget dinamici dei ruoli.
-  */
   const myPurchases = useMemo(() => {
     return (
       session?.purchases.filter(
@@ -345,26 +511,23 @@ export function useAuctionSession() {
 
 
   /*
-   * Giocatori acquistati dagli avversari.
-   *
-   * Questi acquisti influenzano il mercato,
-   * ma non la nostra situazione economica.
+   * Acquisti appartenenti agli avversari.
    */
-  const opponentPurchases = useMemo(() => {
-    return (
-      session?.purchases.filter(
-        (purchase) =>
-          purchase.ownerType ===
-          "OPPONENT",
-      ) ?? []
-    );
-  }, [session]);
+  const opponentPurchases =
+    useMemo(() => {
+      return (
+        session?.purchases.filter(
+          (purchase) =>
+            purchase.ownerType ===
+            "OPPONENT",
+        ) ?? []
+      );
+    }, [session]);
 
 
   /*
-  * Calcola quanto abbiamo speso
-  * personalmente per ciascun ruolo.
-  */
+   * Spesa personale per ruolo.
+   */
   const spentByRole = useMemo(() => {
     const result: Record<
       AuctionRole,
@@ -385,81 +548,78 @@ export function useAuctionSession() {
 
 
   /*
-  * Calcola quanti giocatori abbiamo
-  * acquistato personalmente per ruolo.
-  */
-  const purchasedByRole = useMemo(() => {
-    const result: Record<
-      AuctionRole,
-      number
-    > = {
-      ...EMPTY_ROLE_VALUES,
-    };
-
-    myPurchases.forEach(
-      (purchase) => {
-        result[purchase.role] += 1;
-      },
-    );
-
-    return result;
-  }, [myPurchases]);
-
-
-  /*
-   * Calcola quanti slot rimangono
-   * disponibili per ciascun ruolo.
+   * Giocatori personali acquistati
+   * per ciascun ruolo.
    */
-  const remainingSlots = useMemo(() => {
-    if (!session) {
-      return {
+  const purchasedByRole =
+    useMemo(() => {
+      const result: Record<
+        AuctionRole,
+        number
+      > = {
         ...EMPTY_ROLE_VALUES,
       };
-    }
 
-    return {
-      P: Math.max(
-        session.config.rosterSlots.P -
-        purchasedByRole.P,
-        0,
-      ),
+      myPurchases.forEach(
+        (purchase) => {
+          result[purchase.role] += 1;
+        },
+      );
 
-      D: Math.max(
-        session.config.rosterSlots.D -
-        purchasedByRole.D,
-        0,
-      ),
-
-      C: Math.max(
-        session.config.rosterSlots.C -
-        purchasedByRole.C,
-        0,
-      ),
-
-      A: Math.max(
-        session.config.rosterSlots.A -
-        purchasedByRole.A,
-        0,
-      ),
-    };
-  }, [session, purchasedByRole]);
+      return result;
+    }, [myPurchases]);
 
 
   /*
-  * Budget attualmente consigliato
-  * per ogni ruolo.
-  *
-  * Si aggiorna automaticamente dopo
-  * acquisti, annullamenti e completamenti.
-  */
+   * Slot personali ancora disponibili.
+   */
+  const remainingSlots =
+    useMemo(() => {
+      if (!session) {
+        return {
+          ...EMPTY_ROLE_VALUES,
+        };
+      }
+
+      return {
+        P: Math.max(
+          session.config.rosterSlots.P -
+          purchasedByRole.P,
+          0,
+        ),
+
+        D: Math.max(
+          session.config.rosterSlots.D -
+          purchasedByRole.D,
+          0,
+        ),
+
+        C: Math.max(
+          session.config.rosterSlots.C -
+          purchasedByRole.C,
+          0,
+        ),
+
+        A: Math.max(
+          session.config.rosterSlots.A -
+          purchasedByRole.A,
+          0,
+        ),
+      };
+    }, [
+      session,
+      purchasedByRole,
+    ]);
+
+
+  /*
+   * Budget dinamico dei ruoli.
+   */
   const dynamicRoleBudgets =
     useMemo(() => {
       if (!session) {
         return {
-          P: 0,
-          D: 0,
-          C: 0,
-          A: 0,
+          ...EMPTY_ROLE_VALUES,
         };
       }
 
@@ -474,37 +634,26 @@ export function useAuctionSession() {
       session,
       remainingSlots,
       spentByRole,
+      myPurchases,
     ]);
 
 
   /*
-  * Numero complessivo di slot
-  * ancora da completare.
-  */
-  const totalRemainingSlots = useMemo(() => {
-    return (
-      remainingSlots.P +
-      remainingSlots.D +
-      remainingSlots.C +
-      remainingSlots.A
-    );
-  }, [remainingSlots]);
+   * Numero totale di slot liberi.
+   */
+  const totalRemainingSlots =
+    useMemo(() => {
+      return (
+        remainingSlots.P +
+        remainingSlots.D +
+        remainingSlots.C +
+        remainingSlots.A
+      );
+    }, [remainingSlots]);
 
 
   /*
-   * Calcola quanto si può spendere al massimo
-   * sul prossimo giocatore.
-   *
-   * Conserviamo l'offerta minima necessaria
-   * per tutti gli altri slot ancora liberi.
-   *
-   * Esempio:
-   * - budget residuo: 100;
-   * - slot ancora liberi: 5;
-   * - offerta minima: 1.
-   *
-   * Per gli altri 4 slot dobbiamo conservare
-   * almeno 4 crediti, quindi possiamo spendere 96.
+   * Offerta personale massima.
    */
   const maximumBid = useMemo(() => {
     if (
@@ -529,23 +678,33 @@ export function useAuctionSession() {
       creditsToReserve,
       0,
     );
-  }, [session, totalRemainingSlots]);
+  }, [
+    session,
+    totalRemainingSlots,
+  ]);
 
 
   /*
-  * Registra un acquisto effettuato
-  * dall'utente oppure da un avversario.
-  */
-  function registerPurchase(
+   * Registra un acquisto nel database.
+   *
+   * null indica che l'operazione
+   * è stata completata correttamente.
+   */
+  async function registerPurchase(
     purchase: AuctionPurchase,
-  ): string | null {
+  ): Promise<string | null> {
     if (!session) {
-      return "Non esiste una sessione d'asta attiva.";
+      return (
+        "Non esiste una sessione "
+        + "d'asta attiva."
+      );
     }
 
+    setActionError(null);
+
     /*
-     * Un giocatore non può essere assegnato
-     * a più squadre nella stessa asta.
+     * Controllo immediato per evitare
+     * una richiesta chiaramente inutile.
      */
     const isAlreadyPurchased =
       session.purchases.some(
@@ -555,74 +714,26 @@ export function useAuctionSession() {
       );
 
     if (isAlreadyPurchased) {
-      return "Questo giocatore è già stato acquistato.";
+      return (
+        "Questo giocatore è già "
+        + "stato acquistato."
+      );
     }
 
-    /*
-     * Verifichiamo che il proprietario
-     * abbia un valore valido.
-     */
     if (
-      purchase.ownerType !== "ME" &&
-      purchase.ownerType !== "OPPONENT"
-    ) {
-      return "Tipo di acquisto non valido.";
-    }
-
-    /*
-    * Per gli acquisti avversari è necessario
-    * indicare la squadra proprietaria.
-    */
-    if (
-      purchase.ownerType === "OPPONENT" &&
+      purchase.ownerType ===
+        "OPPONENT" &&
       (
         !purchase.ownerName ||
         purchase.ownerName.trim() === ""
       )
     ) {
-      return "Inserisci il nome della squadra avversaria.";
+      return (
+        "Inserisci il nome della "
+        + "squadra avversaria."
+      );
     }
 
-    /*
-    * Quando sono stati configurati nomi
-    * predefiniti, accettiamo solamente
-    * una delle squadre presenti nell'elenco.
-    */
-    const configuredOpponentNames =
-      session.config
-        .opponentTeamNames ?? [];
-
-    if (
-      purchase.ownerType === "OPPONENT" &&
-      configuredOpponentNames.length > 0
-    ) {
-      const normalizedOwnerName =
-        purchase.ownerName
-          ?.trim()
-          .toLocaleLowerCase(
-            "it-IT",
-          );
-
-      const isConfiguredTeam =
-        configuredOpponentNames.some(
-          (teamName) =>
-            teamName
-              .trim()
-              .toLocaleLowerCase(
-                "it-IT",
-              ) ===
-            normalizedOwnerName,
-        );
-
-      if (!isConfiguredTeam) {
-        return "Seleziona una squadra avversaria presente nella configurazione.";
-      }
-    }
-
-    /*
-     * Il prezzo deve essere intero
-     * e rispettare l'offerta minima.
-     */
     if (
       !Number.isInteger(
         purchase.purchasePrice,
@@ -630,137 +741,116 @@ export function useAuctionSession() {
       purchase.purchasePrice <
       session.config.minimumBid
     ) {
-      return `Il prezzo deve essere almeno ${session.config.minimumBid} crediti.`;
+      return (
+        `Il prezzo deve essere almeno `
+        + `${session.config.minimumBid} crediti.`
+      );
     }
 
-    const isMyPurchase =
-      purchase.ownerType === "ME";
-
     /*
-     * I vincoli personali vengono applicati
-     * soltanto ai nostri acquisti.
+     * Manteniamo i controlli personali
+     * anche nel frontend per mostrare
+     * immediatamente gli errori.
      */
-    if (isMyPurchase) {
+    if (purchase.ownerType === "ME") {
       if (
         purchase.purchasePrice >
         session.remainingBudget
       ) {
-        return "Il prezzo supera il budget residuo.";
+        return (
+          "Il prezzo supera "
+          + "il budget residuo."
+        );
       }
 
       if (
-        remainingSlots[purchase.role] <= 0
+        remainingSlots[
+          purchase.role
+        ] <= 0
       ) {
-        return "Non ci sono più slot disponibili per questo ruolo.";
+        return (
+          "Non ci sono più slot "
+          + "disponibili per questo ruolo."
+        );
       }
 
       if (
         purchase.purchasePrice >
         maximumBid
       ) {
-        return `Puoi spendere al massimo ${maximumBid} crediti, altrimenti non riusciresti a completare la rosa.`;
+        return (
+          `Puoi spendere al massimo `
+          + `${maximumBid} crediti.`
+        );
       }
     }
 
-    /*
-     * Gli acquisti avversari vengono salvati,
-     * ma non modificano il nostro budget.
-     */
-    setSession((currentSession) => {
-      if (!currentSession) {
-        return currentSession;
-      }
-
-      return {
-        ...currentSession,
-
-        remainingBudget:
-          isMyPurchase
-            ? currentSession
-              .remainingBudget -
-            purchase.purchasePrice
-            : currentSession
-              .remainingBudget,
-
-        purchases: [
-          ...currentSession.purchases,
+    try {
+      const apiSession =
+        await createAuctionPurchase(
+          session.id,
           purchase,
-        ],
-      };
-    });
+        );
 
-    return null;
+      setSession(
+        mapApiSessionToAuctionSession(
+          apiSession,
+        ),
+      );
+
+      return null;
+    } catch (error) {
+      return getErrorMessage(error);
+    }
   }
 
 
   /*
-   * Rimuove un acquisto registrato.
-   *
-   * Il prezzo viene restituito
-   * al budget residuo.
+   * Elimina un acquisto dal database.
    */
-  function removePurchase(
+  async function removePurchase(
     playerId: number,
-  ) {
-    setSession((currentSession) => {
-      if (!currentSession) {
-        return currentSession;
-      }
+  ): Promise<void> {
+    if (!session) {
+      return;
+    }
 
-      const purchaseToRemove =
-        currentSession.purchases.find(
-          (purchase) =>
-            purchase.playerId ===
-            playerId,
+    setActionError(null);
+
+    try {
+      const apiSession =
+        await deleteAuctionPurchase(
+          session.id,
+          playerId,
         );
 
-      if (!purchaseToRemove) {
-        return currentSession;
-      }
-
-      return {
-        ...currentSession,
-
-        /*
-        * Il rimborso avviene soltanto
-        * se il giocatore apparteneva a noi.
-        */
-        remainingBudget:
-          purchaseToRemove.ownerType === "ME"
-            ? currentSession.remainingBudget +
-            purchaseToRemove.purchasePrice
-            : currentSession.remainingBudget,
-
-        purchases:
-          currentSession.purchases.filter(
-            (purchase) =>
-              purchase.playerId !==
-              playerId,
-          ),
-      };
-    });
+      setSession(
+        mapApiSessionToAuctionSession(
+          apiSession,
+        ),
+      );
+    } catch (error) {
+      setActionError(
+        getErrorMessage(error),
+      );
+    }
   }
 
 
   return {
     session,
     isStorageReady,
+    actionError,
 
     myPurchases,
     opponentPurchases,
 
-    /*
-     * Dati calcolati.
-     */
     spentByRole,
     purchasedByRole,
     remainingSlots,
     dynamicRoleBudgets,
     maximumBid,
 
-    /*
-     * Azioni disponibili.
-     */
     startAuction,
     resetAuction,
     registerPurchase,

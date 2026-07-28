@@ -8,6 +8,11 @@ import type {
   Role,
 } from "../types/player";
 
+import type {
+  AuctionConfig,
+  AuctionPurchase,
+} from "../types/auction";
+
 
 /*
  * Indirizzo del backend FastAPI.
@@ -20,6 +25,102 @@ import type {
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://127.0.0.1:8000";
+
+
+/*
+ * Errore prodotto quando il backend
+ * restituisce una risposta HTTP non valida.
+ *
+ * Conserviamo anche il codice HTTP,
+ * così il frontend può distinguere
+ * per esempio un 404 da un errore 500.
+ */
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(
+    message: string,
+    status: number,
+  ) {
+    super(message);
+
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
+
+/*
+ * Struttura utilizzata da FastAPI
+ * per restituire gli errori.
+ */
+type BackendErrorResponse = {
+  detail?:
+  | string
+  | {
+    msg?: string;
+  }[];
+};
+
+
+/*
+ * Estrae un messaggio leggibile
+ * dalla risposta di errore del backend.
+ */
+async function createApiRequestError(
+  response: Response,
+): Promise<ApiRequestError> {
+  let message =
+    `Il backend ha restituito l'errore ${response.status}.`;
+
+  try {
+    const errorData =
+      await response.json() as BackendErrorResponse;
+
+    if (
+      typeof errorData.detail ===
+      "string"
+    ) {
+      message = errorData.detail;
+    } else if (
+      Array.isArray(errorData.detail)
+    ) {
+      const validationMessages =
+        errorData.detail
+          .map(
+            (errorItem) =>
+              errorItem.msg,
+          )
+          .filter(
+            (
+              errorMessage,
+            ): errorMessage is string =>
+              typeof errorMessage ===
+              "string",
+          );
+
+      if (
+        validationMessages.length > 0
+      ) {
+        message =
+          validationMessages.join(" ");
+      }
+    }
+  } catch {
+    /*
+     * Alcune risposte potrebbero
+     * non contenere JSON.
+     *
+     * In quel caso manteniamo
+     * il messaggio generico.
+     */
+  }
+
+  return new ApiRequestError(
+    message,
+    response.status,
+  );
+}
 
 
 /*
@@ -36,12 +137,6 @@ type FetchPlayersOptions = {
 
 /*
  * Recupera l'elenco dei giocatori dal backend.
- *
- * La funzione si occupa di:
- * - costruire i parametri dell'URL;
- * - eseguire la richiesta HTTP;
- * - controllare eventuali errori;
- * - convertire la risposta JSON.
  */
 export async function fetchPlayers({
   role,
@@ -51,32 +146,25 @@ export async function fetchPlayers({
 }: FetchPlayersOptions): Promise<PlayersResponse> {
   const params = new URLSearchParams();
 
-  /*
-   * Numero massimo di giocatori richiesti.
-   */
-  params.set("limit", limit.toString());
+  params.set(
+    "limit",
+    limit.toString(),
+  );
 
-  /*
-   * Aggiungiamo il ruolo solamente
-   * quando è stato selezionato.
-   */
   if (role !== "") {
     params.set("role", role);
   }
 
-  /*
-   * Eliminiamo gli spazi inutili
-   * dal testo di ricerca.
-   */
-  const cleanedSearch = search.trim();
+  const cleanedSearch =
+    search.trim();
 
   if (cleanedSearch !== "") {
-    params.set("search", cleanedSearch);
+    params.set(
+      "search",
+      cleanedSearch,
+    );
   }
 
-  /*
-   * Richiesta verso l'endpoint GET /players.
-   */
   const response = await fetch(
     `${API_URL}/players?${params.toString()}`,
     {
@@ -84,20 +172,12 @@ export async function fetchPlayers({
     },
   );
 
-  /*
-   * fetch non genera automaticamente un errore
-   * per risposte HTTP come 404 o 500.
-   */
   if (!response.ok) {
-    throw new Error(
-      `Il backend ha restituito l'errore ${response.status}.`,
+    throw await createApiRequestError(
+      response,
     );
   }
 
-  /*
-   * Conversione della risposta JSON
-   * nel tipo PlayersResponse.
-   */
   const data: PlayersResponse =
     await response.json();
 
@@ -108,18 +188,11 @@ export async function fetchPlayers({
 /*
  * Recupera un singolo giocatore
  * utilizzando il suo identificativo.
- *
- * Esempio di richiesta:
- * GET /players/41
  */
 export async function fetchPlayerById(
   playerId: number,
   signal?: AbortSignal,
 ): Promise<Player> {
-  /*
-   * Effettuiamo la richiesta verso
-   * l'endpoint FastAPI dedicato.
-   */
   const response = await fetch(
     `${API_URL}/players/${playerId}`,
     {
@@ -127,29 +200,309 @@ export async function fetchPlayerById(
     },
   );
 
-  /*
-   * Forniamo un messaggio specifico
-   * quando l'identificativo non esiste.
-   */
-  if (response.status === 404) {
-    throw new Error("Giocatore non trovato.");
-  }
-
-  /*
-   * Gestiamo eventuali altri errori HTTP.
-   */
   if (!response.ok) {
-    throw new Error(
-      `Il backend ha restituito l'errore ${response.status}.`,
+    throw await createApiRequestError(
+      response,
     );
   }
 
-  /*
-   * Convertiamo la risposta JSON
-   * nel tipo Player.
-   */
   const player: Player =
     await response.json();
 
   return player;
+}
+
+
+/*
+ * Squadra restituita dal backend
+ * insieme alla sessione d'asta.
+ */
+export type AuctionTeamApiResponse = {
+  id: string;
+  name: string;
+  isUserTeam: boolean;
+  createdAt: string;
+};
+
+
+/*
+ * Acquisto restituito dal backend.
+ */
+export type AuctionPurchaseApiResponse = {
+  id: string;
+  teamId: string;
+
+  playerId: number;
+  playerName: string;
+  playerTeam: string;
+
+  role: AuctionPurchase["role"];
+  purchasePrice: number;
+
+  baseRecommendedPriceAtPurchase:
+  number | null;
+
+  dynamicRecommendedPriceAtPurchase:
+  number | null;
+
+  purchasedAt: string;
+};
+
+
+/*
+ * Sessione completa restituita
+ * dagli endpoint FastAPI.
+ */
+export type AuctionSessionApiResponse = {
+  id: string;
+
+  leagueName: string;
+  participants: number;
+
+  startingBudget: number;
+  minimumBid: number;
+
+  rosterSlots:
+  AuctionConfig["rosterSlots"];
+
+  budgetDistribution:
+  AuctionConfig["budgetDistribution"];
+
+  auctionMode:
+  AuctionConfig["auctionMode"];
+
+  status: string;
+
+  createdAt: string;
+  updatedAt: string;
+
+  teams: AuctionTeamApiResponse[];
+
+  purchases:
+  AuctionPurchaseApiResponse[];
+};
+
+
+/*
+ * Crea una nuova sessione d'asta
+ * nel database PostgreSQL.
+ */
+export async function createAuctionSession(
+  config: AuctionConfig,
+): Promise<AuctionSessionApiResponse> {
+  const response = await fetch(
+    `${API_URL}/auction-sessions`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        leagueName:
+          config.leagueName,
+
+        participants:
+          config.participants,
+
+        startingBudget:
+          config.startingBudget,
+
+        minimumBid:
+          config.minimumBid,
+
+        rosterSlots:
+          config.rosterSlots,
+
+        budgetDistribution:
+          config.budgetDistribution,
+
+        auctionMode:
+          config.auctionMode,
+
+        /*
+         * Per ora non chiediamo all'utente
+         * il nome della propria squadra.
+         */
+        userTeamName:
+          "La mia squadra",
+
+        opponentTeamNames:
+          config.opponentTeamNames ??
+          [],
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: AuctionSessionApiResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Recupera una sessione esistente
+ * utilizzando il relativo UUID.
+ */
+export async function fetchAuctionSessionById(
+  sessionId: string,
+): Promise<AuctionSessionApiResponse> {
+  const response = await fetch(
+    `${API_URL}/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}`,
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: AuctionSessionApiResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Registra un acquisto nel database.
+ *
+ * Il backend restituisce la sessione
+ * completa e aggiornata.
+ */
+export async function createAuctionPurchase(
+  sessionId: string,
+  purchase: AuctionPurchase,
+): Promise<AuctionSessionApiResponse> {
+  const response = await fetch(
+    `${API_URL}/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}/purchases`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        playerId:
+          purchase.playerId,
+
+        playerName:
+          purchase.playerName,
+
+        /*
+         * Nel tipo frontend "team"
+         * rappresenta la squadra reale
+         * del calciatore.
+         */
+        team:
+          purchase.team,
+
+        role:
+          purchase.role,
+
+        purchasePrice:
+          purchase.purchasePrice,
+
+        ownerType:
+          purchase.ownerType,
+
+        ownerName:
+          purchase.ownerName ??
+          null,
+
+        baseRecommendedPriceAtPurchase:
+          purchase
+            .baseRecommendedPriceAtPurchase ??
+          null,
+
+        dynamicRecommendedPriceAtPurchase:
+          purchase
+            .dynamicRecommendedPriceAtPurchase ??
+          null,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: AuctionSessionApiResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Elimina un acquisto usando
+ * l'identificativo del giocatore.
+ */
+export async function deleteAuctionPurchase(
+  sessionId: string,
+  playerId: number,
+): Promise<AuctionSessionApiResponse> {
+  const response = await fetch(
+    `${API_URL}/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}/purchases/${playerId}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: AuctionSessionApiResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Elimina definitivamente
+ * un'intera sessione d'asta.
+ */
+export async function deleteAuctionSession(
+  sessionId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
 }

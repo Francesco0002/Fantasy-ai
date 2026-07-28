@@ -162,6 +162,11 @@ export type AuctionPurchase = {
  */
 export type AuctionSession = {
   /*
+   * UUID assegnato dal backend.
+   */
+  id: string;
+
+  /*
    * Configurazione scelta prima dell'asta.
    */
   config: AuctionConfig;

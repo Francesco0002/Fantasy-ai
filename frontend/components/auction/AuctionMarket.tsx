@@ -124,7 +124,7 @@ type AuctionMarketProps = {
    */
   onRegisterPurchase: (
     purchase: AuctionPurchase,
-  ) => string | null;
+  ) => Promise<string | null>;
 };
 
 
@@ -299,6 +299,16 @@ export default function AuctionMarket({
    */
   const [feedback, setFeedback] =
     useState<Feedback | null>(null);
+
+
+  /*
+  * Indica se un acquisto
+  * viene salvato nel database.
+  */
+  const [
+    isRegisteringPurchase,
+    setIsRegisteringPurchase,
+  ] = useState(false);
 
 
   /*
@@ -592,7 +602,7 @@ export default function AuctionMarket({
   /*
    * Registra l'acquisto del giocatore.
    */
-  function handlePurchase(
+  async function handlePurchase(
     event: React.FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
@@ -675,8 +685,22 @@ export default function AuctionMarket({
         new Date().toISOString(),
     };
 
-    const purchaseError =
-      onRegisterPurchase(purchase);
+    setIsRegisteringPurchase(true);
+
+    let purchaseError: string | null;
+
+    try {
+      purchaseError =
+        await onRegisterPurchase(
+          purchase,
+        );
+    } catch {
+      purchaseError =
+        "Errore imprevisto durante "
+        + "il salvataggio dell'acquisto.";
+    } finally {
+      setIsRegisteringPurchase(false);
+    }
 
     if (purchaseError) {
       setFeedback({
@@ -1663,25 +1687,31 @@ export default function AuctionMarket({
                 {/* Conferma acquisto */}
                 <button
                   type="submit"
-                  disabled={!canRegisterPurchase}
+                  disabled={
+                    !canRegisterPurchase ||
+                    isRegisteringPurchase
+                  }
                   className={`
                     w-full rounded-xl
                     px-4 py-2.5
                     text-xs font-semibold
                     transition
 
-                    ${canRegisterPurchase
+                    ${canRegisterPurchase &&
+                      !isRegisteringPurchase
                       ? "bg-emerald-700 text-white hover:bg-emerald-800"
                       : "cursor-not-allowed bg-slate-300 text-slate-500"
                     }
                   `}
                 >
-                  {purchaseOwner === "OPPONENT"
-                    ? "Registra acquisto avversario"
-                    : auctionAdvice?.label ===
-                      "Da evitare"
-                      ? "Registra comunque"
-                      : "Registra acquisto"}
+                  {isRegisteringPurchase
+                    ? "Salvataggio..."
+                    : purchaseOwner === "OPPONENT"
+                      ? "Registra acquisto avversario"
+                      : auctionAdvice?.label ===
+                        "Da evitare"
+                        ? "Registra comunque"
+                        : "Registra acquisto"}
                 </button>
               </form>
             )}

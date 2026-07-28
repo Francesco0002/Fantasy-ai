@@ -14,6 +14,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Response,
     status,
 )
 
@@ -903,4 +904,62 @@ def delete_purchase(
 
     return create_session_response(
         stored_session
+    )
+    
+    
+@router.delete(
+    "/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_auction_session(
+    session_id: UUID,
+
+    database: Session = Depends(
+        get_database_session
+    ),
+) -> Response:
+    """
+    Elimina definitivamente una sessione
+    insieme a squadre e acquisti.
+
+    Le relazioni vengono eliminate
+    automaticamente grazie a ON DELETE CASCADE.
+    """
+
+    auction_session = database.get(
+        AuctionSession,
+        session_id,
+    )
+
+    if auction_session is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Sessione d'asta "
+                "non trovata."
+            ),
+        )
+
+    try:
+        database.delete(
+            auction_session
+        )
+
+        database.commit()
+
+    except SQLAlchemyError as error:
+        database.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Errore durante l'eliminazione "
+                "della sessione d'asta."
+            ),
+        ) from error
+
+    return Response(
+        status_code=(
+            status.HTTP_204_NO_CONTENT
+        )
     )
