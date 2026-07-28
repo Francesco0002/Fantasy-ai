@@ -15,12 +15,15 @@ import { useState } from "react";
  * condivise della modalità asta.
  */
 import {
+  applyAutomaticBudgetDistribution,
   AUCTION_MODE_NAMES,
   AUCTION_ROLES,
   AUCTION_ROLE_NAMES,
   calculateRoleBudget,
   calculateTotalRosterSlots,
-  DEFAULT_AUCTION_CONFIG,
+  createDefaultAuctionConfig,
+  getEffectiveBudgetDistribution,
+  getLeagueRules,
   isBudgetDistributionValid,
 } from "../../lib/auction-config";
 
@@ -29,6 +32,7 @@ import {
  */
 import type {
   AuctionConfig,
+  AuctionLeagueRules,
   AuctionRole,
 } from "../../types/auction";
 
@@ -72,6 +76,28 @@ const AUCTION_MODE_OPTIONS: readonly {
 
 
 /*
+ * Modalità disponibili per la gestione
+ * della distribuzione del budget.
+ */
+const BUDGET_STRATEGY_OPTIONS: readonly {
+  value: NonNullable<
+    AuctionConfig["budgetStrategy"]
+  >;
+
+  label: string;
+}[] = [
+    {
+      value: "AUTOMATIC",
+      label: "Automatica",
+    },
+    {
+      value: "MANUAL",
+      label: "Manuale",
+    },
+  ];
+
+
+/*
  * Crea una copia indipendente della configurazione.
  *
  * Copiamo anche gli oggetti interni per evitare
@@ -79,26 +105,20 @@ const AUCTION_MODE_OPTIONS: readonly {
  * predefinita condivisa.
  */
 function createDefaultConfig(): AuctionConfig {
+  const defaultConfig =
+    createDefaultAuctionConfig();
+
   return {
-    ...DEFAULT_AUCTION_CONFIG,
-
-    rosterSlots: {
-      ...DEFAULT_AUCTION_CONFIG.rosterSlots,
-    },
-
-    budgetDistribution: {
-      ...DEFAULT_AUCTION_CONFIG.budgetDistribution,
-    },
+    ...defaultConfig,
 
     opponentTeamNames: [
       ...(
-        DEFAULT_AUCTION_CONFIG
+        defaultConfig
           .opponentTeamNames ?? []
       ),
     ],
   };
 }
-
 
 /*
  * Converte il valore di un input numerico
@@ -141,6 +161,37 @@ function resizeOpponentTeamNames(
     (_, index) =>
       currentNames[index] ?? "",
   );
+}
+
+
+/*
+ * Applica le nuove regole alla configurazione.
+ *
+ * Quando la strategia è automatica,
+ * ricalcola immediatamente anche
+ * la distribuzione del budget.
+ */
+function applyLeagueRulesUpdate(
+  config: AuctionConfig,
+  leagueRules: AuctionLeagueRules,
+): AuctionConfig {
+  const updatedConfig: AuctionConfig = {
+    ...config,
+    leagueRules,
+  };
+
+  if (
+    (
+      config.budgetStrategy ??
+      "MANUAL"
+    ) === "AUTOMATIC"
+  ) {
+    return applyAutomaticBudgetDistribution(
+      updatedConfig,
+    );
+  }
+
+  return updatedConfig;
 }
 
 
@@ -289,7 +340,115 @@ function getConfigError(
     return `Servono almeno ${minimumRequiredBudget} crediti per completare tutti gli slot.`;
   }
 
-  if (!isBudgetDistributionValid(config)) {
+  /*
+ * Controlli relativi ai modificatori.
+ */
+  const leagueRules =
+    getLeagueRules(config);
+
+  if (
+    leagueRules
+      .defenseModifier
+      .enabled
+  ) {
+    const minimumDefenders =
+      leagueRules
+        .defenseModifier
+        .minimumDefenders;
+
+    if (
+      !Number.isInteger(
+        minimumDefenders,
+      ) ||
+      minimumDefenders < 1
+    ) {
+      return "Il numero minimo di difensori deve essere un intero positivo.";
+    }
+
+    if (
+      minimumDefenders >
+      config.rosterSlots.D
+    ) {
+      return "Il numero minimo di difensori del modificatore supera gli slot disponibili.";
+    }
+
+    if (
+      !Number.isInteger(
+        leagueRules
+          .defenseModifier
+          .consideredPlayers,
+      ) ||
+      leagueRules
+        .defenseModifier
+        .consideredPlayers < 1
+    ) {
+      return "Il numero di voti del modificatore difesa deve essere un intero positivo.";
+    }
+  }
+
+  if (
+    leagueRules
+      .midfieldModifier
+      .enabled
+  ) {
+    const minimumMidfielders =
+      leagueRules
+        .midfieldModifier
+        .minimumMidfielders;
+
+    if (
+      !Number.isInteger(
+        minimumMidfielders,
+      ) ||
+      minimumMidfielders < 1
+    ) {
+      return "Il numero minimo di centrocampisti deve essere un intero positivo.";
+    }
+
+    if (
+      minimumMidfielders >
+      config.rosterSlots.C
+    ) {
+      return "Il numero minimo di centrocampisti del modificatore supera gli slot disponibili.";
+    }
+
+    if (
+      !Number.isInteger(
+        leagueRules
+          .midfieldModifier
+          .consideredPlayers,
+      ) ||
+      leagueRules
+        .midfieldModifier
+        .consideredPlayers < 1
+    ) {
+      return "Il numero di voti del modificatore centrocampo deve essere un intero positivo.";
+    }
+  }
+
+
+  /*
+   * In modalità automatica controlliamo
+   * la distribuzione calcolata dal sistema.
+   */
+  const effectiveBudgetDistribution =
+    getEffectiveBudgetDistribution(
+      config,
+    );
+
+  const configWithEffectiveBudget:
+    AuctionConfig = {
+    ...config,
+
+    budgetDistribution:
+      effectiveBudgetDistribution,
+  };
+
+  if (
+    !isBudgetDistributionValid(
+      configWithEffectiveBudget,
+    )
+  ) {
     return "La distribuzione del budget deve essere pari al 100%.";
   }
 
@@ -320,7 +479,7 @@ export default function AuctionSetupForm({
     isSubmitting,
     setIsSubmitting,
   ] = useState(false);
-  
+
 
   /*
   * Indica se l'utente desidera
@@ -332,6 +491,29 @@ export default function AuctionSetupForm({
     setUsePredefinedOpponentNames,
   ] = useState(false);
 
+
+  /*
+  * Regole effettivamente applicate.
+  *
+  * Per le configurazioni vecchie vengono
+  * utilizzati i valori predefiniti.
+  */
+  const leagueRules =
+    getLeagueRules(config);
+
+
+  /*
+   * Distribuzione realmente mostrata.
+   *
+   * In modalità automatica viene calcolata
+   * dalle regole della lega.
+   */
+  const effectiveBudgetDistribution =
+    getEffectiveBudgetDistribution(
+      config,
+    );
+
+
   /*
    * Calcoliamo la percentuale complessiva
    * assegnata ai quattro ruoli.
@@ -339,10 +521,10 @@ export default function AuctionSetupForm({
   const budgetPercentageTotal =
     Math.round(
       (
-        config.budgetDistribution.P +
-        config.budgetDistribution.D +
-        config.budgetDistribution.C +
-        config.budgetDistribution.A
+        effectiveBudgetDistribution.P +
+        effectiveBudgetDistribution.D +
+        effectiveBudgetDistribution.C +
+        effectiveBudgetDistribution.A
       ) * 100,
     );
 
@@ -406,11 +588,221 @@ export default function AuctionSetupForm({
     setConfig((currentConfig) => ({
       ...currentConfig,
 
+      budgetStrategy: "MANUAL",
+
       budgetDistribution: {
-        ...currentConfig.budgetDistribution,
+        ...currentConfig
+          .budgetDistribution,
+
         [role]: normalizedPercentage,
       },
     }));
+  }
+
+
+  /*
+ * Cambia la strategia di gestione
+ * del budget.
+ */
+  function updateBudgetStrategy(
+    strategy: NonNullable<
+      AuctionConfig["budgetStrategy"]
+    >,
+  ) {
+    setConfig((currentConfig) => {
+      /*
+       * Passando alla modalità manuale,
+       * conserviamo le percentuali attualmente
+       * calcolate dal sistema.
+       */
+      if (strategy === "MANUAL") {
+        return {
+          ...currentConfig,
+
+          budgetStrategy: "MANUAL",
+
+          budgetDistribution: {
+            ...getEffectiveBudgetDistribution(
+              currentConfig,
+            ),
+          },
+        };
+      }
+
+      return applyAutomaticBudgetDistribution({
+        ...currentConfig,
+        budgetStrategy: "AUTOMATIC",
+      });
+    });
+  }
+
+
+  /*
+   * Attiva o disattiva il modificatore difesa.
+   */
+  function toggleDefenseModifier(
+    enabled: boolean,
+  ) {
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+
+          defenseModifier: {
+            ...currentRules
+              .defenseModifier,
+
+            enabled,
+          },
+        },
+      );
+    });
+  }
+
+
+  /*
+   * Aggiorna un valore numerico
+   * del modificatore difesa.
+   */
+  function updateDefenseModifierNumber(
+    field:
+      | "minimumDefenders"
+      | "consideredPlayers",
+    value: string,
+  ) {
+    const parsedValue = Math.max(
+      1,
+      Math.trunc(
+        parseNumericInput(value),
+      ),
+    );
+
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+
+          defenseModifier: {
+            ...currentRules
+              .defenseModifier,
+
+            [field]: parsedValue,
+          },
+        },
+      );
+    });
+  }
+
+
+  /*
+   * Include o esclude il portiere
+   * dal modificatore difesa.
+   */
+  function toggleDefenseGoalkeeper(
+    includeGoalkeeper: boolean,
+  ) {
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+
+          defenseModifier: {
+            ...currentRules
+              .defenseModifier,
+
+            includeGoalkeeper,
+          },
+        },
+      );
+    });
+  }
+
+
+  /*
+   * Attiva o disattiva
+   * il modificatore centrocampo.
+   */
+  function toggleMidfieldModifier(
+    enabled: boolean,
+  ) {
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+
+          midfieldModifier: {
+            ...currentRules
+              .midfieldModifier,
+
+            enabled,
+          },
+        },
+      );
+    });
+  }
+
+
+  /*
+   * Aggiorna un valore numerico
+   * del modificatore centrocampo.
+   */
+  function updateMidfieldModifierNumber(
+    field:
+      | "minimumMidfielders"
+      | "consideredPlayers",
+    value: string,
+  ) {
+    const parsedValue = Math.max(
+      1,
+      Math.trunc(
+        parseNumericInput(value),
+      ),
+    );
+
+    setConfig((currentConfig) => {
+      const currentRules =
+        getLeagueRules(
+          currentConfig,
+        );
+
+      return applyLeagueRulesUpdate(
+        currentConfig,
+        {
+          ...currentRules,
+
+          midfieldModifier: {
+            ...currentRules
+              .midfieldModifier,
+
+            [field]: parsedValue,
+          },
+        },
+      );
+    });
   }
 
 
@@ -478,6 +870,26 @@ export default function AuctionSetupForm({
       return;
     }
 
+    const configToSubmit =
+      (
+        config.budgetStrategy ??
+        "MANUAL"
+      ) === "AUTOMATIC"
+        ? applyAutomaticBudgetDistribution(
+          config,
+        )
+        : config;
+
+    const rulesToSubmit =
+      getLeagueRules(
+        configToSubmit,
+      );
+
+    const distributionToSubmit =
+      getEffectiveBudgetDistribution(
+        configToSubmit,
+      );
+
     /*
      * Passiamo una copia completa
      * della configurazione alla pagina.
@@ -486,23 +898,29 @@ export default function AuctionSetupForm({
 
     try {
       await onStart({
-        ...config,
+        ...configToSubmit,
 
         leagueName:
-          config.leagueName.trim(),
+          configToSubmit
+            .leagueName
+            .trim(),
 
         rosterSlots: {
-          ...config.rosterSlots,
+          ...configToSubmit.rosterSlots,
         },
 
         budgetDistribution: {
-          ...config.budgetDistribution,
+          ...distributionToSubmit,
         },
+
+        leagueRules:
+          rulesToSubmit,
 
         opponentTeamNames:
           usePredefinedOpponentNames
             ? (
-              config.opponentTeamNames ??
+              configToSubmit
+                .opponentTeamNames ??
               []
             ).map(
               (teamName) =>
@@ -760,10 +1178,10 @@ export default function AuctionSetupForm({
           <div className="md:col-span-2">
             <div
               className="
-      rounded-xl border
-      border-slate-200
-      bg-slate-50 p-4
-    "
+                rounded-xl border
+                border-slate-200
+                bg-slate-50 p-4
+              "
             >
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -932,6 +1350,287 @@ export default function AuctionSetupForm({
       </section>
 
 
+      {/* Regole e modificatori */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold">
+          Regole della lega
+        </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Attiva i modificatori utilizzati
+          nella tua lega.
+        </p>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {/* Modificatore difesa */}
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={
+                  leagueRules
+                    .defenseModifier
+                    .enabled
+                }
+                onChange={(event) => {
+                  toggleDefenseModifier(
+                    event.target.checked,
+                  );
+                }}
+                className="
+                  mt-1 h-4 w-4
+                  rounded border-slate-300
+                  accent-emerald-700
+                "
+              />
+
+              <span>
+                <span className="block font-semibold">
+                  Modificatore difesa
+                </span>
+
+                <span className="mt-1 block text-xs text-slate-500">
+                  Aumenta il valore strategico
+                  dei difensori affidabili.
+                </span>
+              </span>
+            </label>
+
+            {leagueRules
+              .defenseModifier
+              .enabled && (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="minimum-defenders"
+                        className="mb-2 block text-sm font-semibold"
+                      >
+                        Difensori minimi
+                      </label>
+
+                      <input
+                        id="minimum-defenders"
+                        type="number"
+                        min="1"
+                        max={
+                          config.rosterSlots.D
+                        }
+                        step="1"
+                        value={
+                          leagueRules
+                            .defenseModifier
+                            .minimumDefenders
+                        }
+                        onChange={(event) => {
+                          updateDefenseModifierNumber(
+                            "minimumDefenders",
+                            event.target.value,
+                          );
+                        }}
+                        className="
+                          w-full rounded-xl
+                          border border-slate-300
+                          px-4 py-3
+                          outline-none transition
+                          focus:border-emerald-600
+                          focus:ring-2
+                          focus:ring-emerald-100
+                        "
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="defense-considered-players"
+                        className="mb-2 block text-sm font-semibold"
+                      >
+                        Voti considerati
+                      </label>
+
+                      <input
+                        id="defense-considered-players"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={
+                          leagueRules
+                            .defenseModifier
+                            .consideredPlayers
+                        }
+                        onChange={(event) => {
+                          updateDefenseModifierNumber(
+                            "consideredPlayers",
+                            event.target.value,
+                          );
+                        }}
+                        className="
+                          w-full rounded-xl
+                          border border-slate-300
+                          px-4 py-3
+                          outline-none transition
+                          focus:border-emerald-600
+                          focus:ring-2
+                          focus:ring-emerald-100
+                        "
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={
+                        leagueRules
+                          .defenseModifier
+                          .includeGoalkeeper
+                      }
+                      onChange={(event) => {
+                        toggleDefenseGoalkeeper(
+                          event.target.checked,
+                        );
+                      }}
+                      className="
+                        h-4 w-4 rounded
+                        border-slate-300
+                        accent-emerald-700
+                      "
+                    />
+
+                    <span className="text-sm font-semibold">
+                      Includi il portiere nel calcolo
+                    </span>
+                  </label>
+                </div>
+              )}
+          </div>
+
+
+          {/* Modificatore centrocampo */}
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={
+                  leagueRules
+                    .midfieldModifier
+                    .enabled
+                }
+                onChange={(event) => {
+                  toggleMidfieldModifier(
+                    event.target.checked,
+                  );
+                }}
+                className="
+                  mt-1 h-4 w-4
+                  rounded border-slate-300
+                  accent-emerald-700
+                "
+              />
+
+              <span>
+                <span className="block font-semibold">
+                  Modificatore centrocampo
+                </span>
+
+                <span className="mt-1 block text-xs text-slate-500">
+                  Aumenta il valore dei
+                  centrocampisti dalla media alta.
+                </span>
+              </span>
+            </label>
+
+            {leagueRules
+              .midfieldModifier
+              .enabled && (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="minimum-midfielders"
+                      className="mb-2 block text-sm font-semibold"
+                    >
+                      Centrocampisti minimi
+                    </label>
+
+                    <input
+                      id="minimum-midfielders"
+                      type="number"
+                      min="1"
+                      max={
+                        config.rosterSlots.C
+                      }
+                      step="1"
+                      value={
+                        leagueRules
+                          .midfieldModifier
+                          .minimumMidfielders
+                      }
+                      onChange={(event) => {
+                        updateMidfieldModifierNumber(
+                          "minimumMidfielders",
+                          event.target.value,
+                        );
+                      }}
+                      className="
+                        w-full rounded-xl
+                        border border-slate-300
+                        px-4 py-3
+                        outline-none transition
+                        focus:border-emerald-600
+                        focus:ring-2
+                        focus:ring-emerald-100
+                      "
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="midfield-considered-players"
+                      className="mb-2 block text-sm font-semibold"
+                    >
+                      Voti considerati
+                    </label>
+
+                    <input
+                      id="midfield-considered-players"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={
+                        leagueRules
+                          .midfieldModifier
+                          .consideredPlayers
+                      }
+                      onChange={(event) => {
+                        updateMidfieldModifierNumber(
+                          "consideredPlayers",
+                          event.target.value,
+                        );
+                      }}
+                      className="
+                        w-full rounded-xl
+                        border border-slate-300
+                        px-4 py-3
+                        outline-none transition
+                        focus:border-emerald-600
+                        focus:ring-2
+                        focus:ring-emerald-100
+                      "
+                    />
+                  </div>
+                </div>
+              )}
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          Con la strategia automatica,
+          l’attivazione dei modificatori cambia
+          immediatamente il budget consigliato.
+        </p>
+      </section>
+
+
       {/* Distribuzione del budget */}
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -960,13 +1659,49 @@ export default function AuctionSetupForm({
           </span>
         </div>
 
+        <div className="mt-5 max-w-md">
+          <label
+            htmlFor="budget-strategy"
+            className="mb-2 block text-sm font-semibold"
+          >
+            Strategia del budget
+          </label>
+
+          <CustomSelect
+            id="budget-strategy"
+            value={
+              config.budgetStrategy ??
+              "MANUAL"
+            }
+            options={
+              BUDGET_STRATEGY_OPTIONS
+            }
+            tone="emerald"
+            placeholder="Seleziona la strategia"
+            onChange={
+              updateBudgetStrategy
+            }
+          />
+
+          <p className="mt-2 text-xs text-slate-500">
+            {(
+              config.budgetStrategy ??
+              "MANUAL"
+            ) === "AUTOMATIC"
+              ? "Fantasy AI adatta automaticamente le percentuali alle regole della lega."
+              : "Puoi modificare manualmente le percentuali assegnate ai ruoli."}
+          </p>
+        </div>
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {AUCTION_ROLES.map((role) => {
             const percentage =
-              Math.round(
-                config.budgetDistribution[
-                role
-                ] * 100,
+              Number(
+                (
+                  effectiveBudgetDistribution[
+                  role
+                  ] * 100
+                ).toFixed(1),
               );
 
             const suggestedBudget =
@@ -993,15 +1728,21 @@ export default function AuctionSetupForm({
                     type="number"
                     min="0"
                     max="100"
-                    step="1"
+                    step="0.1"
                     value={percentage}
+                    disabled={
+                      (
+                        config.budgetStrategy ??
+                        "MANUAL"
+                      ) === "AUTOMATIC"
+                    }
                     onChange={(event) => {
                       updateBudgetDistribution(
                         role,
                         event.target.value,
                       );
                     }}
-                    className="
+                    className={`
                       min-w-0 flex-1 rounded-xl
                       border border-slate-300
                       px-3 py-3 outline-none
@@ -1009,7 +1750,15 @@ export default function AuctionSetupForm({
                       focus:border-emerald-600
                       focus:ring-2
                       focus:ring-emerald-100
-                    "
+
+                      ${(
+                        config.budgetStrategy ??
+                        "MANUAL"
+                      ) === "AUTOMATIC"
+                        ? "cursor-not-allowed bg-slate-100 text-slate-600"
+                        : "bg-white"
+                      }
+                    `}
                   />
 
                   <span className="font-semibold">

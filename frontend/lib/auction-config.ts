@@ -1,27 +1,136 @@
-/*
- * Tipo della configurazione d'asta.
- */
 import type {
   AuctionConfig,
+  AuctionLeagueRules,
   AuctionMode,
   AuctionRole,
+  BudgetDistribution,
 } from "../types/auction";
+
+
+/*
+ * Regole classiche predefinite.
+ *
+ * Saranno modificabili dall'utente
+ * prima di iniziare l'asta.
+ */
+export const DEFAULT_LEAGUE_RULES:
+  AuctionLeagueRules = {
+  scoring: {
+    goalByRole: {
+      P: 3,
+      D: 3,
+      C: 3,
+      A: 3,
+    },
+
+    assist: 1,
+    cleanSheet: 1,
+    goalConceded: -1,
+
+    penaltyScored: 3,
+    penaltyMissed: -3,
+    penaltySaved: 3,
+
+    yellowCard: -0.5,
+    redCard: -1,
+    ownGoal: -2,
+  },
+
+  /*
+   * Il modificatore difesa è disattivato
+   * nella configurazione iniziale.
+   */
+  defenseModifier: {
+    enabled: false,
+    minimumDefenders: 4,
+    includeGoalkeeper: true,
+    consideredPlayers: 4,
+
+    bands: [
+      {
+        minimumAverage: 6,
+        bonus: 1,
+      },
+      {
+        minimumAverage: 6.25,
+        bonus: 2,
+      },
+      {
+        minimumAverage: 6.5,
+        bonus: 3,
+      },
+      {
+        minimumAverage: 7,
+        bonus: 6,
+      },
+    ],
+  },
+
+  /*
+   * Il modificatore centrocampo è disattivato
+   * nella configurazione iniziale.
+   */
+  midfieldModifier: {
+    enabled: false,
+    minimumMidfielders: 4,
+    consideredPlayers: 4,
+
+    bands: [
+      {
+        minimumAverage: 6,
+        bonus: 1,
+      },
+      {
+        minimumAverage: 6.25,
+        bonus: 2,
+      },
+      {
+        minimumAverage: 6.5,
+        bonus: 3,
+      },
+      {
+        minimumAverage: 7,
+        bonus: 6,
+      },
+    ],
+  },
+};
+
+
+/*
+ * Distribuzione di partenza utilizzata
+ * dalla strategia automatica.
+ *
+ * Le regole della lega modificano
+ * queste percentuali.
+ */
+export const BASE_BUDGET_DISTRIBUTION:
+  BudgetDistribution = {
+  P: 0.08,
+  D: 0.16,
+  C: 0.26,
+  A: 0.50,
+};
 
 
 /*
  * Configurazione predefinita per una lega
  * di Fantacalcio Classic con 8 partecipanti.
- *
- * L'utente potrà modificare questi valori
- * prima di iniziare l'asta.
  */
-export const DEFAULT_AUCTION_CONFIG: AuctionConfig = {
+export const DEFAULT_AUCTION_CONFIG:
+  AuctionConfig = {
   leagueName: "Lega di prova",
   participants: 8,
   startingBudget: 500,
   minimumBid: 1,
 
   auctionMode: "ROLE_BY_ROLE",
+
+  /*
+   * In modalità automatica le percentuali
+   * verranno adattate alle regole della lega.
+   */
+  budgetStrategy: "AUTOMATIC",
 
   /*
    * Composizione classica della rosa:
@@ -36,18 +145,458 @@ export const DEFAULT_AUCTION_CONFIG: AuctionConfig = {
   },
 
   /*
-   * Distribuzione iniziale consigliata
-   * del budget tra i quattro ruoli.
+   * Distribuzione iniziale di base.
    *
    * La somma deve essere uguale a 1.
    */
   budgetDistribution: {
-    P: 0.08,
-    D: 0.16,
-    C: 0.26,
-    A: 0.50,
+    ...BASE_BUDGET_DISTRIBUTION,
   },
+
+  leagueRules: DEFAULT_LEAGUE_RULES,
 };
+
+
+/*
+ * Crea una copia completa delle regole.
+ *
+ * È importante perché i modificatori
+ * contengono array e oggetti annidati.
+ */
+export function cloneLeagueRules(
+  rules: AuctionLeagueRules,
+): AuctionLeagueRules {
+  return {
+    scoring: {
+      ...rules.scoring,
+
+      goalByRole: {
+        ...rules.scoring.goalByRole,
+      },
+    },
+
+    defenseModifier: {
+      ...rules.defenseModifier,
+
+      bands:
+        rules.defenseModifier.bands.map(
+          (band) => ({
+            ...band,
+          }),
+        ),
+    },
+
+    midfieldModifier: {
+      ...rules.midfieldModifier,
+
+      bands:
+        rules.midfieldModifier.bands.map(
+          (band) => ({
+            ...band,
+          }),
+        ),
+    },
+  };
+}
+
+
+/*
+ * Restituisce le regole della configurazione.
+ *
+ * Le vecchie sessioni che non possiedono
+ * leagueRules ricevono automaticamente
+ * le regole classiche predefinite.
+ */
+export function getLeagueRules(
+  config: AuctionConfig,
+): AuctionLeagueRules {
+  return cloneLeagueRules(
+    config.leagueRules ??
+    DEFAULT_LEAGUE_RULES,
+  );
+}
+
+
+/*
+ * Crea una nuova configurazione indipendente.
+ *
+ * Evita che due aste condividano per errore
+ * lo stesso oggetto di configurazione.
+ */
+export function createDefaultAuctionConfig():
+  AuctionConfig {
+  return {
+    ...DEFAULT_AUCTION_CONFIG,
+
+    rosterSlots: {
+      ...DEFAULT_AUCTION_CONFIG.rosterSlots,
+    },
+
+    budgetDistribution: {
+      ...DEFAULT_AUCTION_CONFIG
+        .budgetDistribution,
+    },
+
+    leagueRules: cloneLeagueRules(
+      DEFAULT_LEAGUE_RULES,
+    ),
+  };
+}
+
+
+/*
+ * Limita un valore tra un minimo
+ * e un massimo.
+ */
+function clamp(
+  value: number,
+  minimum: number,
+  maximum: number,
+): number {
+  return Math.min(
+    maximum,
+    Math.max(
+      minimum,
+      value,
+    ),
+  );
+}
+
+
+/*
+ * Arrotonda una percentuale
+ * a quattro cifre decimali.
+ */
+function roundPercentage(
+  value: number,
+): number {
+  return Math.round(
+    value * 10000,
+  ) / 10000;
+}
+
+
+/*
+ * Normalizza una distribuzione affinché
+ * la somma finale sia esattamente 1.
+ */
+export function normalizeBudgetDistribution(
+  distribution: BudgetDistribution,
+): BudgetDistribution {
+  const safeDistribution = {
+    P: Math.max(
+      0.01,
+      distribution.P,
+    ),
+
+    D: Math.max(
+      0.01,
+      distribution.D,
+    ),
+
+    C: Math.max(
+      0.01,
+      distribution.C,
+    ),
+
+    A: Math.max(
+      0.01,
+      distribution.A,
+    ),
+  };
+
+  const total =
+    safeDistribution.P +
+    safeDistribution.D +
+    safeDistribution.C +
+    safeDistribution.A;
+
+  const normalized: BudgetDistribution = {
+    P: roundPercentage(
+      safeDistribution.P / total,
+    ),
+
+    D: roundPercentage(
+      safeDistribution.D / total,
+    ),
+
+    C: roundPercentage(
+      safeDistribution.C / total,
+    ),
+
+    A: roundPercentage(
+      safeDistribution.A / total,
+    ),
+  };
+
+  /*
+   * Corregge gli eventuali millesimi
+   * persi durante l'arrotondamento.
+   */
+  const normalizedTotal =
+    normalized.P +
+    normalized.D +
+    normalized.C +
+    normalized.A;
+
+  normalized.A = roundPercentage(
+    normalized.A +
+    (1 - normalizedTotal),
+  );
+
+  return normalized;
+}
+
+
+/*
+ * Calcola la distribuzione automatica
+ * del budget in base alle regole.
+ *
+ * Questo è il primo modello euristico.
+ * In futuro i pesi potranno essere
+ * allenati sui dati reali delle aste.
+ */
+export function calculateAutomaticBudgetDistribution(
+  config: AuctionConfig,
+): BudgetDistribution {
+  const rules = getLeagueRules(
+    config,
+  );
+
+  const distribution: BudgetDistribution = {
+    ...BASE_BUDGET_DISTRIBUTION,
+  };
+
+
+  /*
+   * Modificatore difesa.
+   *
+   * Aumenta il valore dei difensori
+   * affidabili e, quando incluso,
+   * anche quello dei portieri.
+   */
+  if (
+    rules.defenseModifier.enabled
+  ) {
+    distribution.D += 0.06;
+    distribution.C -= 0.01;
+    distribution.A -= 0.05;
+
+    if (
+      rules.defenseModifier
+        .includeGoalkeeper
+    ) {
+      distribution.P += 0.01;
+      distribution.A -= 0.01;
+    }
+  }
+
+
+  /*
+   * Modificatore centrocampo.
+   *
+   * Aumenta il valore dei centrocampisti
+   * titolari e dalla buona media voto.
+   */
+  if (
+    rules.midfieldModifier.enabled
+  ) {
+    distribution.P -= 0.005;
+    distribution.D -= 0.015;
+    distribution.C += 0.08;
+    distribution.A -= 0.06;
+  }
+
+
+  /*
+   * Impatto del bonus porta inviolata.
+   *
+   * Il valore classico di riferimento
+   * è +1.
+   */
+  const cleanSheetDifference = clamp(
+    rules.scoring.cleanSheet - 1,
+    -2,
+    3,
+  );
+
+  distribution.P +=
+    cleanSheetDifference * 0.006;
+
+  distribution.D +=
+    cleanSheetDifference * 0.012;
+
+  distribution.C -=
+    cleanSheetDifference * 0.006;
+
+  distribution.A -=
+    cleanSheetDifference * 0.012;
+
+
+  /*
+   * Impatto del malus per gol subito.
+   *
+   * Un malus più pesante riduce
+   * leggermente il budget dei portieri.
+   */
+  const goalConcededSeverity = clamp(
+    -rules.scoring.goalConceded - 1,
+    -1,
+    2,
+  );
+
+  distribution.P -=
+    goalConcededSeverity * 0.008;
+
+  distribution.A +=
+    goalConcededSeverity * 0.008;
+
+
+  /*
+   * Impatto del bonus rigore parato.
+   */
+  const penaltySavedDifference = clamp(
+    rules.scoring.penaltySaved - 3,
+    -3,
+    4,
+  );
+
+  distribution.P +=
+    penaltySavedDifference * 0.003;
+
+  distribution.A -=
+    penaltySavedDifference * 0.003;
+
+
+  /*
+   * Confronto tra il bonus gol
+   * degli altri ruoli e quello
+   * degli attaccanti.
+   */
+  const goalkeeperGoalDifference = clamp(
+    rules.scoring.goalByRole.P -
+    rules.scoring.goalByRole.A,
+    -2,
+    4,
+  );
+
+  const defenderGoalDifference = clamp(
+    rules.scoring.goalByRole.D -
+    rules.scoring.goalByRole.A,
+    -2,
+    4,
+  );
+
+  const midfielderGoalDifference = clamp(
+    rules.scoring.goalByRole.C -
+    rules.scoring.goalByRole.A,
+    -2,
+    4,
+  );
+
+  const goalkeeperGoalShift =
+    goalkeeperGoalDifference * 0.001;
+
+  const defenderGoalShift =
+    defenderGoalDifference * 0.01;
+
+  const midfielderGoalShift =
+    midfielderGoalDifference * 0.008;
+
+  distribution.P +=
+    goalkeeperGoalShift;
+
+  distribution.D +=
+    defenderGoalShift;
+
+  distribution.C +=
+    midfielderGoalShift;
+
+  distribution.A -=
+    goalkeeperGoalShift +
+    defenderGoalShift +
+    midfielderGoalShift;
+
+
+  /*
+   * Un bonus assist più alto aumenta
+   * soprattutto il peso di centrocampisti
+   * e giocatori offensivi.
+   */
+  const assistDifference = clamp(
+    rules.scoring.assist - 1,
+    -1,
+    2,
+  );
+
+  distribution.P -=
+    assistDifference * 0.002;
+
+  distribution.D +=
+    assistDifference * 0.004;
+
+  distribution.C +=
+    assistDifference * 0.01;
+
+  distribution.A +=
+    assistDifference * 0.006;
+
+
+  return normalizeBudgetDistribution(
+    distribution,
+  );
+}
+
+
+/*
+ * Restituisce la distribuzione da usare.
+ *
+ * Le vecchie sessioni senza budgetStrategy
+ * mantengono la distribuzione salvata.
+ */
+export function getEffectiveBudgetDistribution(
+  config: AuctionConfig,
+): BudgetDistribution {
+  const strategy =
+    config.budgetStrategy ??
+    "MANUAL";
+
+  if (
+    strategy === "AUTOMATIC"
+  ) {
+    return (
+      calculateAutomaticBudgetDistribution(
+        config,
+      )
+    );
+  }
+
+  return {
+    ...config.budgetDistribution,
+  };
+}
+
+
+/*
+ * Restituisce una nuova configurazione
+ * con il budget automatico già applicato.
+ */
+export function applyAutomaticBudgetDistribution(
+  config: AuctionConfig,
+): AuctionConfig {
+  const budgetDistribution =
+    calculateAutomaticBudgetDistribution(
+      config,
+    );
+
+  return {
+    ...config,
+
+    budgetStrategy: "AUTOMATIC",
+
+    budgetDistribution,
+  };
+}
 
 
 /*
@@ -82,9 +631,6 @@ export const AUCTION_ROLE_NAMES: Record<
 
 /*
  * Elenco ordinato dei ruoli.
- *
- * Ci permette di mostrare sempre
- * P, D, C e A nello stesso ordine.
  */
 export const AUCTION_ROLES: AuctionRole[] = [
   "P",
@@ -97,17 +643,18 @@ export const AUCTION_ROLES: AuctionRole[] = [
 /*
  * Calcola il budget consigliato
  * per un determinato ruolo.
- *
- * Esempio:
- * budget 500 e percentuale 0.50
- * producono 250 crediti.
  */
 export function calculateRoleBudget(
   config: AuctionConfig,
   role: AuctionRole,
 ): number {
+  const distribution =
+    getEffectiveBudgetDistribution(
+      config,
+    );
+
   const percentage =
-    config.budgetDistribution[role];
+    distribution[role];
 
   return Math.round(
     config.startingBudget * percentage,
@@ -134,9 +681,6 @@ export function calculateTotalRosterSlots(
 /*
  * Controlla che la distribuzione del budget
  * sia complessivamente pari al 100%.
- *
- * Utilizziamo una piccola tolleranza
- * per evitare problemi con i numeri decimali.
  */
 export function isBudgetDistributionValid(
   config: AuctionConfig,

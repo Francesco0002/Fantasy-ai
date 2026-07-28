@@ -1,8 +1,5 @@
 /*
  * Ruoli utilizzati nella modalità asta.
- *
- * Non includiamo la stringa vuota perché
- * ogni slot della rosa deve avere un ruolo valido.
  */
 export type AuctionRole =
   | "P"
@@ -47,9 +44,164 @@ export type AuctionMode =
   | "FULL_RANDOM";
 
 
+/*
+ * Modalità con cui viene gestita
+ * la distribuzione del budget.
+ */
+export type AuctionBudgetStrategy =
+  | "AUTOMATIC"
+  | "MANUAL";
+
+
 export type AuctionPurchaseOwner =
   | "ME"
   | "OPPONENT";
+
+
+/*
+ * Bonus assegnato a un gol
+ * in base al ruolo del giocatore.
+ */
+export type GoalBonusByRole = Record<
+  AuctionRole,
+  number
+>;
+
+
+/*
+ * Regole relative a bonus e malus.
+ */
+export type AuctionScoringRules = {
+  /*
+   * Bonus gol distinto per ruolo.
+   */
+  goalByRole: GoalBonusByRole;
+
+  /*
+   * Bonus assist.
+   */
+  assist: number;
+
+  /*
+   * Bonus porta inviolata.
+   */
+  cleanSheet: number;
+
+  /*
+   * Malus per ogni gol subito.
+   */
+  goalConceded: number;
+
+  /*
+   * Bonus rigore segnato.
+   */
+  penaltyScored: number;
+
+  /*
+   * Malus rigore sbagliato.
+   */
+  penaltyMissed: number;
+
+  /*
+   * Bonus rigore parato.
+   */
+  penaltySaved: number;
+
+  /*
+   * Malus ammonizione.
+   */
+  yellowCard: number;
+
+  /*
+   * Malus espulsione.
+   */
+  redCard: number;
+
+  /*
+   * Malus autogol.
+   */
+  ownGoal: number;
+};
+
+
+/*
+ * Fascia utilizzata da un modificatore.
+ *
+ * Esempio:
+ * media minima 6.50 -> bonus +3.
+ */
+export type ModifierBand = {
+  minimumAverage: number;
+  bonus: number;
+};
+
+
+/*
+ * Configurazione del modificatore difesa.
+ */
+export type DefenseModifierRules = {
+  enabled: boolean;
+
+  /*
+   * Numero minimo di difensori richiesti
+   * per attivare il modificatore.
+   */
+  minimumDefenders: number;
+
+  /*
+   * Indica se il voto del portiere
+   * deve essere incluso nel calcolo.
+   */
+  includeGoalkeeper: boolean;
+
+  /*
+   * Numero di voti utilizzati
+   * per calcolare la media.
+   */
+  consideredPlayers: number;
+
+  /*
+   * Fasce media-bonus.
+   */
+  bands: ModifierBand[];
+};
+
+
+/*
+ * Configurazione del modificatore centrocampo.
+ */
+export type MidfieldModifierRules = {
+  enabled: boolean;
+
+  /*
+   * Numero minimo di centrocampisti richiesti
+   * per attivare il modificatore.
+   */
+  minimumMidfielders: number;
+
+  /*
+   * Numero di voti utilizzati
+   * per calcolare la media.
+   */
+  consideredPlayers: number;
+
+  /*
+   * Fasce media-bonus.
+   */
+  bands: ModifierBand[];
+};
+
+
+/*
+ * Regole complete della lega.
+ */
+export type AuctionLeagueRules = {
+  scoring: AuctionScoringRules;
+
+  defenseModifier: DefenseModifierRules;
+
+  midfieldModifier: MidfieldModifierRules;
+};
 
 
 /*
@@ -68,16 +220,8 @@ export type AuctionConfig = {
   participants: number;
 
   /*
-  * Nomi opzionali delle squadre avversarie.
-  *
-  * Quando l'array è vuoto o assente,
-  * il nome viene inserito manualmente
-  * durante l'asta.
-  *
-  * Quando contiene dei nomi,
-  * durante l'asta viene mostrato
-  * un menu a tendina.
-  */
+   * Nomi opzionali delle squadre avversarie.
+   */
   opponentTeamNames?: string[];
 
   /*
@@ -103,22 +247,42 @@ export type AuctionConfig = {
   budgetDistribution: BudgetDistribution;
 
   /*
-  * ROLE_BY_ROLE:
-  * si completa un ruolo prima di passare al successivo.
-  *
-  * FULL_RANDOM:
-  * i giocatori di tutti i ruoli possono uscire
-  * in qualsiasi momento.
-  */
+   * ROLE_BY_ROLE:
+   * si completa un ruolo prima di passare
+   * al successivo.
+   *
+   * FULL_RANDOM:
+   * i giocatori di tutti i ruoli possono
+   * uscire in qualsiasi momento.
+   */
   auctionMode: AuctionMode;
+
+  /*
+   * AUTOMATIC:
+   * Fantasy AI calcola le percentuali
+   * in base alle regole della lega.
+   *
+   * MANUAL:
+   * l'utente inserisce le percentuali.
+   *
+   * È temporaneamente opzionale per
+   * mantenere compatibili le vecchie aste.
+   */
+  budgetStrategy?: AuctionBudgetStrategy;
+
+  /*
+   * Bonus, malus e modificatori della lega.
+   *
+   * È temporaneamente opzionale perché
+   * le vecchie sessioni nel database
+   * non contengono ancora queste regole.
+   */
+  leagueRules?: AuctionLeagueRules;
 };
 
 
 /*
  * Acquisto registrato durante l'asta.
- *
- * In futuro questa struttura sarà usata
- * per aggiornare budget e rosa.
  */
 export type AuctionPurchase = {
   playerId: number;
@@ -156,6 +320,7 @@ export type AuctionPurchase = {
 
   purchasedAt: string;
 };
+
 
 /*
  * Stato completo di una sessione d'asta.
