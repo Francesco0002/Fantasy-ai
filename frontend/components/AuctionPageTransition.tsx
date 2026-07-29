@@ -7,32 +7,25 @@ import {
 } from "react";
 
 import {
+    createPortal,
+} from "react-dom";
+
+import {
     usePathname,
     useRouter,
 } from "next/navigation";
 
 
-/*
- * Nome dell'evento utilizzato dalla Home
- * per avviare la transizione.
- */
 const AUCTION_TRANSITION_EVENT =
     "fantasy-ai:open-auction";
 
 
-/*
- * Coordinate del punto da cui
- * deve partire la Mask Reveal.
- */
 type AuctionTransitionDetail = {
     originX: number;
     originY: number;
 };
 
 
-/*
- * Fasi della transizione.
- */
 type TransitionPhase =
     | "IDLE"
     | "COVERING"
@@ -40,102 +33,70 @@ type TransitionPhase =
     | "UNCOVERING";
 
 
-/*
- * Overlay globale persistente.
- *
- * Essendo montato nel layout principale,
- * non viene eliminato durante il passaggio
- * dalla Home alla pagina dell'asta.
- */
 export default function AuctionPageTransition() {
     const router = useRouter();
     const pathname = usePathname();
 
+    const [
+        isMounted,
+        setIsMounted,
+    ] = useState(false);
 
-    /*
-     * Elemento verde che copre
-     * progressivamente lo schermo.
-     */
-    const overlayRef =
-        useRef<HTMLDivElement | null>(
-            null,
-        );
-
-
-    /*
-     * Contenuto centrale mostrato
-     * durante il caricamento.
-     */
-    const contentRef =
-        useRef<HTMLDivElement | null>(
-            null,
-        );
-
-
-    /*
-     * Fase attualmente in esecuzione.
-     */
-    const phaseRef =
-        useRef<TransitionPhase>("IDLE");
-
-
-    /*
-     * Coordinate e raggio conservati
-     * anche durante il cambio pagina.
-     */
-    const revealGeometryRef =
-        useRef({
-            originX: 0,
-            originY: 0,
-            radius: 0,
-        });
-
-
-    /*
-     * Animazione principale attiva.
-     */
-    const activeAnimationRef =
-        useRef<Animation | null>(null);
-
-
-    /*
-     * Animazione del testo centrale.
-     */
-    const contentAnimationRef =
-        useRef<Animation | null>(null);
-
-
-    /*
-     * Quando true, l'overlay blocca
-     * i clic sulla pagina sottostante.
-     */
     const [
         isBlockingPage,
         setIsBlockingPage,
     ] = useState(false);
 
 
+    const overlayRef =
+        useRef<HTMLDivElement | null>(
+            null,
+        );
+
+    const circleRef =
+        useRef<HTMLDivElement | null>(
+            null,
+        );
+
+    const contentRef =
+        useRef<HTMLDivElement | null>(
+            null,
+        );
+
+    const phaseRef =
+        useRef<TransitionPhase>(
+            "IDLE",
+        );
+
+    const activeAnimationRef =
+        useRef<Animation | null>(
+            null,
+        );
+
+    const contentAnimationRef =
+        useRef<Animation | null>(
+            null,
+        );
+
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+
     /*
-     * Ascolta l'evento inviato dalla Home
-     * e avvia la copertura dello schermo.
+     * Copertura della Home.
      */
     useEffect(() => {
-        /*
-         * Prepariamo anticipatamente
-         * la pagina dell'asta.
-         */
         router.prefetch("/auction");
 
 
         function handleAuctionTransition(
             event: Event,
         ) {
-            /*
-             * Evitiamo più transizioni
-             * contemporaneamente.
-             */
             if (
-                phaseRef.current !== "IDLE"
+                phaseRef.current !==
+                "IDLE"
             ) {
                 return;
             }
@@ -146,7 +107,6 @@ export default function AuctionPageTransition() {
                     AuctionTransitionDetail
                 >;
 
-
             const {
                 originX,
                 originY,
@@ -156,35 +116,63 @@ export default function AuctionPageTransition() {
             const overlayElement =
                 overlayRef.current;
 
+            const circleElement =
+                circleRef.current;
+
             const contentElement =
                 contentRef.current;
 
 
             if (
                 !overlayElement ||
+                !circleElement ||
                 !contentElement
             ) {
                 router.push("/auction");
+
                 return;
             }
 
 
             /*
-             * Calcoliamo la distanza
-             * dall'angolo più lontano.
+             * Il pulsante fornisce coordinate
+             * relative alla viewport.
+             *
+             * Il cerchio è posizionato dentro
+             * l'overlay, quindi convertiamo il
+             * centro nelle coordinate locali
+             * dell'overlay.
+             */
+            const overlayRectangle =
+                overlayElement
+                    .getBoundingClientRect();
+
+            const localOriginX =
+                originX -
+                overlayRectangle.left;
+
+            const localOriginY =
+                originY -
+                overlayRectangle.top;
+
+
+            /*
+             * Raggio necessario per raggiungere
+             * l'angolo più lontano.
              */
             const horizontalDistance =
                 Math.max(
-                    originX,
-                    window.innerWidth - originX,
+                    localOriginX,
+                    overlayRectangle.width -
+                    localOriginX,
                 );
 
             const verticalDistance =
                 Math.max(
-                    originY,
-                    window.innerHeight - originY,
+                    localOriginY,
+                    overlayRectangle.height -
+                    localOriginY,
                 );
-
 
             const radius =
                 Math.hypot(
@@ -192,32 +180,41 @@ export default function AuctionPageTransition() {
                     verticalDistance,
                 ) + 40;
 
-
-            revealGeometryRef.current = {
-                originX,
-                originY,
-                radius,
-            };
-
-
-            const initialClipPath =
-                `circle(0px at ${originX}px ${originY}px)`;
-
-            const coveredClipPath =
-                `circle(${radius}px at ${originX}px ${originY}px)`;
+            const diameter =
+                radius * 2;
 
 
             /*
-             * Prepariamo l'overlay.
+             * Il centro geometrico del cerchio
+             * coincide con il centro del pulsante.
              */
+            circleElement.style.left =
+                `${localOriginX}px`;
+
+            circleElement.style.top =
+                `${localOriginY}px`;
+
+            circleElement.style.width =
+                `${diameter}px`;
+
+            circleElement.style.height =
+                `${diameter}px`;
+
+            circleElement.style.transform =
+                "translate(-50%, -50%) scale(0)";
+
+
             overlayElement.style.visibility =
                 "visible";
 
-            overlayElement.style.clipPath =
-                initialClipPath;
+            overlayElement.style.opacity =
+                "1";
 
             contentElement.style.opacity =
                 "0";
+
+            contentElement.style.transform =
+                "translateY(10px)";
 
 
             setIsBlockingPage(true);
@@ -234,18 +231,18 @@ export default function AuctionPageTransition() {
 
 
             /*
-             * Espansione della maschera.
+             * Espansione del cerchio.
              */
             const coveringAnimation =
-                overlayElement.animate(
+                circleElement.animate(
                     [
                         {
-                            clipPath:
-                                initialClipPath,
+                            transform:
+                                "translate(-50%, -50%) scale(0)",
                         },
                         {
-                            clipPath:
-                                coveredClipPath,
+                            transform:
+                                "translate(-50%, -50%) scale(1)",
                         },
                     ],
                     {
@@ -260,18 +257,20 @@ export default function AuctionPageTransition() {
 
 
             /*
-             * Comparsa graduale del testo.
+             * Comparsa del contenuto centrale.
              */
             const textAnimation =
                 contentElement.animate(
                     [
                         {
                             opacity: 0,
+
                             transform:
                                 "translateY(10px)",
                         },
                         {
                             opacity: 1,
+
                             transform:
                                 "translateY(0px)",
                         },
@@ -303,19 +302,21 @@ export default function AuctionPageTransition() {
 
 
                     /*
-                     * Trasferiamo il risultato
-                     * dell'animazione nello stile inline,
-                     * quindi eliminiamo l'animazione.
+                     * Conserviamo lo stato finale
+                     * prima di annullare le animazioni.
                      */
-                    overlayElement.style.clipPath =
-                        coveredClipPath;
+                    circleElement.style.transform =
+                        "translate(-50%, -50%) scale(1)";
 
                     contentElement.style.opacity =
                         "1";
 
+                    contentElement.style.transform =
+                        "translateY(0px)";
+
+
                     coveringAnimation.cancel();
                     textAnimation.cancel();
-
 
                     activeAnimationRef.current =
                         null;
@@ -324,10 +325,6 @@ export default function AuctionPageTransition() {
                         null;
 
 
-                    /*
-                     * Manteniamo lo schermo coperto
-                     * mentre Next.js cambia pagina.
-                     */
                     phaseRef.current =
                         "WAITING_ROUTE";
 
@@ -364,16 +361,9 @@ export default function AuctionPageTransition() {
 
 
     /*
-    * Quando la pagina dell'asta è pronta,
-    * rimuoviamo gradualmente la copertura.
-    *
-    * Non richiudiamo più il cerchio
-    * verso il vecchio pulsante.
-    *
-    * La superficie verde continua invece
-    * il proprio movimento verso l'esterno
-    * e scompare con una dissolvenza morbida.
-    */
+     * Dissolvenza dopo il caricamento
+     * della pagina dell'asta.
+     */
     useEffect(() => {
         if (
             pathname !== "/auction" ||
@@ -387,16 +377,23 @@ export default function AuctionPageTransition() {
         const overlayElement =
             overlayRef.current;
 
+        const circleElement =
+            circleRef.current;
+
         const contentElement =
             contentRef.current;
 
 
         if (
             !overlayElement ||
+            !circleElement ||
             !contentElement
         ) {
-            phaseRef.current = "IDLE";
+            phaseRef.current =
+                "IDLE";
+
             setIsBlockingPage(false);
+
             return;
         }
 
@@ -404,26 +401,13 @@ export default function AuctionPageTransition() {
         phaseRef.current =
             "UNCOVERING";
 
-
-        /*
-         * Prepariamo l'overlay nello stato
-         * completamente visibile.
-         */
         overlayElement.style.visibility =
             "visible";
 
         overlayElement.style.opacity =
             "1";
 
-        overlayElement.style.transform =
-            "scale(1)";
 
-
-        /*
-         * Aspettiamo due frame per consentire
-         * alla nuova pagina di essere disegnata
-         * sotto la copertura verde.
-         */
         let secondFrameId:
             number | null = null;
 
@@ -434,20 +418,18 @@ export default function AuctionPageTransition() {
                     secondFrameId =
                         window.requestAnimationFrame(
                             () => {
-                                /*
-                                 * Il testo centrale scompare
-                                 * prima della copertura.
-                                 */
                                 const textAnimation =
                                     contentElement.animate(
                                         [
                                             {
                                                 opacity: 1,
+
                                                 transform:
                                                     "translateY(0px)",
                                             },
                                             {
                                                 opacity: 0,
+
                                                 transform:
                                                     "translateY(-8px)",
                                             },
@@ -463,29 +445,14 @@ export default function AuctionPageTransition() {
                                     );
 
 
-                                /*
-                                 * La superficie verde:
-                                 *
-                                 * - aumenta leggermente di scala;
-                                 * - diventa trasparente;
-                                 * - lascia apparire la nuova pagina.
-                                 *
-                                 * Non modifica più il clip-path
-                                 * e quindi non torna verso
-                                 * il vecchio pulsante.
-                                 */
                                 const exitAnimation =
                                     overlayElement.animate(
                                         [
                                             {
                                                 opacity: 1,
-                                                transform:
-                                                    "scale(1)",
                                             },
                                             {
                                                 opacity: 0,
-                                                transform:
-                                                    "scale(1.025)",
                                             },
                                         ],
                                         {
@@ -509,27 +476,29 @@ export default function AuctionPageTransition() {
 
                                 exitAnimation.finished
                                     .then(() => {
-                                        /*
-                                         * Nascondiamo l'overlay
-                                         * dopo la dissolvenza.
-                                         */
                                         overlayElement.style
                                             .visibility =
                                             "hidden";
 
-
-                                        /*
-                                         * Ripristiniamo tutti gli stili
-                                         * per la transizione successiva.
-                                         */
                                         overlayElement.style.opacity =
                                             "1";
 
-                                        overlayElement.style.transform =
-                                            "scale(1)";
 
-                                        overlayElement.style.clipPath =
-                                            "circle(0px at 50% 50%)";
+                                        circleElement.style.transform =
+                                            "translate(-50%, -50%) scale(0)";
+
+                                        circleElement.style.width =
+                                            "0px";
+
+                                        circleElement.style.height =
+                                            "0px";
+
+                                        circleElement.style.left =
+                                            "0px";
+
+                                        circleElement.style.top =
+                                            "0px";
+
 
                                         contentElement.style.opacity =
                                             "0";
@@ -538,10 +507,6 @@ export default function AuctionPageTransition() {
                                             "translateY(0px)";
 
 
-                                        /*
-                                         * Rimuoviamo gli effetti
-                                         * mantenuti da fill: forwards.
-                                         */
                                         exitAnimation.cancel();
                                         textAnimation.cancel();
 
@@ -559,9 +524,7 @@ export default function AuctionPageTransition() {
                                     })
                                     .catch(() => {
                                         /*
-                                         * La Promise viene rifiutata
-                                         * solamente se l'animazione
-                                         * viene annullata.
+                                         * Animazione annullata.
                                          */
                                     });
                             },
@@ -575,7 +538,9 @@ export default function AuctionPageTransition() {
                 firstFrameId,
             );
 
-            if (secondFrameId !== null) {
+            if (
+                secondFrameId !== null
+            ) {
                 window.cancelAnimationFrame(
                     secondFrameId,
                 );
@@ -584,13 +549,18 @@ export default function AuctionPageTransition() {
     }, [pathname]);
 
 
-    return (
+    if (!isMounted) {
+        return null;
+    }
+
+
+    return createPortal(
         <div
             ref={overlayRef}
             aria-hidden="true"
             className={`
         fixed inset-0 z-[5000]
-        bg-emerald-700
+        overflow-hidden
 
         ${isBlockingPage
                     ? "pointer-events-auto"
@@ -598,18 +568,40 @@ export default function AuctionPageTransition() {
                 }
       `}
             style={{
-                clipPath:
-                    "circle(0px at 50% 50%)",
-
                 visibility: "hidden",
+                opacity: 1,
             }}
         >
+            {/* Cerchio verde */}
+            <div
+                ref={circleRef}
+                className="
+          absolute rounded-full
+          bg-emerald-700
+          will-change-transform
+        "
+                style={{
+                    width: 0,
+                    height: 0,
+                    left: 0,
+                    top: 0,
+
+                    transform:
+                        "translate(-50%, -50%) scale(0)",
+
+                    transformOrigin:
+                        "center",
+                }}
+            />
+
+
+            {/* Contenuto centrale */}
             <div
                 ref={contentRef}
                 className="
-          flex h-full items-center
-          justify-center
-          opacity-0
+          absolute inset-0 z-10
+          flex items-center
+          justify-center opacity-0
         "
             >
                 <div className="text-center text-white">
@@ -626,6 +618,7 @@ export default function AuctionPageTransition() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

@@ -1,6 +1,13 @@
 "use client";
 
 /*
+ * Menu personalizzato utilizzato
+ * anche nella modalità asta.
+ */
+import CustomSelect from
+  "./ui/CustomSelect";
+
+/*
  * Tipi utilizzati dai controlli
  * di filtro e ordinamento.
  */
@@ -21,10 +28,72 @@ type PlayerFiltersProps = {
   role: Role;
   sortBy: SortOption;
 
-  onSearchChange: (value: string) => void;
-  onRoleChange: (value: Role) => void;
-  onSortChange: (value: SortOption) => void;
+  onSearchChange: (
+    value: string,
+  ) => void;
+
+  onRoleChange: (
+    value: Role,
+  ) => void;
+
+  onSortChange: (
+    value: SortOption,
+  ) => void;
 };
+
+/*
+ * Opzioni disponibili per
+ * il filtro dei ruoli.
+ */
+const ROLE_OPTIONS = [
+  {
+    value: "",
+    label: "Tutti i ruoli",
+  },
+  {
+    value: "P",
+    label: "Portieri",
+  },
+  {
+    value: "D",
+    label: "Difensori",
+  },
+  {
+    value: "C",
+    label: "Centrocampisti",
+  },
+  {
+    value: "A",
+    label: "Attaccanti",
+  },
+];
+
+/*
+ * Opzioni disponibili per
+ * l'ordinamento dei giocatori.
+ */
+const SORT_OPTIONS = [
+  {
+    value: "score_desc",
+    label: "Punteggio Fantasy AI",
+  },
+  {
+    value: "price_desc",
+    label: "Prezzo consigliato",
+  },
+  {
+    value: "starting_desc",
+    label: "Probabilità titolare",
+  },
+  {
+    value: "injury_asc",
+    label: "Minor rischio infortunio",
+  },
+  {
+    value: "name_asc",
+    label: "Nome alfabetico",
+  },
+];
 
 /*
  * Pannello contenente ricerca,
@@ -54,14 +123,19 @@ export default function PlayerFilters({
           type="search"
           value={search}
           onChange={(event) => {
-            onSearchChange(event.target.value);
+            onSearchChange(
+              event.target.value,
+            );
           }}
           placeholder="Esempio: Colombo"
           className="
-            w-full rounded-xl border border-slate-300
-            px-4 py-3 outline-none transition
+            w-full rounded-xl
+            border border-slate-300
+            px-4 py-3
+            outline-none transition
             focus:border-emerald-600
-            focus:ring-2 focus:ring-emerald-100
+            focus:ring-2
+            focus:ring-emerald-100
           "
         />
       </div>
@@ -75,25 +149,17 @@ export default function PlayerFilters({
           Filtra per ruolo
         </label>
 
-        <select
+        <CustomSelect
           id="role-filter"
           value={role}
-          onChange={(event) => {
-            onRoleChange(event.target.value as Role);
+          tone="emerald"
+          options={ROLE_OPTIONS}
+          onChange={(value) => {
+            onRoleChange(
+              value as Role,
+            );
           }}
-          className="
-            w-full rounded-xl border border-slate-300
-            bg-white px-4 py-3 outline-none transition
-            focus:border-emerald-600
-            focus:ring-2 focus:ring-emerald-100
-          "
-        >
-          <option value="">Tutti i ruoli</option>
-          <option value="P">Portieri</option>
-          <option value="D">Difensori</option>
-          <option value="C">Centrocampisti</option>
-          <option value="A">Attaccanti</option>
-        </select>
+        />
       </div>
 
       {/* Ordinamento dei risultati */}
@@ -105,41 +171,17 @@ export default function PlayerFilters({
           Ordina per
         </label>
 
-        <select
+        <CustomSelect
           id="sort-filter"
           value={sortBy}
-          onChange={(event) => {
+          tone="emerald"
+          options={SORT_OPTIONS}
+          onChange={(value) => {
             onSortChange(
-              event.target.value as SortOption,
+              value as SortOption,
             );
           }}
-          className="
-            w-full rounded-xl border border-slate-300
-            bg-white px-4 py-3 outline-none transition
-            focus:border-emerald-600
-            focus:ring-2 focus:ring-emerald-100
-          "
-        >
-          <option value="score_desc">
-            Punteggio Fantasy AI
-          </option>
-
-          <option value="price_desc">
-            Prezzo consigliato
-          </option>
-
-          <option value="starting_desc">
-            Probabilità titolare
-          </option>
-
-          <option value="injury_asc">
-            Minor rischio infortunio
-          </option>
-
-          <option value="name_asc">
-            Nome alfabetico
-          </option>
-        </select>
+        />
       </div>
     </section>
   );
