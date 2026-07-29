@@ -4,6 +4,11 @@
 import CustomSelect from
   "../ui/CustomSelect";
 
+
+import NumericInput from
+  "../ui/NumericInput";
+
+
 /*
  * Hook React utilizzato per conservare
  * la configurazione inserita dall'utente.
@@ -1198,9 +1203,8 @@ export default function AuctionSetupForm({
               Partecipanti
             </label>
 
-            <input
+            <NumericInput
               id="participants"
-              type="number"
               min="2"
               max="30"
               step="1"
@@ -1254,9 +1258,8 @@ export default function AuctionSetupForm({
               Budget iniziale
             </label>
 
-            <input
+            <NumericInput
               id="starting-budget"
-              type="number"
               min="1"
               step="1"
               value={config.startingBudget}
@@ -1301,9 +1304,8 @@ export default function AuctionSetupForm({
               Offerta minima
             </label>
 
-            <input
+            <NumericInput
               id="minimum-bid"
-              type="number"
               min="1"
               step="1"
               value={config.minimumBid}
@@ -1505,9 +1507,8 @@ export default function AuctionSetupForm({
                 {AUCTION_ROLE_NAMES[role]}
               </label>
 
-              <input
+              <NumericInput
                 id={`slots-${role}`}
-                type="number"
                 min="0"
                 max="20"
                 step="1"
@@ -1584,9 +1585,8 @@ export default function AuctionSetupForm({
                     {AUCTION_ROLE_NAMES[role]}
                   </label>
 
-                  <input
+                  <NumericInput
                     id={`goal-bonus-${role}`}
-                    type="number"
                     min="-20"
                     max="20"
                     step="0.5"
@@ -1636,9 +1636,8 @@ export default function AuctionSetupForm({
                     {label}
                   </label>
 
-                  <input
+                  <NumericInput
                     id={`scoring-${key}`}
-                    type="number"
                     min="-20"
                     max="20"
                     step="0.5"
@@ -1720,9 +1719,8 @@ export default function AuctionSetupForm({
                         Difensori minimi
                       </label>
 
-                      <input
+                      <NumericInput
                         id="minimum-defenders"
-                        type="number"
                         min="1"
                         max={
                           config.rosterSlots.D
@@ -1759,9 +1757,8 @@ export default function AuctionSetupForm({
                         Voti considerati
                       </label>
 
-                      <input
+                      <NumericInput
                         id="defense-considered-players"
-                        type="number"
                         min="1"
                         step="1"
                         value={
@@ -1863,9 +1860,8 @@ export default function AuctionSetupForm({
                       Centrocampisti minimi
                     </label>
 
-                    <input
+                    <NumericInput
                       id="minimum-midfielders"
-                      type="number"
                       min="1"
                       max={
                         config.rosterSlots.C
@@ -1902,9 +1898,8 @@ export default function AuctionSetupForm({
                       Voti considerati
                     </label>
 
-                    <input
+                    <NumericInput
                       id="midfield-considered-players"
-                      type="number"
                       min="1"
                       step="1"
                       value={
@@ -2034,9 +2029,8 @@ export default function AuctionSetupForm({
                 </label>
 
                 <div className="mt-3 flex items-center gap-2">
-                  <input
+                  <NumericInput
                     id={`budget-${role}`}
-                    type="number"
                     min="0"
                     max="100"
                     step="0.1"
