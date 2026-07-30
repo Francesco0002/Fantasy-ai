@@ -20,9 +20,20 @@ const AUCTION_TRANSITION_EVENT =
     "fantasy-ai:open-auction";
 
 
+type AuctionTransitionDestination =
+    | "/auction"
+    | "/my-auctions";
+
+
 type AuctionTransitionDetail = {
     originX: number;
     originY: number;
+
+    /*
+     * Pagina che deve essere aperta
+     * al termine della transizione.
+     */
+    destination?: AuctionTransitionDestination;
 };
 
 
@@ -68,6 +79,15 @@ export default function AuctionPageTransition() {
             "IDLE",
         );
 
+    /*
+    * Destinazione della transizione
+    * attualmente in esecuzione.
+    */
+    const destinationRef =
+        useRef<AuctionTransitionDestination>(
+            "/auction",
+        );
+
     const activeAnimationRef =
         useRef<Animation | null>(
             null,
@@ -89,6 +109,7 @@ export default function AuctionPageTransition() {
      */
     useEffect(() => {
         router.prefetch("/auction");
+        router.prefetch("/my-auctions");
 
 
         function handleAuctionTransition(
@@ -112,6 +133,13 @@ export default function AuctionPageTransition() {
                 originY,
             } = customEvent.detail;
 
+            const destination =
+                customEvent.detail.destination
+                ?? "/auction";
+
+            destinationRef.current =
+                destination;
+
 
             const overlayElement =
                 overlayRef.current;
@@ -128,7 +156,9 @@ export default function AuctionPageTransition() {
                 !circleElement ||
                 !contentElement
             ) {
-                router.push("/auction");
+                router.push(
+                    destination,
+                );
 
                 return;
             }
@@ -328,7 +358,9 @@ export default function AuctionPageTransition() {
                     phaseRef.current =
                         "WAITING_ROUTE";
 
-                    router.push("/auction");
+                    router.push(
+                        destinationRef.current,
+                    );
                 })
                 .catch(() => {
                     /*
@@ -366,7 +398,8 @@ export default function AuctionPageTransition() {
      */
     useEffect(() => {
         if (
-            pathname !== "/auction" ||
+            pathname !==
+            destinationRef.current ||
             phaseRef.current !==
             "WAITING_ROUTE"
         ) {

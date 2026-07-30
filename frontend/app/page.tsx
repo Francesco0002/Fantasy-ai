@@ -76,6 +76,16 @@ export default function Home() {
 
 
   /*
+ * Indica se la transizione verso
+ * la pagina delle aste è in corso.
+ */
+  const [
+    isAuctionOpening,
+    setIsAuctionOpening,
+  ] = useState(false);
+
+
+  /*
    * Testo scritto nel campo di ricerca.
    */
   const [search, setSearch] = useState("");
@@ -203,20 +213,19 @@ export default function Home() {
   ] = useState<Player | null>(null);
 
   /*
-  * Comunica al componente globale
-  * di avviare la transizione verso l'asta.
+  * Apre la pagina di gestione delle aste
+  * utilizzando la transizione globale.
   */
   function handleOpenAuction(
     event: MouseEvent<HTMLButtonElement>,
   ) {
-    if (!user) {
+    if (isAuctionOpening) {
       return;
     }
 
     const buttonRectangle =
       event.currentTarget
         .getBoundingClientRect();
-
 
     const originX =
       buttonRectangle.left +
@@ -226,7 +235,12 @@ export default function Home() {
       buttonRectangle.top +
       buttonRectangle.height / 2;
 
+    setIsAuctionOpening(true);
 
+    /*
+     * Dalla Home non creiamo direttamente
+     * una sessione: apriamo l'elenco delle aste.
+     */
     window.dispatchEvent(
       new CustomEvent(
         "fantasy-ai:open-auction",
@@ -234,6 +248,8 @@ export default function Home() {
           detail: {
             originX,
             originY,
+            destination:
+              "/my-auctions",
           },
         },
       ),
@@ -269,29 +285,30 @@ export default function Home() {
           <button
             type="button"
             onClick={handleOpenAuction}
+            aria-busy={isAuctionOpening}
+            disabled={
+              !isAuthReady ||
+              user === null ||
+              isAuctionOpening
+            }
             className="
               mt-5 inline-flex items-center
               justify-center rounded-xl
               bg-emerald-700 px-5 py-3
               text-sm font-semibold text-white
-
-              transition-colors
-              duration-200
+              transition-colors duration-200
               hover:bg-emerald-800
-
               disabled:cursor-not-allowed
               disabled:bg-slate-400
             "
-            disabled={
-              !isAuthReady ||
-              user === null
-            }
           >
             {!isAuthReady
               ? "Verifica account..."
-              : user
-                ? "Apri modalità asta"
-                : "Accedi per aprire l'asta"}
+              : !user
+                ? "Accedi per aprire l'asta"
+                : isAuctionOpening
+                  ? "Apertura aste..."
+                  : "Apri modalità asta"}
           </button>
           {user && (
             <Link

@@ -274,6 +274,13 @@ export default function MyAuctionsPage() {
           detail: {
             originX,
             originY,
+
+            /*
+            * Qui vogliamo aprire il modulo
+            * per una sessione nuova.
+            */
+            destination:
+              "/auction",
           },
         },
       ),
@@ -415,8 +422,8 @@ export default function MyAuctionsPage() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-slate-600">
-            Riprendi una sessione salvata oppure
-            torna alla home per iniziare una nuova asta.
+            Crea una nuova asta oppure riprendi
+            una delle sessioni già salvate.
           </p>
         </header>
 
@@ -517,6 +524,55 @@ export default function MyAuctionsPage() {
             </section>
           )}
 
+        {isAuthReady &&
+          user &&
+          !isLoading &&
+          !error &&
+          sessions.length > 0 && (
+            <section className="
+              mb-6 flex flex-col gap-4
+              rounded-2xl border
+              border-emerald-200
+              bg-white p-6 shadow-sm
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+            ">
+              <div>
+                <h2 className="text-xl font-bold">
+                  Nuova sessione
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  Crea un&apos;altra asta senza
+                  modificare quelle già salvate.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateAuction}
+                disabled={isAuctionOpening}
+                aria-busy={isAuctionOpening}
+                className={`
+                  inline-flex shrink-0 items-center
+                  justify-center rounded-xl
+                  bg-emerald-700 px-5 py-3
+                  text-sm font-semibold text-white
+                  transition-colors duration-200
+
+                  ${isAuctionOpening
+                            ? "cursor-wait bg-emerald-800"
+                            : "hover:bg-emerald-800"
+                          }
+                `}
+              >
+                {isAuctionOpening
+                  ? "Preparazione asta..."
+                  : "Crea una nuova asta"}
+              </button>
+            </section>
+          )}
 
         {isAuthReady &&
           user &&
