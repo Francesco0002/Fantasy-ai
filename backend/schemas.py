@@ -826,3 +826,39 @@ class AuctionSessionResponse(BaseModel):
 
     teams: list[TeamResponse]
     purchases: list[PurchaseResponse]
+
+
+class AuctionSessionSummaryResponse(BaseModel):
+    """
+    Informazioni sintetiche utilizzate
+    nell'elenco delle aste dell'utente.
+    """
+
+    id: UUID
+
+    leagueName: str
+    participants: int
+    startingBudget: int
+
+    auctionMode: AuctionMode
+
+    status: str
+
+    teamsCount: int
+    purchasesCount: int
+
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class AuctionSessionListResponse(BaseModel):
+    """
+    Elenco delle sessioni d'asta
+    appartenenti all'utente autenticato.
+    """
+
+    count: int
+
+    sessions: list[
+        AuctionSessionSummaryResponse
+    ]

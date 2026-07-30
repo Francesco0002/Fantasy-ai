@@ -24,6 +24,11 @@ import type {
   AuctionSessionApiResponse,
 } from "../lib/api";
 
+import {
+  AUCTION_SESSION_ID_KEY,
+  LEGACY_AUCTION_STORAGE_KEY,
+} from "../lib/auction-storage";
+
 /*
  * Hook React utilizzati per conservare
  * la sessione e calcolare i dati derivati.
@@ -43,22 +48,6 @@ import type {
   AuctionRole,
   AuctionSession,
 } from "../types/auction";
-
-
-/*
- * Nel browser salviamo solamente
- * l'UUID assegnato dal database.
- */
-const AUCTION_SESSION_ID_KEY =
-  "fantasy-ai-auction-session-id-v1";
-
-
-/*
- * Vecchia chiave che conteneva
- * l'intera sessione nel localStorage.
- */
-const LEGACY_AUCTION_STORAGE_KEY =
-  "fantasy-ai-auction-session-v1";
 
 
 /*

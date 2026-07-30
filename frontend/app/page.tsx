@@ -1,11 +1,20 @@
 "use client";
 
+import Link from "next/link";
+
 
 /*
  * Finestra utilizzata per scegliere
  * il secondo giocatore del confronto.
  */
 import ComparePlayerModal from "../components/ComparePlayerModal";
+
+
+import AuthPanel from "../components/auth/AuthPanel";
+
+import {
+  useAuth,
+} from "../hooks/useAuth";
 
 
 /*
@@ -59,6 +68,11 @@ import type {
 
 
 export default function Home() {
+
+  const {
+    user,
+    isAuthReady,
+  } = useAuth();
 
 
   /*
@@ -195,6 +209,10 @@ export default function Home() {
   function handleOpenAuction(
     event: MouseEvent<HTMLButtonElement>,
   ) {
+    if (!user) {
+      return;
+    }
+
     const buttonRectangle =
       event.currentTarget
         .getBoundingClientRect();
@@ -245,6 +263,8 @@ export default function Home() {
             d&apos;asta consigliati per ciascun giocatore.
           </p>
 
+          <AuthPanel />
+
           {/* Accesso alla modalità asta */}
           <button
             type="button"
@@ -258,10 +278,38 @@ export default function Home() {
               transition-colors
               duration-200
               hover:bg-emerald-800
+
+              disabled:cursor-not-allowed
+              disabled:bg-slate-400
             "
+            disabled={
+              !isAuthReady ||
+              user === null
+            }
           >
-            Apri modalità asta
+            {!isAuthReady
+              ? "Verifica account..."
+              : user
+                ? "Apri modalità asta"
+                : "Accedi per aprire l'asta"}
           </button>
+          {user && (
+            <Link
+              href="/my-auctions"
+              className="
+                mt-3 ml-3 inline-flex
+                items-center justify-center
+                rounded-xl border
+                border-emerald-700 bg-white
+                px-5 py-3 text-sm
+                font-semibold text-emerald-700
+                transition
+                hover:bg-emerald-50
+              "
+            >
+              Le mie aste
+            </Link>
+          )}
         </header>
 
 

@@ -9,6 +9,9 @@ import "./globals.css";
 import AuctionPageTransition from
   "../components/AuctionPageTransition";
 
+import {
+  AuthProvider,
+} from "../hooks/useAuth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,18 +47,20 @@ export default function RootLayout({
       `}
     >
       <body className="min-h-full overflow-x-clip">
-        {/*
-         * Contenuto della pagina corrente:
-         * Home, modalità asta, confronto, ecc.
-         */}
-        {children}
+        <AuthProvider>
+          {/*
+          * Contenuto della pagina corrente:
+          * Home, modalità asta, confronto, ecc.
+          */}
+          {children}
 
 
-        {/*
-         * Overlay globale mantenuto montato
-         * durante il cambio tra le pagine.
-         */}
-        <AuctionPageTransition />
+          {/*
+          * Overlay globale mantenuto montato
+          * durante il cambio tra le pagine.
+          */}
+          <AuctionPageTransition />
+        </AuthProvider>
       </body>
     </html>
   );

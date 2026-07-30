@@ -47,7 +47,9 @@ from backend.models import (
 
 from backend.schemas import (
     AuctionSessionCreate,
+    AuctionSessionListResponse,
     AuctionSessionResponse,
+    AuctionSessionSummaryResponse,
     PurchaseCreate,
     PurchaseResponse,
     TeamResponse,
@@ -237,6 +239,54 @@ def create_session_response(
             for purchase
             in sorted_purchases
         ],
+    )
+
+
+def create_session_summary_response(
+    auction_session: AuctionSession,
+) -> AuctionSessionSummaryResponse:
+    """
+    Converte una sessione d'asta
+    nella versione sintetica utilizzata
+    dalla pagina Le mie aste.
+    """
+
+    return AuctionSessionSummaryResponse(
+        id=auction_session.id,
+
+        leagueName=(
+            auction_session.league_name
+        ),
+
+        participants=(
+            auction_session.participants
+        ),
+
+        startingBudget=(
+            auction_session.starting_budget
+        ),
+
+        auctionMode=(
+            auction_session.auction_mode
+        ),
+
+        status=auction_session.status,
+
+        teamsCount=len(
+            auction_session.teams
+        ),
+
+        purchasesCount=len(
+            auction_session.purchases
+        ),
+
+        createdAt=(
+            auction_session.created_at
+        ),
+
+        updatedAt=(
+            auction_session.updated_at
+        ),
     )
 
 
@@ -670,6 +720,70 @@ def create_auction_session(
 
     return create_session_response(
         stored_session
+    )
+
+
+@router.get(
+    "",
+    response_model=AuctionSessionListResponse,
+)
+def list_auction_sessions(
+    current_user: User = Depends(
+        get_current_user
+    ),
+
+    database: Session = Depends(
+        get_database_session
+    ),
+) -> AuctionSessionListResponse:
+    """
+    Restituisce tutte le sessioni d'asta
+    appartenenti all'utente autenticato.
+
+    Le sessioni modificate più recentemente
+    vengono mostrate per prime.
+    """
+
+    statement = (
+        select(AuctionSession)
+        .options(
+            selectinload(
+                AuctionSession.teams
+            ),
+            selectinload(
+                AuctionSession.purchases
+            ),
+        )
+        .where(
+            AuctionSession.user_id
+            == current_user.id
+        )
+        .order_by(
+            AuctionSession.updated_at.desc(),
+            AuctionSession.created_at.desc(),
+        )
+    )
+
+    auction_sessions = list(
+        database.scalars(
+            statement
+        ).all()
+    )
+
+    session_summaries = [
+        create_session_summary_response(
+            auction_session
+        )
+        for auction_session
+        in auction_sessions
+    ]
+
+    return AuctionSessionListResponse(
+        count=len(
+            session_summaries
+        ),
+
+        sessions=session_summaries,
     )
 
 

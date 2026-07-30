@@ -19,6 +19,13 @@ import type {
 } from "../types/auction";
 
 
+import type {
+  AuthUser,
+  LoginUserInput,
+  RegisterUserInput,
+} from "../types/auth";
+
+
 /*
  * Indirizzo del backend FastAPI.
  *
@@ -29,7 +36,35 @@ import type {
  */
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000";
+  "http://localhost:8000";
+
+
+/*
+ * Wrapper condiviso per tutte
+ * le richieste verso FastAPI.
+ *
+ * credentials: "include" permette
+ * al browser di inviare e ricevere
+ * il cookie HttpOnly di autenticazione.
+ */
+async function apiFetch(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  return fetch(
+    `${API_URL}${path}`,
+    {
+      ...options,
+
+      /*
+       * Manteniamo questa proprietà
+       * dopo lo spread per impedire
+       * che venga sovrascritta.
+       */
+      credentials: "include",
+    },
+  );
+}
 
 
 /*
@@ -129,6 +164,146 @@ async function createApiRequestError(
 
 
 /*
+ * Registra un nuovo account.
+ *
+ * Il backend salva automaticamente
+ * il token JWT nel cookie HttpOnly.
+ */
+export async function registerUser(
+  input: RegisterUserInput,
+): Promise<AuthUser> {
+  const response = await apiFetch(
+    "/auth/register",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        email:
+          input.email,
+
+        displayName:
+          input.displayName,
+
+        password:
+          input.password,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const user: AuthUser =
+    await response.json();
+
+  return user;
+}
+
+
+/*
+ * Effettua il login
+ * usando email e password.
+ *
+ * Il cookie di autenticazione
+ * viene ricevuto automaticamente.
+ */
+export async function loginUser(
+  input: LoginUserInput,
+): Promise<AuthUser> {
+  const response = await apiFetch(
+    "/auth/login",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        email:
+          input.email,
+
+        password:
+          input.password,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const user: AuthUser =
+    await response.json();
+
+  return user;
+}
+
+
+/*
+ * Recupera l'utente associato
+ * al cookie corrente.
+ *
+ * Un errore 401 significa che
+ * il visitatore non è autenticato.
+ */
+export async function fetchCurrentUser(
+  signal?: AbortSignal,
+): Promise<AuthUser> {
+  const response = await apiFetch(
+    "/auth/me",
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const user: AuthUser =
+    await response.json();
+
+  return user;
+}
+
+
+/*
+ * Termina la sessione corrente
+ * eliminando il cookie HttpOnly.
+ */
+export async function logoutUser(
+): Promise<void> {
+  const response = await apiFetch(
+    "/auth/logout",
+    {
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+}
+
+
+/*
  * Parametri accettati dalla funzione
  * che recupera i giocatori.
  */
@@ -170,8 +345,8 @@ export async function fetchPlayers({
     );
   }
 
-  const response = await fetch(
-    `${API_URL}/players?${params.toString()}`,
+  const response = await apiFetch(
+    `/players?${params.toString()}`,
     {
       signal,
     },
@@ -198,8 +373,8 @@ export async function fetchPlayerById(
   playerId: number,
   signal?: AbortSignal,
 ): Promise<Player> {
-  const response = await fetch(
-    `${API_URL}/players/${playerId}`,
+  const response = await apiFetch(
+    `/players/${playerId}`,
     {
       signal,
     },
@@ -297,14 +472,79 @@ export type AuctionSessionApiResponse = {
 
 
 /*
+ * Riepilogo compatto di una sessione
+ * restituito dall'elenco delle aste.
+ */
+export type AuctionSessionSummaryApiResponse = {
+  id: string;
+
+  leagueName: string;
+  participants: number;
+  startingBudget: number;
+
+  auctionMode:
+    AuctionConfig["auctionMode"];
+
+  status: string;
+
+  teamsCount: number;
+  purchasesCount: number;
+
+  createdAt: string;
+  updatedAt: string;
+};
+
+
+/*
+ * Risposta dell'endpoint
+ * GET /auction-sessions.
+ */
+export type AuctionSessionListApiResponse = {
+  count: number;
+
+  sessions:
+    AuctionSessionSummaryApiResponse[];
+};
+
+
+/*
+ * Recupera tutte le sessioni d'asta
+ * appartenenti all'utente autenticato.
+ */
+export async function fetchAuctionSessions(
+  signal?: AbortSignal,
+): Promise<AuctionSessionListApiResponse> {
+  const response = await apiFetch(
+    "/auction-sessions",
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data:
+    AuctionSessionListApiResponse =
+      await response.json();
+
+  return data;
+}
+
+
+/*
  * Crea una nuova sessione d'asta
  * nel database PostgreSQL.
  */
 export async function createAuctionSession(
   config: AuctionConfig,
 ): Promise<AuctionSessionApiResponse> {
-  const response = await fetch(
-    `${API_URL}/auction-sessions`,
+  const response = await apiFetch(
+    "/auction-sessions",
     {
       method: "POST",
 
@@ -384,8 +624,8 @@ export async function createAuctionSession(
 export async function fetchAuctionSessionById(
   sessionId: string,
 ): Promise<AuctionSessionApiResponse> {
-  const response = await fetch(
-    `${API_URL}/auction-sessions/${encodeURIComponent(
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
       sessionId,
     )}`,
     {
@@ -416,8 +656,8 @@ export async function createAuctionPurchase(
   sessionId: string,
   purchase: AuctionPurchase,
 ): Promise<AuctionSessionApiResponse> {
-  const response = await fetch(
-    `${API_URL}/auction-sessions/${encodeURIComponent(
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
       sessionId,
     )}/purchases`,
     {
@@ -490,8 +730,8 @@ export async function deleteAuctionPurchase(
   sessionId: string,
   playerId: number,
 ): Promise<AuctionSessionApiResponse> {
-  const response = await fetch(
-    `${API_URL}/auction-sessions/${encodeURIComponent(
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
       sessionId,
     )}/purchases/${playerId}`,
     {
@@ -519,8 +759,8 @@ export async function deleteAuctionPurchase(
 export async function deleteAuctionSession(
   sessionId: string,
 ): Promise<void> {
-  const response = await fetch(
-    `${API_URL}/auction-sessions/${encodeURIComponent(
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
       sessionId,
     )}`,
     {
