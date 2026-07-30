@@ -6,6 +6,10 @@ import {
   useRouter,
 } from "next/navigation";
 
+import type {
+  MouseEvent,
+} from "react";
+
 import {
   useEffect,
   useState,
@@ -82,6 +86,17 @@ function getStatusLabel(
  */
 export default function MyAuctionsPage() {
   const router = useRouter();
+
+
+  /*
+  * Indica se la transizione verso
+  * la creazione di una nuova asta è attiva.
+  */
+  const [
+    isAuctionOpening,
+    setIsAuctionOpening,
+  ] = useState(false);
+
 
   const {
     user,
@@ -214,6 +229,56 @@ export default function MyAuctionsPage() {
     isAuthReady,
     user,
   ]);
+
+
+  /*
+ * Avvia la stessa transizione globale
+ * utilizzata dal pulsante della Home.
+ */
+  function handleCreateAuction(
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    if (isAuctionOpening) {
+      return;
+    }
+
+    /*
+     * Dimentichiamo soltanto la sessione
+     * attualmente selezionata.
+     */
+    window.localStorage.removeItem(
+      AUCTION_SESSION_ID_KEY,
+    );
+
+    const buttonRectangle =
+      event.currentTarget.getBoundingClientRect();
+
+    const originX =
+      buttonRectangle.left +
+      buttonRectangle.width / 2;
+
+    const originY =
+      buttonRectangle.top +
+      buttonRectangle.height / 2;
+
+    setIsAuctionOpening(true);
+
+    /*
+     * L'overlay globale riceve le coordinate
+     * del centro esatto del pulsante.
+     */
+    window.dispatchEvent(
+      new CustomEvent(
+        "fantasy-ai:open-auction",
+        {
+          detail: {
+            originX,
+            originY,
+          },
+        },
+      ),
+    );
+  }
 
 
   /*
@@ -426,12 +491,29 @@ export default function MyAuctionsPage() {
                 associata a questo account.
               </p>
 
-              <Link
-                href="/auction"
-                className="mt-5 inline-flex rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+              <button
+                type="button"
+                onClick={handleCreateAuction}
+                disabled={isAuctionOpening}
+                aria-busy={isAuctionOpening}
+                className={`
+                  mt-5 inline-flex items-center
+                  inline-flex items-center
+                  justify-center rounded-xl
+                  bg-emerald-700 px-5 py-3
+                  text-sm font-semibold text-white
+                  transition-colors duration-200
+
+                  ${isAuctionOpening
+                    ? "cursor-wait bg-emerald-800"
+                    : "hover:bg-emerald-800"
+                  }
+                `}
               >
-                Crea una nuova asta
-              </Link>
+                {isAuctionOpening
+                  ? "Preparazione asta..."
+                  : "Crea una nuova asta"}
+              </button>
             </section>
           )}
 
