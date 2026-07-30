@@ -15,6 +15,11 @@ import json
 import os
 import time
 
+from datetime import (
+    datetime,
+    timezone,
+)
+
 from pathlib import Path
 from typing import Any
 from urllib.error import (
@@ -1090,6 +1095,176 @@ def fetch_players_for_team(
     return team_items
 
 
+def player_profiles_directory(
+    season: int,
+) -> Path:
+    """
+    Restituisce la cartella degli snapshot
+    dei profili, divisi per squadra.
+    """
+
+    return (
+        PROJECT_ROOT
+        / "data"
+        / "raw"
+        / "api_football"
+        / f"season_{season}"
+        / "player_profiles"
+    )
+
+
+def team_profile_snapshot_path(
+    season: int,
+    team_id: int,
+) -> Path:
+    """
+    Restituisce il percorso dello snapshot
+    relativo a una squadra.
+    """
+
+    return (
+        player_profiles_directory(season)
+        / f"team_{team_id}.json"
+    )
+
+
+def save_json_atomically(
+    path: Path,
+    payload: dict[str, Any],
+) -> None:
+    """
+    Salva un JSON tramite file temporaneo.
+
+    Evita di lasciare un file incompleto
+    in caso di interruzione durante la scrittura.
+    """
+
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    temporary_path = path.with_suffix(
+        ".json.tmp"
+    )
+
+    with temporary_path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            payload,
+            file,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    temporary_path.replace(path)
+
+
+def load_valid_team_snapshot(
+    path: Path,
+    league_id: int,
+    season: int,
+    team_id: int,
+) -> list[dict[str, Any]] | None:
+    """
+    Carica uno snapshot già presente.
+
+    Restituisce None quando il file manca,
+    è corrotto o appartiene a un'altra ricerca.
+    """
+
+    if not path.exists():
+        return None
+
+    try:
+        with path.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+            payload = json.load(file)
+
+    except (
+        OSError,
+        json.JSONDecodeError,
+    ):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    if safe_int(
+        payload.get("league_id")
+    ) != league_id:
+        return None
+
+    if safe_int(
+        payload.get("season")
+    ) != season:
+        return None
+
+    team = payload.get(
+        "team",
+        {},
+    )
+
+    if safe_int(
+        team.get("id")
+    ) != team_id:
+        return None
+
+    players = payload.get(
+        "players"
+    )
+
+    if (
+        not isinstance(players, list)
+        or len(players) == 0
+    ):
+        return None
+
+    return players
+
+
+def save_team_profile_snapshot(
+    league_id: int,
+    season: int,
+    team_id: int,
+    team_name: str,
+    players: list[dict[str, Any]],
+) -> None:
+    """
+    Salva tutti i profili recuperati
+    per una singola squadra.
+    """
+
+    path = team_profile_snapshot_path(
+        season=season,
+        team_id=team_id,
+    )
+
+    payload = {
+        "source": "api_football",
+        "downloaded_at": (
+            datetime.now(timezone.utc)
+            .isoformat()
+        ),
+        "league_id": league_id,
+        "season": season,
+        "team": {
+            "id": team_id,
+            "name": team_name,
+        },
+        "players": players,
+    }
+
+    save_json_atomically(
+        path=path,
+        payload=payload,
+    )
+
+
 def fetch_all_players(
     league_id: int,
     season: int,
@@ -1099,6 +1274,12 @@ def fetch_all_players(
     """
     Recupera tutti i giocatori della competizione
     interrogando una squadra alla volta.
+
+    Durante un download completo, ogni squadra
+    viene salvata immediatamente in uno snapshot.
+
+    Alla successiva esecuzione gli snapshot validi
+    vengono riutilizzati senza nuove richieste.
     """
 
     teams = fetch_serie_a_teams(
@@ -1115,8 +1296,17 @@ def fetch_all_players(
         dict[str, Any]
     ] = []
 
-    # Separiamo anche la richiesta delle squadre
-    # dalla prima richiesta dei giocatori.
+    #
+    # Gli snapshot vengono utilizzati soltanto
+    # quando scarichiamo tutte le pagine.
+    #
+    # Un test con --max-pages non deve essere
+    # considerato una rosa completa.
+    #
+    use_snapshots = (
+        max_pages is None
+    )
+
     time.sleep(
         REQUEST_DELAY_SECONDS
     )
@@ -1125,36 +1315,86 @@ def fetch_all_players(
         teams,
         start=1,
     ):
-        print(
-            "\n"
-            f"SQUADRA {team_index}/{len(teams)}: "
-            f"{team['name']}"
+        team_id = int(
+            team["id"]
         )
 
-        team_items = fetch_players_for_team(
-            team_id=int(
-                team["id"]
-            ),
-            team_name=str(
-                team["name"]
-            ),
-            league_id=league_id,
-            season=season,
-            max_pages=max_pages,
+        team_name = str(
+            team["name"]
         )
+
+        print(
+            "\n"
+            f"SQUADRA {team_index}/"
+            f"{len(teams)}: "
+            f"{team_name}"
+        )
+
+        team_items: (
+            list[dict[str, Any]]
+            | None
+        ) = None
+
+        if use_snapshots:
+            snapshot_path = (
+                team_profile_snapshot_path(
+                    season=season,
+                    team_id=team_id,
+                )
+            )
+
+            team_items = (
+                load_valid_team_snapshot(
+                    path=snapshot_path,
+                    league_id=league_id,
+                    season=season,
+                    team_id=team_id,
+                )
+            )
+
+            if team_items is not None:
+                print(
+                    "Snapshot già presente: "
+                    f"{len(team_items)} giocatori. "
+                    "Nessuna richiesta effettuata."
+                )
+
+        if team_items is None:
+            team_items = fetch_players_for_team(
+                team_id=team_id,
+                team_name=team_name,
+                league_id=league_id,
+                season=season,
+                max_pages=max_pages,
+            )
+
+            if (
+                use_snapshots
+                and len(team_items) > 0
+            ):
+                save_team_profile_snapshot(
+                    league_id=league_id,
+                    season=season,
+                    team_id=team_id,
+                    team_name=team_name,
+                    players=team_items,
+                )
+
+                print(
+                    "Snapshot squadra salvato."
+                )
 
         all_items.extend(
             team_items
         )
 
-        # Aspettiamo prima di passare
-        # alla squadra successiva.
         if team_index < len(teams):
             time.sleep(
                 REQUEST_DELAY_SECONDS
             )
 
     return all_items
+
 
 def convert_players(
     api_players: list[dict[str, Any]],
@@ -1344,6 +1584,17 @@ def main() -> None:
 
         return
 
+    if (
+        arguments.max_teams is not None
+        and arguments.max_teams <= 0
+    ):
+        print(
+            "--max-teams deve essere "
+            "maggiore di zero."
+        )
+
+        return
+
 
     try:
         league_id = (
@@ -1371,14 +1622,26 @@ def main() -> None:
         )
 
 
+        is_partial = (
+            arguments.max_pages is not None
+            or arguments.max_teams is not None
+        )
+
+        output_filename = (
+            f"api_football_players_"
+            f"{arguments.season}"
+            + (
+                "_partial.csv"
+                if is_partial
+                else ".csv"
+            )
+        )
+
         output_path = (
             PROJECT_ROOT
             / "data"
             / "raw"
-            / (
-                "api_football_players_"
-                f"{arguments.season}.csv"
-            )
+            / output_filename
         )
 
 
@@ -1454,18 +1717,6 @@ def main() -> None:
             "Non importare ancora questo file "
             "in data/players.csv."
         )
-        
-    
-    if (
-        arguments.max_teams is not None
-        and arguments.max_teams <= 0
-    ):
-        print(
-            "--max-teams deve essere "
-            "maggiore di zero."
-        )
-
-        return
 
 
 if __name__ == "__main__":

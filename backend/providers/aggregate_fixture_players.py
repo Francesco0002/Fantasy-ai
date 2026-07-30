@@ -582,6 +582,63 @@ def build_rows(
             else 0.0
         )
 
+        #
+        # Le soglie delle presenze crescono
+        # automaticamente con la copertura
+        # della stagione.
+        #
+        # Con 153 fixture:
+        # HIGH richiede circa 8 presenze.
+        # MEDIUM richiede circa 4 presenze.
+        #
+        # Con 380 fixture:
+        # HIGH richiederà 20 presenze.
+        # MEDIUM richiederà 10 presenze.
+        #
+        season_coverage = min(
+            snapshot_count / 380,
+            1.0,
+        )
+
+        high_min_appearances = max(
+            1,
+            round(
+                20 * season_coverage
+            ),
+        )
+
+        medium_min_appearances = max(
+            1,
+            round(
+                10 * season_coverage
+            ),
+        )
+
+        rating_needs_review = (
+            rating_coverage < 0.8
+        )
+
+        role_needs_review = (
+            role_confidence < 0.8
+        )
+
+        if (
+            appearances >=
+            high_min_appearances
+            and rating_coverage >= 0.8
+        ):
+            data_quality = "HIGH"
+
+        elif (
+            appearances >=
+            medium_min_appearances
+            and rating_coverage >= 0.5
+        ):
+            data_quality = "MEDIUM"
+
+        else:
+            data_quality = "LOW"
+
         teams_played_for = "; ".join(
             sorted(
                 record["team_minutes"].keys()
@@ -661,6 +718,15 @@ def build_rows(
                         role_confidence,
                         3,
                     ),
+
+                "data_quality":
+                    data_quality,
+
+                "role_needs_review":
+                    role_needs_review,
+
+                "rating_needs_review":
+                    rating_needs_review,
 
                 "yellow_cards_last_season":
                     record["yellow_cards"],
