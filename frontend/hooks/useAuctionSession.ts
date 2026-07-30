@@ -50,6 +50,11 @@ import type {
 } from "../types/auction";
 
 
+import {
+  useAuth,
+} from "./useAuth";
+
+
 /*
  * Valori vuoti associati ai ruoli.
  */
@@ -304,6 +309,12 @@ function mapApiSessionToAuctionSession(
  * di una sessione d'asta.
  */
 export function useAuctionSession() {
+  const {
+    user,
+    isAuthReady,
+  } = useAuth();
+
+
   const [
     session,
     setSession,
@@ -332,16 +343,38 @@ export function useAuctionSession() {
 
 
   /*
-   * All'apertura della pagina recuperiamo
-   * l'UUID memorizzato nel browser.
-   *
-   * L'intera sessione viene invece
-   * caricata da PostgreSQL.
-   */
+ * Recupera la sessione d'asta soltanto
+ * dopo aver verificato l'account.
+ */
   useEffect(() => {
+    /*
+     * Attendiamo che AuthProvider termini
+     * il controllo iniziale del cookie.
+     */
+    if (!isAuthReady) {
+      return;
+    }
+
+    /*
+     * Un visitatore non autenticato
+     * non deve interrogare gli endpoint
+     * protetti delle aste.
+     */
+    if (!user) {
+      setSession(null);
+      setActionError(null);
+      setIsStorageReady(true);
+
+      return;
+    }
+
     let isEffectActive = true;
 
     async function restoreSession() {
+      setIsStorageReady(false);
+      setActionError(null);
+      setSession(null);
+
       /*
        * Eliminiamo il vecchio salvataggio
        * completo usato prima del database.
@@ -379,23 +412,49 @@ export function useAuctionSession() {
           ),
         );
       } catch (error) {
+        if (!isEffectActive) {
+          return;
+        }
+
         /*
-         * Se la sessione non esiste più,
-         * eliminiamo l'UUID non valido.
+         * Un 404 indica che la sessione
+         * non esiste oppure appartiene
+         * a un altro account.
          */
         if (
-          error instanceof
-          ApiRequestError &&
-          error.status === 404
+          error instanceof ApiRequestError
+          && error.status === 404
         ) {
           window.localStorage.removeItem(
             AUCTION_SESSION_ID_KEY,
           );
-        } else if (isEffectActive) {
-          setActionError(
-            getErrorMessage(error),
-          );
+
+          setSession(null);
+
+          return;
         }
+
+        /*
+         * Può verificarsi quando il cookie
+         * scade mentre la pagina è aperta.
+         */
+        if (
+          error instanceof ApiRequestError
+          && error.status === 401
+        ) {
+          setSession(null);
+
+          setActionError(
+            "La sessione di accesso è scaduta. "
+            + "Effettua nuovamente il login.",
+          );
+
+          return;
+        }
+
+        setActionError(
+          getErrorMessage(error),
+        );
       } finally {
         if (isEffectActive) {
           setIsStorageReady(true);
@@ -408,7 +467,10 @@ export function useAuctionSession() {
     return () => {
       isEffectActive = false;
     };
-  }, []);
+  }, [
+    isAuthReady,
+    user,
+  ]);
 
 
   /*

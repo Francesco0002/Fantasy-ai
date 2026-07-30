@@ -40,10 +40,23 @@ import { useAuctionSession } from "../../hooks/useAuctionSession";
 import AuctionSetupForm from "../../components/auction/AuctionSetupForm";
 
 
+import AuthPanel from "../../components/auth/AuthPanel";
+
+import {
+  useAuth,
+} from "../../hooks/useAuth";
+
+
 /*
  * Pagina iniziale della modalità asta.
  */
 export default function AuctionPage() {
+  const {
+    user,
+    isAuthReady,
+  } = useAuth();
+
+
   /*
   * Stato e dati calcolati
   * della sessione d'asta.
@@ -142,29 +155,67 @@ export default function AuctionPage() {
           </p>
         </header>
 
-        {/*
-        * Breve caricamento mentre controlliamo
-        * se esiste una sessione salvata.
-        */}
-        {!isStorageReady && (
+
+        {/* Controllo iniziale dell'account */}
+        {!isAuthReady && (
           <section className="rounded-2xl bg-white p-10 text-center shadow-sm">
             <p className="font-semibold text-slate-700">
-              Recupero della sessione d&apos;asta...
+              Verifica dell&apos;account...
             </p>
           </section>
         )}
 
-        {actionError && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
-            {actionError}
+
+        {/* Accesso richiesto */}
+        {isAuthReady && !user && (
+          <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">
+                Accedi per usare la modalità asta
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-xl text-slate-600">
+                Le sessioni vengono associate al tuo
+                account per proteggerle e permetterti
+                di riprenderle in seguito.
+              </p>
+            </div>
+
+            <div className="mx-auto max-w-xl">
+              <AuthPanel />
+            </div>
           </div>
         )}
+
+        {/*
+        * Breve caricamento mentre controlliamo
+        * se esiste una sessione salvata.
+        */}
+        {isAuthReady &&
+          user &&
+          !isStorageReady && (
+            <section className="rounded-2xl bg-white p-10 text-center shadow-sm">
+              <p className="font-semibold text-slate-700">
+                Recupero della sessione d&apos;asta...
+              </p>
+            </section>
+          )}
+
+        {isAuthReady &&
+          user &&
+          actionError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+              {actionError}
+            </div>
+          )}
 
         {/*
          * Prima dell'avvio mostriamo
          * il modulo di configurazione.
          */}
-        {isStorageReady &&
+        {isAuthReady &&
+          user &&
+          isStorageReady &&
           !startedConfig && (
             <AuctionSetupForm
               onStart={startAuction}
@@ -176,7 +227,9 @@ export default function AuctionPage() {
          * Dopo la conferma mostriamo
          * un riepilogo della configurazione.
          */}
-        {isStorageReady &&
+        {isAuthReady &&
+          user &&
+          isStorageReady &&
           startedConfig && (
             <div className="space-y-6">
 

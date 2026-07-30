@@ -17,6 +17,7 @@ import {
 
 import {
   ApiRequestError,
+  deleteAuctionSession,
   fetchAuctionSessions,
 } from "../../lib/api";
 
@@ -102,6 +103,20 @@ export default function MyAuctionsPage() {
   const [
     error,
     setError,
+  ] = useState<string | null>(
+    null,
+  );
+
+
+  /*
+ * UUID dell'asta che stiamo eliminando.
+ *
+ * Serve a disabilitare soltanto
+ * i pulsanti della sessione interessata.
+ */
+  const [
+    deletingSessionId,
+    setDeletingSessionId,
   ] = useState<string | null>(
     null,
   );
@@ -216,6 +231,100 @@ export default function MyAuctionsPage() {
     );
 
     router.push("/auction");
+  }
+
+
+  /*
+ * Elimina definitivamente una sessione
+ * appartenente all'utente autenticato.
+ */
+  async function handleDeleteAuction(
+    sessionId: string,
+    leagueName: string,
+  ) {
+    const confirmed = window.confirm(
+      `Vuoi eliminare definitivamente l'asta "${leagueName}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingSessionId(
+      sessionId,
+    );
+
+    setError(null);
+
+    try {
+      await deleteAuctionSession(
+        sessionId,
+      );
+
+      /*
+       * Rimuoviamo subito la sessione
+       * dall'elenco visualizzato.
+       */
+      setSessions(
+        (currentSessions) =>
+          currentSessions.filter(
+            (auctionSession) =>
+              auctionSession.id !==
+              sessionId,
+          ),
+      );
+
+      /*
+       * Se era anche l'asta attiva salvata
+       * nel browser, eliminiamo il vecchio UUID.
+       */
+      const storedSessionId =
+        window.localStorage.getItem(
+          AUCTION_SESSION_ID_KEY,
+        );
+
+      if (
+        storedSessionId === sessionId
+      ) {
+        window.localStorage.removeItem(
+          AUCTION_SESSION_ID_KEY,
+        );
+      }
+    } catch (caughtError) {
+      /*
+       * Se l'asta era già stata eliminata,
+       * aggiorniamo comunque l'elenco.
+       */
+      if (
+        caughtError instanceof ApiRequestError
+        && caughtError.status === 404
+      ) {
+        setSessions(
+          (currentSessions) =>
+            currentSessions.filter(
+              (auctionSession) =>
+                auctionSession.id !==
+                sessionId,
+            ),
+        );
+
+        return;
+      }
+
+      if (caughtError instanceof Error) {
+        setError(
+          caughtError.message,
+        );
+
+        return;
+      }
+
+      setError(
+        "Impossibile eliminare la sessione d'asta.",
+      );
+    } finally {
+      setDeletingSessionId(null);
+    }
   }
 
 
@@ -409,17 +518,60 @@ export default function MyAuctionsPage() {
                     </p>
 
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleResumeAuction(
-                          auctionSession.id,
-                        );
-                      }}
-                      className="mt-5 w-full rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
-                    >
-                      Riprendi asta
-                    </button>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={
+                          deletingSessionId ===
+                          auctionSession.id
+                        }
+                        onClick={() => {
+                          handleResumeAuction(
+                            auctionSession.id,
+                          );
+                        }}
+                        className="
+                          rounded-xl bg-emerald-700
+                          px-5 py-3 text-sm
+                          font-semibold text-white
+                          transition
+                          hover:bg-emerald-800
+                          disabled:cursor-not-allowed
+                          disabled:opacity-60
+                        "
+                      >
+                        Riprendi asta
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={
+                          deletingSessionId ===
+                          auctionSession.id
+                        }
+                        onClick={() => {
+                          void handleDeleteAuction(
+                            auctionSession.id,
+                            auctionSession.leagueName,
+                          );
+                        }}
+                        className="
+                          rounded-xl border
+                          border-red-300 bg-white
+                          px-5 py-3 text-sm
+                          font-semibold text-red-700
+                          transition
+                          hover:bg-red-50
+                          disabled:cursor-not-allowed
+                          disabled:opacity-60
+                        "
+                      >
+                        {deletingSessionId ===
+                          auctionSession.id
+                          ? "Eliminazione..."
+                          : "Elimina"}
+                      </button>
+                    </div>
                   </article>
                 ),
               )}
