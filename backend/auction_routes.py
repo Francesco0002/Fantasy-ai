@@ -30,6 +30,10 @@ from sqlalchemy.orm import (
     selectinload,
 )
 
+from backend.auth_routes import (
+    get_current_user,
+)
+
 from backend.database import (
     get_database_session,
 )
@@ -38,6 +42,7 @@ from backend.models import (
     AuctionSession,
     Purchase,
     Team,
+    User,
 )
 
 from backend.schemas import (
@@ -60,10 +65,15 @@ router = APIRouter(
 def load_auction_session(
     database: Session,
     session_id: UUID,
+    user_id: UUID,
 ) -> AuctionSession | None:
     """
-    Recupera una sessione dal database
-    insieme a squadre e acquisti.
+    Recupera una sessione appartenente
+    all'utente autenticato insieme
+    a squadre e acquisti.
+
+    Restituendo None anche per le aste altrui
+    evitiamo di rivelarne l'esistenza.
     """
 
     statement = (
@@ -81,7 +91,10 @@ def load_auction_session(
         )
         .where(
             AuctionSession.id
-            == session_id
+            == session_id,
+
+            AuctionSession.user_id
+            == user_id,
         )
     )
 
@@ -523,16 +536,22 @@ def validate_purchase_constraints(
 def create_auction_session(
     request: AuctionSessionCreate,
 
+    current_user: User = Depends(
+        get_current_user
+    ),
+
     database: Session = Depends(
         get_database_session
     ),
 ) -> AuctionSessionResponse:
     """
     Crea una sessione d'asta
-    e le relative squadre.
+    associata all'utente autenticato.
     """
 
     auction_session = AuctionSession(
+        user_id=current_user.id,
+
         league_name=request.leagueName,
 
         participants=(
@@ -560,6 +579,7 @@ def create_auction_session(
         auction_mode=(
             request.auctionMode
         ),
+
         budget_strategy=(
             request.budgetStrategy
         ),
@@ -575,8 +595,6 @@ def create_auction_session(
             auction_session
         )
 
-        # Inserisce la sessione nella transazione
-        # e rende disponibile il relativo UUID.
         database.flush()
 
         user_team = Team(
@@ -638,6 +656,7 @@ def create_auction_session(
     stored_session = load_auction_session(
         database,
         auction_session.id,
+        current_user.id,
     )
 
     if stored_session is None:
@@ -661,6 +680,10 @@ def create_auction_session(
 def get_auction_session(
     session_id: UUID,
 
+    current_user: User = Depends(
+        get_current_user
+    ),
+
     database: Session = Depends(
         get_database_session
     ),
@@ -673,6 +696,7 @@ def get_auction_session(
     auction_session = load_auction_session(
         database,
         session_id,
+        current_user.id,
     )
 
     if auction_session is None:
@@ -698,6 +722,10 @@ def register_purchase(
     session_id: UUID,
     request: PurchaseCreate,
 
+    current_user: User = Depends(
+        get_current_user
+    ),
+
     database: Session = Depends(
         get_database_session
     ),
@@ -710,6 +738,7 @@ def register_purchase(
     auction_session = load_auction_session(
         database,
         session_id,
+        current_user.id,
     )
 
     if auction_session is None:
@@ -811,6 +840,7 @@ def register_purchase(
     stored_session = load_auction_session(
         database,
         session_id,
+        current_user.id,
     )
 
     if stored_session is None:
@@ -836,6 +866,10 @@ def delete_purchase(
     session_id: UUID,
     player_id: int,
 
+    current_user: User = Depends(
+        get_current_user
+    ),
+
     database: Session = Depends(
         get_database_session
     ),
@@ -848,6 +882,7 @@ def delete_purchase(
     auction_session = load_auction_session(
         database,
         session_id,
+        current_user.id,
     )
 
     if auction_session is None:
@@ -908,6 +943,7 @@ def delete_purchase(
     stored_session = load_auction_session(
         database,
         session_id,
+        current_user.id,
     )
 
     if stored_session is None:
@@ -932,6 +968,10 @@ def delete_purchase(
 def delete_auction_session(
     session_id: UUID,
 
+    current_user: User = Depends(
+        get_current_user
+    ),
+
     database: Session = Depends(
         get_database_session
     ),
@@ -944,9 +984,10 @@ def delete_auction_session(
     automaticamente grazie a ON DELETE CASCADE.
     """
 
-    auction_session = database.get(
-        AuctionSession,
+    auction_session = load_auction_session(
+        database,
         session_id,
+        current_user.id,
     )
 
     if auction_session is None:

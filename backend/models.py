@@ -108,6 +108,16 @@ class User(Base):
         onupdate=func.now(),
     )
 
+    # Sessioni d'asta create dall'utente.
+    #
+    # Le vecchie sessioni possono non avere
+    # ancora un proprietario associato.
+    auction_sessions: Mapped[
+        list["AuctionSession"]
+    ] = relationship(
+        back_populates="user",
+    )
+
 
 class AuctionSession(Base):
     """
@@ -172,6 +182,27 @@ class AuctionSession(Base):
         PostgreSQLUUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
+    )
+
+    # Utente proprietario della sessione.
+    #
+    # La colonna è inizialmente nullable
+    # per mantenere valide le aste create
+    # prima dell'introduzione degli account.
+    user_id: Mapped[
+        UUID | None
+    ] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "users.id",
+            name=(
+                "fk_auction_sessions_"
+                "user_id_users"
+            ),
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
     )
 
     # Nome assegnato alla lega.
@@ -284,6 +315,13 @@ class AuctionSession(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Account proprietario della sessione.
+    user: Mapped[
+        "User | None"
+    ] = relationship(
+        back_populates="auction_sessions",
     )
 
     # Squadre appartenenti alla sessione.
