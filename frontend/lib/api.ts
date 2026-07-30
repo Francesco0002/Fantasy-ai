@@ -27,16 +27,11 @@ import type {
 
 
 /*
- * Indirizzo del backend FastAPI.
- *
- * In produzione viene letto dalla variabile
- * NEXT_PUBLIC_API_URL configurata su Vercel.
- *
- * In locale utilizziamo l'indirizzo predefinito.
+ * Tutte le richieste del browser
+ * passano dal proxy Next.js.
  */
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8000";
+  "/api/backend";
 
 
 /*
