@@ -16,10 +16,87 @@ from uuid import UUID
 
 from pydantic import (
     BaseModel,
+    EmailStr,
     Field,
     field_validator,
     model_validator,
 )
+
+
+class UserRegisterRequest(BaseModel):
+    """
+    Dati richiesti per creare
+    un nuovo account Fantasy AI.
+    """
+
+    email: EmailStr
+
+    displayName: str = Field(
+        min_length=1,
+        max_length=80,
+    )
+
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
+
+    @field_validator(
+        "displayName",
+    )
+    @classmethod
+    def normalize_display_name(
+        cls,
+        value: str,
+    ) -> str:
+        """
+        Elimina gli spazi superflui
+        dal nome visualizzato.
+        """
+
+        normalized_value = " ".join(
+            value.split()
+        )
+
+        if normalized_value == "":
+            raise ValueError(
+                "Il nome non può essere vuoto."
+            )
+
+        return normalized_value
+
+
+class UserLoginRequest(BaseModel):
+    """
+    Credenziali utilizzate
+    per accedere all'account.
+    """
+
+    email: EmailStr
+
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
+
+class UserResponse(BaseModel):
+    """
+    Informazioni pubbliche dell'utente.
+
+    Password e relativo hash
+    non vengono mai restituiti.
+    """
+
+    id: UUID
+
+    email: EmailStr
+
+    displayName: str
+
+    isActive: bool
+
+    createdAt: datetime
 
 
 # Ruoli ammessi dal Fantacalcio Classic.

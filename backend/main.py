@@ -46,6 +46,10 @@ from backend.auction_routes import (
     router as auction_router,
 )
 
+from backend.auth_routes import (
+    router as auth_router,
+)
+
 # Risaliamo dalla cartella backend
 # alla cartella principale fantasy-ai.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -105,9 +109,7 @@ app.add_middleware(
         r"\.vercel\.app$"
     ),
 
-    # Al momento l'API non utilizza
-    # cookie o sessioni di autenticazione.
-    allow_credentials=False,
+    allow_credentials=True,
 
     allow_methods=[
         "GET",
@@ -119,6 +121,10 @@ app.add_middleware(
     allow_headers=[
         "Content-Type",
     ],
+)
+
+app.include_router(
+    auth_router
 )
 
 # Aggiungiamo gli endpoint

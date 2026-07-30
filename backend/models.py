@@ -39,6 +39,76 @@ from sqlalchemy.orm import (
 from backend.database import Base
 
 
+class User(Base):
+    """
+    Account registrato su Fantasy AI.
+
+    La password non viene mai salvata
+    direttamente: conserviamo soltanto
+    l'hash generato con Argon2.
+    """
+
+    __tablename__ = "users"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "email",
+            name="uq_users_email",
+        ),
+    )
+
+    # Identificativo pubblico dell'utente.
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+
+    # L'email verrà normalizzata
+    # prima del salvataggio.
+    email: Mapped[str] = mapped_column(
+        String(320),
+        nullable=False,
+    )
+
+    # Nome mostrato nell'interfaccia.
+    display_name: Mapped[str] = mapped_column(
+        String(80),
+        nullable=False,
+    )
+
+    # Hash Argon2 della password.
+    # Non contiene mai la password originale.
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    # Permette di disabilitare un account
+    # senza eliminarne lo storico.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+    )
+
+    # Data di registrazione.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    # Data dell'ultima modifica.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 class AuctionSession(Base):
     """
     Sessione completa di una singola asta.
