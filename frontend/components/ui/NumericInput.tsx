@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useState,
 } from "react";
 
@@ -51,40 +50,25 @@ export default function NumericInput({
   const [
     draftValue,
     setDraftValue,
-  ] = useState(
-    formatNumericValue(value),
-  );
-
-  const [
-    isFocused,
-    setIsFocused,
-  ] = useState(false);
-
-
-  /*
-   * Sincronizza il testo quando il valore
-   * cambia esternamente, per esempio dopo
-   * il ripristino della configurazione.
-   */
-  useEffect(() => {
-    if (!isFocused) {
-      setDraftValue(
-        formatNumericValue(value),
-      );
-    }
-  }, [
-    value,
-    isFocused,
-  ]);
+  ] = useState<string | null>(null);
 
 
   return (
     <input
       {...inputProps}
       type="number"
-      value={draftValue}
+      value={
+        draftValue ??
+        formatNumericValue(value)
+      }
       onFocus={(event) => {
-        setIsFocused(true);
+        /*
+         * Conserva un testo locale soltanto
+         * mentre l'utente modifica il campo.
+         */
+        setDraftValue(
+          event.currentTarget.value,
+        );
 
         onFocus?.(event);
       }}
@@ -104,19 +88,12 @@ export default function NumericInput({
         }
       }}
       onBlur={(event) => {
-        setIsFocused(false);
-
         /*
-         * Se il campo viene lasciato vuoto,
-         * ripristiniamo il valore precedente.
+         * Terminata la modifica, torniamo
+         * a mostrare il valore ricevuto
+         * dalla configurazione.
          */
-        if (
-          event.target.value === ""
-        ) {
-          setDraftValue(
-            formatNumericValue(value),
-          );
-        }
+        setDraftValue(null);
 
         onBlur?.(event);
       }}

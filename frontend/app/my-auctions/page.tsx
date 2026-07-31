@@ -142,15 +142,15 @@ export default function MyAuctionsPage() {
    * aver verificato l'account.
    */
   useEffect(() => {
-    if (!isAuthReady) {
-      return;
-    }
-
-    if (!user) {
-      setSessions([]);
-      setIsLoading(false);
-      setError(null);
-
+    /*
+     * Non interroghiamo il backend finché
+     * l'autenticazione non è stata verificata
+     * oppure quando non esiste un utente.
+     *
+     * La visualizzazione dello stato anonimo
+     * viene già gestita direttamente nel JSX.
+     */
+    if (!isAuthReady || !user) {
       return;
     }
 

@@ -4,6 +4,7 @@ import {
     useEffect,
     useRef,
     useState,
+    useSyncExternalStore,
 } from "react";
 
 import {
@@ -44,14 +45,38 @@ type TransitionPhase =
     | "UNCOVERING";
 
 
+/*
+ * Permette di distinguere il rendering
+ * sul server da quello nel browser.
+ *
+ * Il portale può utilizzare document.body
+ * soltanto dopo l'idratazione del client.
+ */
+function subscribeToHydration() {
+    return () => { };
+}
+
+
+function getClientSnapshot() {
+    return true;
+}
+
+
+function getServerSnapshot() {
+    return false;
+}
+
+
 export default function AuctionPageTransition() {
     const router = useRouter();
     const pathname = usePathname();
 
-    const [
-        isMounted,
-        setIsMounted,
-    ] = useState(false);
+    const isMounted =
+        useSyncExternalStore(
+            subscribeToHydration,
+            getClientSnapshot,
+            getServerSnapshot,
+        );
 
     const [
         isBlockingPage,
@@ -97,11 +122,6 @@ export default function AuctionPageTransition() {
         useRef<Animation | null>(
             null,
         );
-
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
 
     /*

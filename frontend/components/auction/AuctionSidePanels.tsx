@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import {
@@ -84,6 +85,25 @@ type OpenPanel =
   | "OPPONENTS"
   | "LEAGUE_RULES"
   | null;
+
+
+/*
+ * Permette di renderizzare il portal
+ * soltanto dopo l'idratazione nel browser.
+ */
+function subscribeToPortalMount() {
+  return () => { };
+}
+
+
+function getPortalClientSnapshot() {
+  return true;
+}
+
+
+function getPortalServerSnapshot() {
+  return false;
+}
 
 
 /*
@@ -213,10 +233,12 @@ export default function AuctionSidePanels({
   * document.body non è disponibile
   * durante il rendering lato server.
   */
-  const [
-    isPortalMounted,
-    setIsPortalMounted,
-  ] = useState(false);
+  const isPortalMounted =
+    useSyncExternalStore(
+      subscribeToPortalMount,
+      getPortalClientSnapshot,
+      getPortalServerSnapshot,
+    );
 
 
   /*
@@ -251,15 +273,6 @@ export default function AuctionSidePanels({
     useCallback(() => {
       setOpenPanel(null);
     }, []);
-
-
-  /*
-  * Abilita il portal dopo il primo
-  * montaggio del componente.
-  */
-  useEffect(() => {
-    setIsPortalMounted(true);
-  }, []);
 
 
   /*

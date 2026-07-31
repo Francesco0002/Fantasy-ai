@@ -28,40 +28,36 @@ export function usePlayer(
     playerId: number | null,
 ) {
     /*
-     * Giocatore restituito dal backend.
-     */
-    const [player, setPlayer] =
-        useState<Player | null>(null);
+    * Risultato dell'ultima richiesta completata.
+    * Conserviamo anche l'ID per non mostrare
+    * i dati del giocatore precedente.
+    */
+    const [
+        requestState,
+        setRequestState,
+    ] = useState<{
+        playerId: number;
+        player: Player | null;
+        error: string | null;
+    } | null>(null);
+
 
     /*
-     * Stato di caricamento.
+     * Verifica l'identificativo durante il rendering,
+     * senza aggiornare lo stato nel useEffect.
      */
-    const [isLoading, setIsLoading] =
-        useState(true);
-
-    /*
-     * Eventuale errore della richiesta.
-     */
-    const [error, setError] =
-        useState<string | null>(null);
+    const isPlayerIdValid =
+        playerId !== null &&
+        Number.isInteger(playerId) &&
+        playerId > 0;
 
 
     useEffect(() => {
         /*
-         * Controlliamo che l'identificativo
-         * sia un numero intero positivo.
-         */
-        if (
-            playerId === null ||
-            !Number.isInteger(playerId) ||
-            playerId <= 0
-        ) {
-            setPlayer(null);
-            setError(
-                "Identificativo del giocatore non valido.",
-            );
-            setIsLoading(false);
-
+        * Un ID non valido non richiede
+        * alcuna chiamata al backend.
+        */
+        if (!isPlayerIdValid) {
             return;
         }
 
@@ -87,10 +83,6 @@ export function usePlayer(
          * Caricamento del singolo giocatore.
          */
         async function loadPlayer() {
-            setIsLoading(true);
-            setError(null);
-            setPlayer(null);
-
             try {
                 const receivedPlayer =
                     await fetchPlayerById(
@@ -98,7 +90,11 @@ export function usePlayer(
                         controller.signal,
                     );
 
-                setPlayer(receivedPlayer);
+                setRequestState({
+                    playerId: validPlayerId,
+                    player: receivedPlayer,
+                    error: null,
+                });
             } catch (caughtError) {
                 /*
                  * Ignoriamo le richieste annullate
@@ -112,21 +108,18 @@ export function usePlayer(
                 }
 
                 if (caughtError instanceof Error) {
-                    setError(caughtError.message);
+                    setRequestState({
+                        playerId: validPlayerId,
+                        player: null,
+                        error: caughtError.message,
+                    });
                 } else {
-                    setError(
-                        "Si è verificato un errore sconosciuto.",
-                    );
-                }
-
-                setPlayer(null);
-            } finally {
-                /*
-                 * Una richiesta annullata non deve
-                 * aggiornare lo stato della pagina.
-                 */
-                if (!controller.signal.aborted) {
-                    setIsLoading(false);
+                    setRequestState({
+                        playerId: validPlayerId,
+                        player: null,
+                        error:
+                            "Si è verificato un errore sconosciuto.",
+                    });
                 }
             }
         }
@@ -142,15 +135,36 @@ export function usePlayer(
         return () => {
             controller.abort();
         };
-    }, [playerId]);
+    }, [
+        playerId,
+        isPlayerIdValid,
+    ]);
 
 
     /*
-     * Valori utilizzati dalla pagina dettagli.
+     * Verifica che la risposta appartenga
+     * all'ID richiesto attualmente.
      */
+    const hasCurrentResult =
+        isPlayerIdValid &&
+        requestState?.playerId === playerId;
+
+
     return {
-        player,
-        isLoading,
-        error,
+        player:
+            hasCurrentResult
+                ? requestState.player
+                : null,
+
+        isLoading:
+            isPlayerIdValid &&
+            !hasCurrentResult,
+
+        error:
+            !isPlayerIdValid
+                ? "Identificativo del giocatore non valido."
+                : hasCurrentResult
+                    ? requestState.error
+                    : null,
     };
 }

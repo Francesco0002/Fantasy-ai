@@ -44,7 +44,6 @@ import { usePlayers } from "../../hooks/usePlayers";
  */
 import {
   AUCTION_ROLES,
-  AUCTION_ROLE_NAMES,
 } from "../../lib/auction-config";
 
 /*

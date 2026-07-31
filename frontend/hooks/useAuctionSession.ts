@@ -316,7 +316,7 @@ export function useAuctionSession() {
 
 
   const [
-    session,
+    storedSession,
     setSession,
   ] = useState<AuctionSession | null>(
     null,
@@ -324,22 +324,57 @@ export function useAuctionSession() {
 
 
   /*
+   * Identifica l'utente a cui appartiene
+   * lo stato locale attualmente caricato.
+   */
+  const [
+    stateUserId,
+    setStateUserId,
+  ] = useState<string | null>(null);
+
+
+  /*
+   * Non esponiamo mai una sessione rimasta
+   * in memoria dopo un cambio di account.
+   */
+  const session =
+    user &&
+      stateUserId === user.id
+      ? storedSession
+      : null;
+
+
+  /*
    * Indica se abbiamo terminato
    * il recupero iniziale dal backend.
    */
   const [
-    isStorageReady,
+    isStoredSessionReady,
     setIsStorageReady,
   ] = useState(false);
+
+
+  const isStorageReady =
+    !user ||
+    (
+      stateUserId === user.id &&
+      isStoredSessionReady
+    );
 
 
   /*
    * Errore generale mostrato nella pagina.
    */
   const [
-    actionError,
+    storedActionError,
     setActionError,
   ] = useState<string | null>(null);
+
+
+  const actionError =
+    stateUserId === user?.id
+      ? storedActionError
+      : null;
 
 
   /*
@@ -361,16 +396,21 @@ export function useAuctionSession() {
      * protetti delle aste.
      */
     if (!user) {
-      setSession(null);
-      setActionError(null);
-      setIsStorageReady(true);
-
       return;
     }
+
+    /*
+     * Conserviamo l'ID dopo il controllo:
+     * dentro la funzione asincrona TypeScript
+     * non considera più automaticamente user
+     * come sicuramente non nullo.
+     */
+    const currentUserId = user.id;
 
     let isEffectActive = true;
 
     async function restoreSession() {
+      setStateUserId(currentUserId);
       setIsStorageReady(false);
       setActionError(null);
       setSession(null);
