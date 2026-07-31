@@ -37,3 +37,5 @@ data/backups/
 
 # Mantiene la cartella raw nel repository
 !data/raw/.gitkeep
+
+next-env.d.ts
