@@ -524,62 +524,72 @@ export default function MyAuctionsPage() {
             </section>
           )}
 
+
         {isAuthReady &&
           user &&
           !isLoading &&
           !error &&
           sessions.length > 0 && (
             <section className="
-              mb-6 flex flex-col gap-4
-              rounded-2xl border
-              border-emerald-200
-              bg-white p-6 shadow-sm
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
+              grid gap-5
+              md:grid-cols-2
+              xl:grid-cols-3
             ">
-              <div>
-                <h2 className="text-xl font-bold">
-                  Nuova sessione
+              {/* Scheda per creare una nuova asta */}
+              <article className="
+                flex h-full flex-col
+                items-center justify-center
+                rounded-2xl border-2
+                border-dashed border-emerald-300
+                bg-emerald-50/60
+                p-8 text-center
+                shadow-sm
+                transition
+                hover:border-emerald-500
+                hover:bg-emerald-50
+              ">
+                <div className="
+                  flex h-16 w-16
+                  items-center justify-center
+                  rounded-2xl bg-emerald-100
+                  text-3xl font-bold
+                  text-emerald-700
+                ">
+                  +
+                </div>
+
+                <h2 className="mt-5 text-xl font-bold">
+                  Nuova asta
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-600">
-                  Crea un&apos;altra asta senza
-                  modificare quelle già salvate.
+                <p className="mt-2 max-w-xs text-sm text-slate-600">
+                  Crea una nuova sessione senza modificare
+                  le aste già salvate.
                 </p>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleCreateAuction}
-                disabled={isAuctionOpening}
-                aria-busy={isAuctionOpening}
-                className={`
-                  inline-flex shrink-0 items-center
-                  justify-center rounded-xl
-                  bg-emerald-700 px-5 py-3
-                  text-sm font-semibold text-white
-                  transition-colors duration-200
+                <button
+                  type="button"
+                  onClick={handleCreateAuction}
+                  disabled={isAuctionOpening}
+                  aria-busy={isAuctionOpening}
+                  className={`
+                    mt-6 inline-flex items-center
+                    justify-center rounded-xl
+                    bg-emerald-700 px-6 py-3
+                    text-sm font-semibold text-white
+                    transition-colors duration-200
 
-                  ${isAuctionOpening
-                            ? "cursor-wait bg-emerald-800"
-                            : "hover:bg-emerald-800"
-                          }
-                `}
-              >
-                {isAuctionOpening
-                  ? "Preparazione asta..."
-                  : "Crea una nuova asta"}
-              </button>
-            </section>
-          )}
-
-        {isAuthReady &&
-          user &&
-          !isLoading &&
-          !error &&
-          sessions.length > 0 && (
-            <section className="grid gap-5 md:grid-cols-2">
+                    ${isAuctionOpening
+                      ? "cursor-wait bg-emerald-800"
+                      : "hover:bg-emerald-800"
+                    }
+                  `}
+                >
+                  {isAuctionOpening
+                    ? "Preparazione asta..."
+                    : "Crea nuova asta"}
+                </button>
+              </article>
               {sessions.map(
                 (auctionSession) => (
                   <article
