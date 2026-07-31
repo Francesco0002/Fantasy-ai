@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 
 /*
  * Finestra utilizzata per scegliere
@@ -305,28 +303,11 @@ export default function Home() {
             {!isAuthReady
               ? "Verifica account..."
               : !user
-                ? "Accedi per aprire l'asta"
+                ? "Accedi per gestire le aste"
                 : isAuctionOpening
                   ? "Apertura aste..."
-                  : "Apri modalità asta"}
+                  : "Gestisci aste"}
           </button>
-          {user && (
-            <Link
-              href="/my-auctions"
-              className="
-                mt-3 ml-3 inline-flex
-                items-center justify-center
-                rounded-xl border
-                border-emerald-700 bg-white
-                px-5 py-3 text-sm
-                font-semibold text-emerald-700
-                transition
-                hover:bg-emerald-50
-              "
-            >
-              Le mie aste
-            </Link>
-          )}
         </header>
 
 
