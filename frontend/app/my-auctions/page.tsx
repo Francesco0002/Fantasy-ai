@@ -486,50 +486,7 @@ export default function MyAuctionsPage() {
         {isAuthReady &&
           user &&
           !isLoading &&
-          !error &&
-          sessions.length === 0 && (
-            <section className="rounded-2xl bg-white p-8 text-center shadow-sm">
-              <h2 className="text-xl font-bold">
-                Nessuna asta salvata
-              </h2>
-
-              <p className="mt-2 text-slate-600">
-                Non hai ancora creato una sessione
-                associata a questo account.
-              </p>
-
-              <button
-                type="button"
-                onClick={handleCreateAuction}
-                disabled={isAuctionOpening}
-                aria-busy={isAuctionOpening}
-                className={`
-                  mt-5 inline-flex items-center
-                  inline-flex items-center
-                  justify-center rounded-xl
-                  bg-emerald-700 px-5 py-3
-                  text-sm font-semibold text-white
-                  transition-colors duration-200
-
-                  ${isAuctionOpening
-                    ? "cursor-wait bg-emerald-800"
-                    : "hover:bg-emerald-800"
-                  }
-                `}
-              >
-                {isAuctionOpening
-                  ? "Preparazione asta..."
-                  : "Crea una nuova asta"}
-              </button>
-            </section>
-          )}
-
-
-        {isAuthReady &&
-          user &&
-          !isLoading &&
-          !error &&
-          sessions.length > 0 && (
+          !error && (
             <section className="
               grid gap-5
               md:grid-cols-2
