@@ -23,6 +23,7 @@ import {
   ApiRequestError,
   deleteAuctionSession,
   fetchAuctionSessions,
+  updateAuctionSession,
 } from "../../lib/api";
 
 import type {
@@ -32,6 +33,9 @@ import type {
 import {
   AUCTION_SESSION_ID_KEY,
 } from "../../lib/auction-storage";
+
+import ConfirmDialog from
+  "../../components/ui/ConfirmDialog";
 
 
 /*
@@ -135,6 +139,29 @@ export default function MyAuctionsPage() {
   ] = useState<string | null>(
     null,
   );
+
+  const [
+    pendingDeletion,
+    setPendingDeletion,
+  ] = useState<{
+    id: string;
+    leagueName: string;
+  } | null>(null);
+
+  const [
+    editingSessionId,
+    setEditingSessionId,
+  ] = useState<string | null>(null);
+
+  const [
+    editedLeagueName,
+    setEditedLeagueName,
+  ] = useState("");
+
+  const [
+    savingSessionId,
+    setSavingSessionId,
+  ] = useState<string | null>(null);
 
 
   /*
@@ -312,16 +339,7 @@ export default function MyAuctionsPage() {
  */
   async function handleDeleteAuction(
     sessionId: string,
-    leagueName: string,
   ) {
-    const confirmed = window.confirm(
-      `Vuoi eliminare definitivamente l'asta "${leagueName}"?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setDeletingSessionId(
       sessionId,
     );
@@ -345,6 +363,8 @@ export default function MyAuctionsPage() {
               sessionId,
           ),
       );
+
+      setPendingDeletion(null);
 
       /*
        * Se era anche l'asta attiva salvata
@@ -380,6 +400,8 @@ export default function MyAuctionsPage() {
             ),
         );
 
+        setPendingDeletion(null);
+
         return;
       }
 
@@ -400,8 +422,109 @@ export default function MyAuctionsPage() {
   }
 
 
+  /*
+   * Prepara la modifica del nome direttamente
+   * nella scheda della sessione selezionata.
+   */
+  function startRenamingAuction(
+    sessionId: string,
+    leagueName: string,
+  ) {
+    setEditingSessionId(sessionId);
+    setEditedLeagueName(leagueName);
+    setError(null);
+  }
+
+
+  /*
+   * Salva il nuovo nome senza alterare
+   * configurazione, stato oppure acquisti.
+   */
+  async function handleRenameAuction(
+    sessionId: string,
+  ) {
+    const normalizedName =
+      editedLeagueName.trim();
+
+    if (normalizedName === "") {
+      setError(
+        "Il nome dell'asta non può essere vuoto.",
+      );
+
+      return;
+    }
+
+    setSavingSessionId(sessionId);
+    setError(null);
+
+    try {
+      const updatedSession =
+        await updateAuctionSession(
+          sessionId,
+          {
+            leagueName: normalizedName,
+          },
+        );
+
+      setSessions(
+        (currentSessions) =>
+          currentSessions.map(
+            (auctionSession) =>
+              auctionSession.id === sessionId
+                ? {
+                  ...auctionSession,
+                  leagueName:
+                    updatedSession.leagueName,
+                  status:
+                    updatedSession.status,
+                  updatedAt:
+                    updatedSession.updatedAt,
+                }
+                : auctionSession,
+          ),
+      );
+
+      setEditingSessionId(null);
+      setEditedLeagueName("");
+    } catch (caughtError) {
+      if (caughtError instanceof Error) {
+        setError(caughtError.message);
+      } else {
+        setError(
+          "Impossibile rinominare la sessione d'asta.",
+        );
+      }
+    } finally {
+      setSavingSessionId(null);
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900">
+      <ConfirmDialog
+        isOpen={pendingDeletion !== null}
+        title="Elimina asta"
+        description={
+          pendingDeletion
+            ? `Vuoi eliminare definitivamente l'asta "${pendingDeletion.leagueName}"? Configurazione e acquisti non potranno essere recuperati.`
+            : ""
+        }
+        confirmLabel="Elimina definitivamente"
+        tone="danger"
+        isConfirming={deletingSessionId !== null}
+        onCancel={() => {
+          setPendingDeletion(null);
+        }}
+        onConfirm={() => {
+          if (pendingDeletion) {
+            void handleDeleteAuction(
+              pendingDeletion.id,
+            );
+          }
+        }}
+      />
+
       <div className="mx-auto max-w-6xl">
 
         <Link
@@ -473,7 +596,7 @@ export default function MyAuctionsPage() {
           error && (
             <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
               <p className="font-semibold">
-                Impossibile caricare le aste
+                Operazione non completata
               </p>
 
               <p className="mt-2 text-sm">
@@ -486,7 +609,7 @@ export default function MyAuctionsPage() {
         {isAuthReady &&
           user &&
           !isLoading &&
-          !error && (
+          (
             <section className="
               grid gap-5
               md:grid-cols-2
@@ -559,9 +682,28 @@ export default function MyAuctionsPage() {
                           Sessione d&apos;asta
                         </p>
 
-                        <h2 className="mt-2 truncate text-xl font-bold">
-                          {auctionSession.leagueName}
-                        </h2>
+                        {editingSessionId ===
+                          auctionSession.id
+                          ? (
+                            <input
+                              type="text"
+                              value={editedLeagueName}
+                              maxLength={120}
+                              autoFocus
+                              onChange={(event) => {
+                                setEditedLeagueName(
+                                  event.target.value,
+                                );
+                              }}
+                              className="mt-2 w-full rounded-xl border border-emerald-300 px-3 py-2 text-base font-semibold outline-none focus:ring-2 focus:ring-emerald-100"
+                              aria-label="Nuovo nome dell'asta"
+                            />
+                          )
+                          : (
+                            <h2 className="mt-2 truncate text-xl font-bold">
+                              {auctionSession.leagueName}
+                            </h2>
+                          )}
                       </div>
 
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -623,11 +765,13 @@ export default function MyAuctionsPage() {
                     </p>
 
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       <button
                         type="button"
                         disabled={
                           deletingSessionId ===
+                          auctionSession.id ||
+                          savingSessionId ===
                           auctionSession.id
                         }
                         onClick={() => {
@@ -645,37 +789,97 @@ export default function MyAuctionsPage() {
                           disabled:opacity-60
                         "
                       >
-                        Riprendi asta
+                        {auctionSession.status ===
+                          "ACTIVE"
+                          ? "Riprendi asta"
+                          : "Visualizza asta"}
                       </button>
 
                       <button
                         type="button"
                         disabled={
                           deletingSessionId ===
+                          auctionSession.id ||
+                          savingSessionId ===
                           auctionSession.id
                         }
                         onClick={() => {
-                          void handleDeleteAuction(
+                          if (
+                            editingSessionId ===
+                            auctionSession.id
+                          ) {
+                            void handleRenameAuction(
+                              auctionSession.id,
+                            );
+
+                            return;
+                          }
+
+                          startRenamingAuction(
                             auctionSession.id,
                             auctionSession.leagueName,
                           );
                         }}
                         className="
                           rounded-xl border
-                          border-red-300 bg-white
+                          border-slate-300 bg-white
                           px-5 py-3 text-sm
-                          font-semibold text-red-700
+                          font-semibold text-slate-700
                           transition
-                          hover:bg-red-50
+                          hover:bg-slate-100
                           disabled:cursor-not-allowed
                           disabled:opacity-60
                         "
                       >
-                        {deletingSessionId ===
+                        {savingSessionId ===
                           auctionSession.id
-                          ? "Eliminazione..."
-                          : "Elimina"}
+                          ? "Salvataggio..."
+                          : editingSessionId ===
+                            auctionSession.id
+                            ? "Salva nome"
+                            : "Rinomina"}
                       </button>
+
+                      {editingSessionId ===
+                        auctionSession.id
+                        ? (
+                          <button
+                            type="button"
+                            disabled={
+                              savingSessionId ===
+                              auctionSession.id
+                            }
+                            onClick={() => {
+                              setEditingSessionId(null);
+                              setEditedLeagueName("");
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Annulla
+                          </button>
+                        )
+                        : (
+                          <button
+                            type="button"
+                            disabled={
+                              deletingSessionId ===
+                              auctionSession.id
+                            }
+                            onClick={() => {
+                              setPendingDeletion({
+                                id: auctionSession.id,
+                                leagueName:
+                                  auctionSession.leagueName,
+                              });
+                            }}
+                            className="rounded-xl border border-red-300 bg-white px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingSessionId ===
+                              auctionSession.id
+                              ? "Eliminazione..."
+                              : "Elimina"}
+                          </button>
+                        )}
                     </div>
                   </article>
                 ),

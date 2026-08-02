@@ -32,6 +32,9 @@ import {
 import AuctionLeagueRulesPanel from
   "./AuctionLeagueRulesPanel";
 
+import ConfirmDialog from
+  "../ui/ConfirmDialog";
+
 
 /*
  * Proprietà ricevute dal componente.
@@ -74,6 +77,12 @@ type AuctionSidePanelsProps = {
   onRemovePurchase: (
     playerId: number,
   ) => void;
+
+  /*
+   * Le aste completate restano consultabili,
+   * ma gli acquisti non possono cambiare.
+   */
+  isReadOnly?: boolean;
 };
 
 
@@ -220,11 +229,19 @@ export default function AuctionSidePanels({
   remainingSlots,
   dynamicRoleBudgets,
   onRemovePurchase,
+  isReadOnly = false,
 }: AuctionSidePanelsProps) {
   const [
     openPanel,
     setOpenPanel,
   ] = useState<OpenPanel>(null);
+
+  const [
+    pendingRemoval,
+    setPendingRemoval,
+  ] = useState<AuctionPurchase | null>(
+    null,
+  );
 
   /*
   * Indica se il componente è stato
@@ -604,30 +621,45 @@ export default function AuctionSidePanels({
   function handleRemovePurchase(
     purchase: AuctionPurchase,
   ) {
-    const ownerDescription =
-      purchase.ownerType === "OPPONENT"
-        ? `assegnato a ${purchase.ownerName ??
-        "un avversario"
-        }`
-        : "presente nella tua rosa";
+    if (isReadOnly) {
+      return;
+    }
 
-    const confirmed =
-      window.confirm(
-        `Vuoi annullare l'acquisto di ${purchase.playerName}, ${ownerDescription}, per ${purchase.purchasePrice} crediti?`,
-      );
+    setPendingRemoval(purchase);
+  }
 
-    if (!confirmed) {
+
+  function confirmRemovePurchase() {
+    if (!pendingRemoval) {
       return;
     }
 
     onRemovePurchase(
-      purchase.playerId,
+      pendingRemoval.playerId,
     );
+
+    setPendingRemoval(null);
   }
 
 
   return (
     <>
+      <ConfirmDialog
+        isOpen={pendingRemoval !== null}
+        title="Annulla acquisto"
+        description={
+          pendingRemoval
+            ? `Vuoi annullare l'acquisto di ${pendingRemoval.playerName} per ${pendingRemoval.purchasePrice} crediti?`
+            : ""
+        }
+        confirmLabel="Annulla acquisto"
+        tone="danger"
+        onCancel={() => {
+          setPendingRemoval(null);
+        }}
+        onConfirm={confirmRemovePurchase}
+      />
+
       {/*
       * Pulsanti compatti per schermi
       * piccoli e finestre ridimensionate.
@@ -1110,22 +1142,24 @@ export default function AuctionSidePanels({
                                           )}
                                         </p>
 
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            handleRemovePurchase(
-                                              purchase,
-                                            );
-                                          }}
-                                          className="
-                                            shrink-0 text-xs
-                                            font-semibold
-                                            text-red-700
-                                            hover:underline
-                                          "
-                                        >
-                                          Annulla
-                                        </button>
+                                        {!isReadOnly && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleRemovePurchase(
+                                                purchase,
+                                              );
+                                            }}
+                                            className="
+                                              shrink-0 text-xs
+                                              font-semibold
+                                              text-red-700
+                                              hover:underline
+                                            "
+                                          >
+                                            Annulla
+                                          </button>
+                                        )}
                                       </div>
                                     </article>
                                   ),
@@ -1610,22 +1644,24 @@ export default function AuctionSidePanels({
                                                       </p>
                                                     </div>
 
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        handleRemovePurchase(
-                                                          purchase,
-                                                        );
-                                                      }}
-                                                      className="
-                                          shrink-0 text-xs
-                                          font-semibold
-                                          text-red-700
-                                          hover:underline
-                                        "
-                                                    >
-                                                      Annulla
-                                                    </button>
+                                                    {!isReadOnly && (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          handleRemovePurchase(
+                                                            purchase,
+                                                          );
+                                                        }}
+                                                        className="
+                                                          shrink-0 text-xs
+                                                          font-semibold
+                                                          text-red-700
+                                                          hover:underline
+                                                        "
+                                                      >
+                                                        Annulla
+                                                      </button>
+                                                    )}
                                                   </div>
                                                 </article>
                                               );

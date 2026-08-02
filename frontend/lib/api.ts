@@ -16,6 +16,7 @@ import type {
 import type {
   AuctionConfig,
   AuctionPurchase,
+  AuctionSessionStatus,
 } from "../types/auction";
 
 
@@ -454,7 +455,7 @@ export type AuctionSessionApiResponse = {
     AuctionConfig["leagueRules"]
   >;
 
-  status: string;
+  status: AuctionSessionStatus;
 
   createdAt: string;
   updatedAt: string;
@@ -480,7 +481,7 @@ export type AuctionSessionSummaryApiResponse = {
   auctionMode:
     AuctionConfig["auctionMode"];
 
-  status: string;
+  status: AuctionSessionStatus;
 
   teamsCount: number;
   purchasesCount: number;
@@ -660,6 +661,52 @@ export async function fetchAuctionSessionById(
     )}`,
     {
       cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: AuctionSessionApiResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Campi modificabili di una sessione esistente.
+ */
+export type AuctionSessionUpdateInput = {
+  leagueName?: string;
+  status?: AuctionSessionStatus;
+};
+
+
+/*
+ * Rinomina una sessione oppure ne modifica
+ * lo stato conservando tutti gli acquisti.
+ */
+export async function updateAuctionSession(
+  sessionId: string,
+  input: AuctionSessionUpdateInput,
+): Promise<AuctionSessionApiResponse> {
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}`,
+    {
+      method: "PATCH",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify(input),
     },
   );
 

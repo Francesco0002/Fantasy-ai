@@ -122,6 +122,13 @@ AuctionBudgetStrategy = Literal[
 ]
 
 
+# Stati persistenti di una sessione d'asta.
+AuctionSessionStatus = Literal[
+    "ACTIVE",
+    "COMPLETED",
+]
+
+
 # Possibili destinatari di un acquisto.
 AuctionPurchaseOwner = Literal[
     "ME",
@@ -633,6 +640,61 @@ class AuctionSessionCreate(BaseModel):
         return self
 
 
+class AuctionSessionUpdate(BaseModel):
+    """
+    Campi modificabili dopo la creazione.
+
+    Tutti i campi sono opzionali, ma la richiesta
+    deve contenerne almeno uno.
+    """
+
+    leagueName: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=120,
+    )
+
+    status: AuctionSessionStatus | None = None
+
+    @field_validator("leagueName")
+    @classmethod
+    def normalize_optional_league_name(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        """Elimina gli spazi superflui dal nome."""
+
+        if value is None:
+            return None
+
+        normalized_value = " ".join(
+            value.split()
+        )
+
+        if normalized_value == "":
+            raise ValueError(
+                "Il nome dell'asta non può essere vuoto."
+            )
+
+        return normalized_value
+
+    @model_validator(mode="after")
+    def require_at_least_one_change(
+        self,
+    ) -> Self:
+        """Rifiuta richieste PATCH prive di modifiche."""
+
+        if (
+            self.leagueName is None
+            and self.status is None
+        ):
+            raise ValueError(
+                "Indica almeno un campo da modificare."
+            )
+
+        return self
+
+
 class PurchaseCreate(BaseModel):
     """
     Dati ricevuti quando viene registrato
@@ -819,7 +881,7 @@ class AuctionSessionResponse(BaseModel):
 
     leagueRules: AuctionLeagueRulesSchema
 
-    status: str
+    status: AuctionSessionStatus
 
     createdAt: datetime
     updatedAt: datetime
@@ -899,7 +961,7 @@ class AuctionSessionSummaryResponse(BaseModel):
 
     auctionMode: AuctionMode
 
-    status: str
+    status: AuctionSessionStatus
 
     teamsCount: int
     purchasesCount: int

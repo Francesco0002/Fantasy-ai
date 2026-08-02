@@ -16,6 +16,7 @@ __pycache__/
 node_modules/
 .next/
 out/
+.auction-tests-dist/
 
 # File temporanei
 *.log
@@ -27,4 +28,3 @@ out/
 # File di sistema
 .DS_Store
 Thumbs.db
-'@ | Set-Content -Encoding utf8 .gitignore

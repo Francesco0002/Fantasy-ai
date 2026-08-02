@@ -1,6 +1,6 @@
 # Fantasy AI — Project Context
 
-_Last updated: 31 July 2026_
+_Last updated: 2 August 2026_
 
 This file summarizes the current state of the **Fantasy AI** project so work can continue in a new ChatGPT conversation without reconstructing the full history.
 
@@ -334,10 +334,17 @@ Important routes:
 GET    /auction-sessions
 POST   /auction-sessions
 GET    /auction-sessions/{session_id}
+PATCH  /auction-sessions/{session_id}
 DELETE /auction-sessions/{session_id}
 ```
 
 There are also protected routes for registering and deleting purchases.
+
+`PATCH /auction-sessions/{session_id}` supports:
+
+- renaming a session through `leagueName`;
+- changing its status between `ACTIVE` and `COMPLETED`;
+- preserving configuration, teams and purchases.
 
 `GET /auction-sessions` returns only the current user's sessions.
 
@@ -353,6 +360,8 @@ Behavior:
 - creating a new auction removes only the selected UUID from `localStorage`;
 - previous auctions remain in PostgreSQL;
 - `Riprendi asta` selects a session and opens `/auction`;
+- completed auctions remain available in read-only mode and can be reopened;
+- sessions can be renamed from `/my-auctions`;
 - `Elimina` deletes the chosen auction from the backend;
 - deleting the selected auction also clears its local UUID.
 
@@ -403,6 +412,8 @@ Current dashboard layout:
 - `Nuova asta` is a dashed card inside the same grid as saved auctions;
 - saved auctions are cards with summary values;
 - each saved card has `Riprendi asta` and `Elimina`;
+- each saved card also supports inline renaming;
+- completed cards use `Visualizza asta` and remain read-only until reopened;
 - the old wide horizontal new-session banner was removed.
 
 Grid layout:
@@ -617,6 +628,31 @@ Gestisci aste
   ├── Riprendi asta   → /auction with selected session
   └── Elimina asta
 ```
+
+## 20. Auction verification
+
+Frontend strategy tests:
+
+```powershell
+cd frontend
+npm run test:auction
+```
+
+The suite covers:
+
+- automatic budget distribution;
+- defense and midfield modifiers;
+- dynamic role-budget redistribution;
+- role-by-role versus fully random market behavior;
+- price advice and minimum-credit reservation.
+
+Backend update-schema tests:
+
+```powershell
+python -m unittest discover -s backend/tests -v
+```
+
+Native browser confirmations are no longer used in the auction flow. The app uses the shared `ConfirmDialog` component for destructive or high-risk actions.
 
 ## 20. Future improvements
 

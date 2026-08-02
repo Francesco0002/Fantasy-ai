@@ -53,6 +53,14 @@ export type AuctionBudgetStrategy =
   | "MANUAL";
 
 
+/*
+ * Stato persistente della sessione.
+ */
+export type AuctionSessionStatus =
+  | "ACTIVE"
+  | "COMPLETED";
+
+
 export type AuctionPurchaseOwner =
   | "ME"
   | "OPPONENT";
@@ -330,6 +338,13 @@ export type AuctionSession = {
    * UUID assegnato dal backend.
    */
   id: string;
+
+  /*
+   * ACTIVE permette di registrare acquisti.
+   * COMPLETED rende l'asta consultabile
+   * senza modificare i dati salvati.
+   */
+  status: AuctionSessionStatus;
 
   /*
    * Configurazione scelta prima dell'asta.

@@ -26,6 +26,14 @@ import AuctionMarket from "../../components/auction/AuctionMarket";
  */
 import Link from "next/link";
 
+import {
+  useRouter,
+} from "next/navigation";
+
+import {
+  useState,
+} from "react";
+
 
 /*
  * Custom hook che gestisce
@@ -42,6 +50,9 @@ import AuctionSetupForm from "../../components/auction/AuctionSetupForm";
 
 import AuthPanel from "../../components/auth/AuthPanel";
 
+import ConfirmDialog from
+  "../../components/ui/ConfirmDialog";
+
 import {
   useAuth,
 } from "../../hooks/useAuth";
@@ -51,6 +62,18 @@ import {
  * Pagina iniziale della modalità asta.
  */
 export default function AuctionPage() {
+  const router = useRouter();
+
+  const [
+    isCompletionDialogOpen,
+    setIsCompletionDialogOpen,
+  ] = useState(false);
+
+  const [
+    isChangingStatus,
+    setIsChangingStatus,
+  ] = useState(false);
+
   const {
     user,
     isAuthReady,
@@ -72,7 +95,7 @@ export default function AuctionPage() {
     dynamicRoleBudgets,
     maximumBid,
     startAuction,
-    resetAuction,
+    setAuctionStatus,
     registerPurchase,
     removePurchase,
   } = useAuctionSession();
@@ -83,6 +106,9 @@ export default function AuctionPage() {
    */
   const startedConfig =
     session?.config ?? null;
+
+  const isActiveAuction =
+    session?.status === "ACTIVE";
 
   /*
    * Numero complessivo di slot
@@ -103,24 +129,56 @@ export default function AuctionPage() {
     : 0;
 
   /*
-  * Chiede conferma prima di cancellare
-  * definitivamente la sessione salvata.
-  */
-  async function handleResetAuction() {
-    const confirmed = window.confirm(
-      "Vuoi terminare l'asta? Configurazione, budget e acquisti verranno eliminati.",
-    );
+   * Conclude l'asta conservando tutti i dati.
+   */
+  async function handleCompleteAuction() {
+    setIsChangingStatus(true);
 
-    if (!confirmed) {
+    const wasCompleted =
+      await setAuctionStatus(
+        "COMPLETED",
+      );
+
+    setIsChangingStatus(false);
+
+    if (!wasCompleted) {
       return;
     }
 
-    await resetAuction();
+    setIsCompletionDialogOpen(false);
+    router.push("/my-auctions");
+  }
+
+
+  /*
+   * Permette di correggere o continuare
+   * una sessione precedentemente conclusa.
+   */
+  async function handleReopenAuction() {
+    setIsChangingStatus(true);
+
+    await setAuctionStatus("ACTIVE");
+
+    setIsChangingStatus(false);
   }
 
 
   return (
     <main className="auction-page-enter min-h-screen bg-slate-100 py-6 text-slate-900">
+      <ConfirmDialog
+        isOpen={isCompletionDialogOpen}
+        title="Concludi asta"
+        description="La sessione verrà segnata come completata. Configurazione, budget e acquisti resteranno salvati e potrai consultarli o riaprire l'asta in seguito."
+        confirmLabel="Concludi asta"
+        isConfirming={isChangingStatus}
+        onCancel={() => {
+          setIsCompletionDialogOpen(false);
+        }}
+        onConfirm={() => {
+          void handleCompleteAuction();
+        }}
+      />
+
       <div
         className="
           mx-auto w-full
@@ -251,6 +309,7 @@ export default function AuctionPage() {
                 onRemovePurchase={(playerId) => {
                   void removePurchase(playerId);
                 }}
+                isReadOnly={!isActiveAuction}
               />
 
               {/* Riepilogo compatto della sessione */}
@@ -260,7 +319,9 @@ export default function AuctionPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                        Asta attiva
+                        {isActiveAuction
+                          ? "Asta attiva"
+                          : "Asta completata"}
                       </p>
 
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -335,53 +396,83 @@ export default function AuctionPage() {
 
 
               {/* Ricerca e registrazione degli acquisti */}
-              <AuctionMarket
-                config={startedConfig}
-                contextualPrices={contextualPrices}
-                remainingBudget={
-                  session?.remainingBudget ?? 0
-                }
-                remainingSlots={remainingSlots}
-                dynamicRoleBudgets={
-                  dynamicRoleBudgets
-                }
+              {isActiveAuction && (
+                <AuctionMarket
+                  config={startedConfig}
+                  contextualPrices={contextualPrices}
+                  remainingBudget={
+                    session?.remainingBudget ?? 0
+                  }
+                  remainingSlots={remainingSlots}
+                  dynamicRoleBudgets={
+                    dynamicRoleBudgets
+                  }
 
-                purchases={
-                  session?.purchases ?? []
-                }
+                  purchases={
+                    session?.purchases ?? []
+                  }
 
-                myPurchases={myPurchases}
+                  myPurchases={myPurchases}
 
-                maximumBid={maximumBid}
-                onRegisterPurchase={
-                  registerPurchase
-                }
-              />
+                  maximumBid={maximumBid}
+                  onRegisterPurchase={
+                    registerPurchase
+                  }
+                />
+              )}
+
+              {!isActiveAuction && (
+                <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+                  <h2 className="text-xl font-bold text-emerald-950">
+                    Asta completata
+                  </h2>
+
+                  <p className="mt-2 text-sm text-emerald-900/80">
+                    I dati sono in sola lettura. Puoi consultare rose, acquisti e regole oppure riaprire la sessione.
+                  </p>
+                </section>
+              )}
 
               {/* Barra finale compatta */}
               <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">
-                    Sessione salvata nel database
+                    {isActiveAuction
+                      ? "Sessione salvata nel database"
+                      : "Sessione completata e salvata"}
                   </p>
 
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Configurazione, squadre e acquisti vengono conservati su PostgreSQL.
+                    Configurazione, squadre e acquisti sono conservati su PostgreSQL.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={handleResetAuction}
+                  onClick={() => {
+                    if (isActiveAuction) {
+                      setIsCompletionDialogOpen(true);
+                      return;
+                    }
+
+                    void handleReopenAuction();
+                  }}
+                  disabled={isChangingStatus}
                   className="
                     shrink-0 rounded-xl border
                     border-slate-300 bg-white
                     px-4 py-2 text-sm
                     font-semibold transition
                     hover:bg-slate-100
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                   "
                 >
-                  Termina e riconfigura
+                  {isChangingStatus
+                    ? "Aggiornamento..."
+                    : isActiveAuction
+                      ? "Concludi asta"
+                      : "Riapri asta"}
                 </button>
               </section>
             </div>

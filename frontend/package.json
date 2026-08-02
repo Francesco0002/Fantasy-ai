@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:auction": "tsc --project tsconfig.auction-tests.json && node --test .auction-tests-dist/tests/auction-strategy.test.js"
   },
   "dependencies": {
     "next": "16.2.12",

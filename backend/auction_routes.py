@@ -50,6 +50,7 @@ from backend.schemas import (
     AuctionSessionListResponse,
     AuctionSessionResponse,
     AuctionSessionSummaryResponse,
+    AuctionSessionUpdate,
     ContextualPlayerPriceResponse,
     ContextualPlayerPricesResponse,
     PurchaseCreate,
@@ -1001,6 +1002,85 @@ def get_auction_session(
     return create_session_response(
         auction_session
     )
+
+
+@router.patch(
+    "/{session_id}",
+    response_model=AuctionSessionResponse,
+)
+def update_auction_session(
+    session_id: UUID,
+    request: AuctionSessionUpdate,
+
+    current_user: User = Depends(
+        get_current_user
+    ),
+
+    database: Session = Depends(
+        get_database_session
+    ),
+) -> AuctionSessionResponse:
+    """
+    Rinomina una sessione oppure ne aggiorna
+    lo stato senza eliminare acquisti e regole.
+    """
+
+    auction_session = load_auction_session(
+        database,
+        session_id,
+        current_user.id,
+    )
+
+    if auction_session is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Sessione d'asta non trovata.",
+        )
+
+    if request.leagueName is not None:
+        auction_session.league_name = (
+            request.leagueName
+        )
+
+    if request.status is not None:
+        auction_session.status = request.status
+
+    auction_session.updated_at = datetime.now(
+        timezone.utc
+    )
+
+    try:
+        database.commit()
+
+    except SQLAlchemyError as error:
+        database.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Errore durante l'aggiornamento "
+                "della sessione d'asta."
+            ),
+        ) from error
+
+    stored_session = load_auction_session(
+        database,
+        session_id,
+        current_user.id,
+    )
+
+    if stored_session is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "La sessione è stata aggiornata, "
+                "ma non può essere recuperata."
+            ),
+        )
+
+    return create_session_response(
+        stored_session
+    )
     
     
 @router.post(
@@ -1181,6 +1261,15 @@ def delete_purchase(
             detail=(
                 "Sessione d'asta "
                 "non trovata."
+            ),
+        )
+
+    if auction_session.status != "ACTIVE":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Non puoi modificare gli acquisti "
+                "di un'asta completata."
             ),
         )
 

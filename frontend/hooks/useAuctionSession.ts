@@ -16,9 +16,9 @@ import {
   createAuctionPurchase,
   createAuctionSession,
   deleteAuctionPurchase,
-  deleteAuctionSession,
   fetchAuctionSessionById,
   fetchContextualPlayerPrices,
+  updateAuctionSession,
 } from "../lib/api";
 
 import type {
@@ -49,6 +49,7 @@ import type {
   AuctionPurchase,
   AuctionRole,
   AuctionSession,
+  AuctionSessionStatus,
 } from "../types/auction";
 
 
@@ -247,6 +248,9 @@ function mapApiSessionToAuctionSession(
   return {
     id:
       apiSession.id,
+
+    status:
+      apiSession.status,
 
     config: {
       leagueName:
@@ -628,52 +632,49 @@ export function useAuctionSession() {
 
 
   /*
-   * Elimina definitivamente la sessione
-   * dal database e dal browser.
+   * Aggiorna lo stato dell'asta senza perdere
+   * configurazione, squadre oppure acquisti.
    */
-  async function resetAuction(
-  ): Promise<void> {
-    setActionError(null);
-
+  async function setAuctionStatus(
+    status: AuctionSessionStatus,
+  ): Promise<boolean> {
     if (!session) {
-      window.localStorage.removeItem(
-        AUCTION_SESSION_ID_KEY,
-      );
-
-      return;
+      return false;
     }
 
+    setActionError(null);
+
     try {
-      await deleteAuctionSession(
-        session.id,
+      const apiSession =
+        await updateAuctionSession(
+          session.id,
+          { status },
+        );
+
+      setSession(
+        mapApiSessionToAuctionSession(
+          apiSession,
+        ),
       );
 
-      setSession(null);
-
-      window.localStorage.removeItem(
-        AUCTION_SESSION_ID_KEY,
-      );
-    } catch (error) {
-      /*
-       * Se la sessione era già stata eliminata,
-       * ripuliamo comunque lo stato locale.
-       */
-      if (
-        error instanceof ApiRequestError &&
-        error.status === 404
-      ) {
-        setSession(null);
-
+      if (status === "COMPLETED") {
         window.localStorage.removeItem(
           AUCTION_SESSION_ID_KEY,
         );
-
-        return;
+      } else {
+        window.localStorage.setItem(
+          AUCTION_SESSION_ID_KEY,
+          session.id,
+        );
       }
 
+      return true;
+    } catch (error) {
       setActionError(
         getErrorMessage(error),
       );
+
+      return false;
     }
   }
 
@@ -881,6 +882,13 @@ export function useAuctionSession() {
       );
     }
 
+    if (session.status !== "ACTIVE") {
+      return (
+        "L'asta è completata e non può "
+        + "ricevere nuovi acquisti."
+      );
+    }
+
     setActionError(null);
 
     /*
@@ -992,7 +1000,10 @@ export function useAuctionSession() {
   async function removePurchase(
     playerId: number,
   ): Promise<void> {
-    if (!session) {
+    if (
+      !session ||
+      session.status !== "ACTIVE"
+    ) {
       return;
     }
 
@@ -1034,7 +1045,7 @@ export function useAuctionSession() {
     maximumBid,
 
     startAuction,
-    resetAuction,
+    setAuctionStatus,
     registerPurchase,
     removePurchase,
   };

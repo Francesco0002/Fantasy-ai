@@ -4,6 +4,9 @@
 import CustomSelect from
   "../ui/CustomSelect";
 
+import ConfirmDialog from
+  "../ui/ConfirmDialog";
+
 
 /*
  * Calcola la quotazione aggiornata
@@ -338,6 +341,13 @@ export default function AuctionMarket({
     isRegisteringPurchase,
     setIsRegisteringPurchase,
   ] = useState(false);
+
+  const [
+    pendingRiskyPurchase,
+    setPendingRiskyPurchase,
+  ] = useState<AuctionPurchase | null>(
+    null,
+  );
 
 
   /*
@@ -885,6 +895,59 @@ export default function AuctionMarket({
 
 
   /*
+   * Salva un acquisto già validato e aggiorna
+   * il messaggio mostrato all'utente.
+   */
+  async function registerPreparedPurchase(
+    purchase: AuctionPurchase,
+  ) {
+    setIsRegisteringPurchase(true);
+
+    let purchaseError: string | null;
+
+    try {
+      purchaseError =
+        await onRegisterPurchase(
+          purchase,
+        );
+    } catch {
+      purchaseError =
+        "Errore imprevisto durante "
+        + "il salvataggio dell'acquisto.";
+    } finally {
+      setIsRegisteringPurchase(false);
+    }
+
+    if (purchaseError) {
+      setFeedback({
+        type: "error",
+        message: purchaseError,
+      });
+
+      return;
+    }
+
+    const destination =
+      purchase.ownerType === "ME"
+        ? "nella tua rosa"
+        : `da ${purchase.ownerName ||
+        "un avversario"
+        }`;
+
+    setFeedback({
+      type: "success",
+      message:
+        `${purchase.playerName} acquistato ${destination} per ${purchase.purchasePrice} crediti.`,
+    });
+
+    setStoredSelectedPlayer(null);
+    setPurchasePrice("");
+    setPurchaseOwner("ME");
+    setOpponentName("");
+  }
+
+
+  /*
    * Registra l'acquisto del giocatore.
    */
   async function handlePurchase(
@@ -905,28 +968,6 @@ export default function AuctionMarket({
     const parsedPrice =
       Number(purchasePrice);
 
-    /*
-    * Per un acquisto classificato come
-    * "Da evitare" chiediamo una conferma aggiuntiva.
-    */
-    if (
-      purchaseOwner === "ME" &&
-      auctionAdvice?.label ===
-      "Da evitare"
-    ) {
-      const confirmed = window.confirm(
-        `Fantasy AI considera eccessivo il prezzo di ${parsedPrice} crediti per ${selectedPlayer.name}. Vuoi registrare comunque l'acquisto?`,
-      );
-
-      if (!confirmed) {
-        return;
-      }
-    }
-
-    /*
-     * Prepariamo l'acquisto da passare
-     * allo stato della sessione.
-     */
     const purchase: AuctionPurchase = {
       playerId:
         selectedPlayer.player_id,
@@ -970,67 +1011,24 @@ export default function AuctionMarket({
         new Date().toISOString(),
     };
 
-    setIsRegisteringPurchase(true);
-
-    let purchaseError: string | null;
-
-    try {
-      purchaseError =
-        await onRegisterPurchase(
-          purchase,
-        );
-    } catch {
-      purchaseError =
-        "Errore imprevisto durante "
-        + "il salvataggio dell'acquisto.";
-    } finally {
-      setIsRegisteringPurchase(false);
-    }
-
-    if (purchaseError) {
-      setFeedback({
-        type: "error",
-        message: purchaseError,
-      });
+    /*
+     * Per un acquisto classificato come
+     * "Da evitare" chiediamo una conferma
+     * coerente con l'interfaccia del sito.
+     */
+    if (
+      purchaseOwner === "ME" &&
+      auctionAdvice?.label ===
+      "Da evitare"
+    ) {
+      setPendingRiskyPurchase(purchase);
 
       return;
     }
 
-    /*
-     * Salviamo il nome prima di eliminare
-     * il giocatore selezionato.
-     */
-    const purchasedPlayerName =
-      selectedPlayer.name;
-
-    /*
-     * Prepariamo un messaggio diverso
-     * in base a chi ha acquistato il giocatore.
-     */
-    const destination =
-      purchaseOwner === "ME"
-        ? "nella tua rosa"
-        : `da ${opponentName.trim() ||
-        "un avversario"
-        }`;
-
-    setFeedback({
-      type: "success",
-
-      message:
-        `${purchasedPlayerName} acquistato ${destination} per ${parsedPrice} crediti.`,
-    });
-
-    setStoredSelectedPlayer(null);
-    setPurchasePrice("");
-
-    /*
-     * Evita che il prossimo giocatore
-     * venga assegnato per errore alla
-     * squadra precedente.
-     */
-    setPurchaseOwner("ME");
-    setOpponentName("");
+    await registerPreparedPurchase(
+      purchase,
+    );
   }
 
 
@@ -1072,6 +1070,36 @@ export default function AuctionMarket({
 
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+      <ConfirmDialog
+        isOpen={pendingRiskyPurchase !== null}
+        title="Prezzo molto elevato"
+        description={
+          pendingRiskyPurchase
+            ? `Fantasy AI considera eccessivo il prezzo di ${pendingRiskyPurchase.purchasePrice} crediti per ${pendingRiskyPurchase.playerName}. Vuoi registrare comunque l'acquisto?`
+            : ""
+        }
+        confirmLabel="Registra comunque"
+        tone="danger"
+        isConfirming={isRegisteringPurchase}
+        onCancel={() => {
+          setPendingRiskyPurchase(null);
+        }}
+        onConfirm={() => {
+          if (!pendingRiskyPurchase) {
+            return;
+          }
+
+          const purchase =
+            pendingRiskyPurchase;
+
+          void registerPreparedPurchase(
+            purchase,
+          ).finally(() => {
+            setPendingRiskyPurchase(null);
+          });
+        }}
+      />
+
       {/* Intestazione */}
       <div>
 
