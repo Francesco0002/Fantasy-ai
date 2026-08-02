@@ -1735,7 +1735,10 @@ export default function AuctionMarket({
                         </p>
 
                         <p className="mt-0.5 text-base font-bold">
-                          {auctionAdvice.label}
+                          {auctionAdvice.label === "Affare" &&
+                            auctionAdvice.roleBudgetDifference < 0
+                            ? "Affare, ma fuori piano"
+                            : auctionAdvice.label}
                         </p>
                       </div>
 
@@ -1887,12 +1890,19 @@ export default function AuctionMarket({
                             <strong className="text-right">
                               {auctionAdvice
                                 .roleBudgetDifference >= 0
-                                ? `${auctionAdvice
-                                  .roleBudgetDifference} disponibili`
-                                : `${Math.abs(
-                                  auctionAdvice
-                                    .roleBudgetDifference,
-                                )} oltre il piano`}
+                                ? `Budget ruolo utilizzabile: ${auctionAdvice.roleBudgetDifference
+                                } ${auctionAdvice.roleBudgetDifference === 1
+                                  ? "credito"
+                                  : "crediti"
+                                }`
+                                : `Sforamento piano: ${Math.abs(
+                                  auctionAdvice.roleBudgetDifference,
+                                )} ${Math.abs(
+                                  auctionAdvice.roleBudgetDifference,
+                                ) === 1
+                                  ? "credito"
+                                  : "crediti"
+                                }`}
                             </strong>
                           </div>
                         </div>

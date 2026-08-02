@@ -325,6 +325,25 @@ export function createAuctionAdvice({
 
 
   /*
+  * Dopo questo acquisto potrebbero rimanere
+  * altri slot da completare nello stesso ruolo.
+  */
+  const roleSlotsAfterPurchase =
+    Math.max(
+      remainingSlots[role] - 1,
+      0,
+    );
+
+  /*
+   * Crediti minimi da conservare per completare
+   * gli slot ancora liberi dello stesso ruolo.
+   */
+  const minimumRoleCreditsToReserve =
+    roleSlotsAfterPurchase *
+    config.minimumBid;
+
+
+  /*
    * Budget inizialmente previsto
    * per il ruolo.
    */
@@ -343,7 +362,8 @@ export function createAuctionAdvice({
    */
   const roleBudgetDifference =
     plannedRoleBudget -
-    spentInRoleAfter;
+    spentInRoleAfter -
+    minimumRoleCreditsToReserve;
 
 
   /*
@@ -353,7 +373,8 @@ export function createAuctionAdvice({
   const remainingPlannedRoleBudget =
     Math.max(
       plannedRoleBudget -
-        spentInRoleBefore,
+      spentInRoleBefore -
+      minimumRoleCreditsToReserve,
       0,
     );
 
@@ -371,10 +392,7 @@ export function createAuctionAdvice({
       Math.min(
         maximumBid,
         player.absolute_max,
-        Math.max(
-          config.minimumBid,
-          remainingPlannedRoleBudget,
-        ),
+        remainingPlannedRoleBudget,
       ),
     );
 
