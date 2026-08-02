@@ -1,3 +1,13 @@
+PER ATTIVARE .venv:
+.venv\Scripts\Activate.ps1
+
+Terminale 1 — Backend
+python -m uvicorn backend.main:app --reload
+
+Terminale 2 — Frontend
+cd frontend
+npm run dev
+
 # Fantasy AI
 
 Fantasy AI è un'applicazione web per consultare e confrontare giocatori di
