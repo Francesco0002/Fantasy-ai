@@ -6,15 +6,28 @@ This file summarizes the current state of the **Fantasy AI** project so work can
 
 ## 1. Project goal
 
-Fantasy AI is a web app for fantasy-football auctions. Current functions:
+Fantasy AI is a web app that supports fantasy-football users during the auction
+and, in the next development phase, throughout the season. Current functions:
 
 - browse, search, filter and sort players;
 - open player details and compare two players;
 - register and authenticate users;
-- create, resume and delete multiple auction sessions;
-- register and remove auction purchases;
+- configure, create, resume, rename, complete, reopen and delete multiple
+  auction sessions;
+- register and remove purchases for the user's team and opponents;
+- adapt budget planning and price advice to league rules and auction progress;
+- inspect completed auctions in read-only mode;
 - isolate each user's auctions;
 - persist authentication across reloads.
+
+Current project status:
+
+- player browsing and comparison: implemented;
+- authentication and database persistence: implemented;
+- Auction Mode: feature-complete in code and covered by automated tests;
+- Season Mode: next phase, not implemented yet;
+- real, automatically updated football data: partial ingestion work only; the
+  application still uses the synthetic demo list.
 
 Preferred working method:
 
@@ -522,6 +535,7 @@ Features:
 
 - search;
 - role filter;
+- default sorting by role (`P → D → C → A`) and then by Fantasy AI score;
 - sort by Fantasy AI score;
 - sort by recommended price;
 - sort by starting probability;
@@ -610,9 +624,11 @@ After a push:
 5. open `Gestisci aste`;
 6. create a second auction and confirm the first remains;
 7. resume a selected auction;
-8. delete an auction and reload;
-9. verify Network requests use `/api/backend/...`;
-10. verify the production cookie is HttpOnly, Secure and SameSite Lax.
+8. rename, complete, reopen and delete an auction;
+9. confirm completed auctions are read-only;
+10. verify confirmation dialogs appear above side drawers;
+11. verify Network requests use `/api/backend/...`;
+12. verify the production cookie is HttpOnly, Secure and SameSite Lax.
 
 ## 19. Current user flow
 
@@ -625,7 +641,9 @@ Gestisci aste
   ↓
 /my-auctions
   ├── Crea nuova asta → /auction with empty form
-  ├── Riprendi asta   → /auction with selected session
+  ├── Riprendi asta   → /auction with selected active session
+  ├── Visualizza asta → /auction with completed session in read-only mode
+  ├── Rinomina asta
   └── Elimina asta
 ```
 
@@ -652,26 +670,103 @@ Backend update-schema tests:
 python -m unittest discover -s backend/tests -v
 ```
 
-Native browser confirmations are no longer used in the auction flow. The app uses the shared `ConfirmDialog` component for destructive or high-risk actions.
+Native browser confirmations are no longer used in the auction flow. The app
+uses the shared `ConfirmDialog` component for destructive actions. Purchases
+above the optimal price retain the strategic warning but are registered with a
+single click; hard budget and minimum-credit constraints remain enforced.
 
-## 20. Future improvements
+The current automated verification is:
 
-Useful next steps:
+- 9 frontend auction-strategy tests;
+- 4 backend auction-session update tests;
+- ESLint passing;
+- Next.js production build passing.
 
-- account settings;
-- edit display name;
-- change password;
-- custom confirmation modal instead of `window.confirm`;
-- rename auction;
-- mark auction completed;
-- sort/filter saved auctions;
+## 21. Next phase: Season Mode
+
+Season Mode is the next development objective. It starts with Fantacalcio
+Classic and must remain separate from Auction Mode while allowing the user to
+import a roster from a completed auction.
+
+Planned user flow:
+
+```text
+Create season league
+  ↓
+Configure rules and allowed formations
+  ↓
+Import roster from a completed auction or enter it manually
+  ↓
+Select matchday
+  ↓
+Generate starters, ordered bench and alternatives
+  ↓
+Review risks, confidence and reasons for every choice
+```
+
+Initial configuration must include:
+
+- league name;
+- football season;
+- user's team name;
+- Classic mode;
+- allowed formations;
+- maximum substitutions and bench size;
+- substitution rules;
+- scoring, bonus, malus and modifier rules;
+- roster source: completed auction or manual entry.
+
+Planned database entities:
+
+```text
+SeasonLeague
+SeasonRosterPlayer
+SeasonLineup
+SeasonLineupPlayer
+```
+
+The roster is copied from an auction rather than permanently coupled to it, so
+later trades and repair-market changes can be managed independently.
+
+The lineup engine must be deterministic and reproducible. It will:
+
+- exclude suspended and certainly unavailable players;
+- penalize, rather than automatically exclude, injured or doubtful players;
+- consider starting and substitute appearance probabilities;
+- evaluate opponent and fixture difficulty;
+- test every allowed formation;
+- maximize expected fantasy points;
+- order the bench and expose alternatives;
+- return reasons, risks, missing data, source timestamps and confidence.
+
+Generative AI may explain the engine's output, but it must not replace the
+numerical optimizer or invent missing football data.
+
+Implementation order:
+
+1. database models, Alembic migration and league/roster APIs;
+2. league configuration screen;
+3. roster import from completed auctions and manual roster editing;
+4. provider-independent matchday data schema;
+5. deterministic lineup optimizer;
+6. starters, bench and alternatives interface;
+7. natural-language explanations;
+8. automated tests and production verification.
+
+## 22. Remaining improvements
+
+Useful later improvements:
+
+- complete, licensed and automatically updated football data;
+- account settings, display-name editing and password changes;
+- sort and filter saved auctions;
 - loading skeletons;
-- frontend and backend automated tests;
-- improve production logging;
-- replace synthetic data with complete real football data;
-- handle Render free-tier cold starts more gracefully.
+- broader frontend and backend integration tests;
+- improved production logging;
+- graceful handling of Render free-tier cold starts;
+- Mantra support after the Classic Season Mode is stable.
 
-## 21. Coding rules for future changes
+## 23. Coding rules for future changes
 
 - Never expose or commit secrets.
 - Keep all protected auction queries scoped to `current_user.id`.
@@ -681,11 +776,14 @@ Useful next steps:
 - Wait for authentication readiness before protected calls.
 - Store only the selected session UUID in `localStorage`.
 - Keep full session data in PostgreSQL.
+- Keep Season Mode independent from Auction Mode after roster import.
+- Keep football-provider payloads behind an internal normalized data model.
+- Use deterministic logic for lineup selection and AI only for explanations.
 - Run `npm run build` before committing frontend changes.
 - Restore `frontend/next-env.d.ts` after a build.
 - Add clear comments to important code.
 
-## 22. Prompt for a new ChatGPT conversation
+## 24. Prompt for a new ChatGPT conversation
 
 ```text
 Continuiamo il progetto Fantasy AI dallo stato attuale.
@@ -700,4 +798,8 @@ Guidami un passaggio alla volta, con:
 - build e commit soltanto dopo che il test funziona.
 
 Mantieni commenti chiari nel codice e non modificare più file del necessario.
+
+La Modalità Asta è archiviata come completa. La prossima fase è la Modalità
+Stagione Classic: inizia da modelli database, migrazione Alembic e API per lega
+e rosa, seguendo la sezione 21 di questo documento.
 ```

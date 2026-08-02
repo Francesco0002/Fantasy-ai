@@ -1,613 +1,470 @@
-PER ATTIVARE .venv:
-.venv\Scripts\Activate.ps1
-
-Terminale 1 — Backend
-python -m uvicorn backend.main:app --reload
-
-Terminale 2 — Frontend
-cd frontend
-npm run dev
-
 # Fantasy AI
 
-Fantasy AI è un progetto web pensato per supportare gli utenti durante l'asta del Fantacalcio e, in futuro, durante tutta la stagione fantacalcistica.
+Fantasy AI è un'applicazione web per consultare e confrontare giocatori di
+Fantacalcio, gestire un'asta completa e, nella prossima fase di sviluppo,
+ricevere consigli sulla formazione durante la stagione.
 
-L'obiettivo è realizzare un sistema basato su dati e valutazioni proprietarie, capace di:
+Il progetto combina algoritmi deterministici, statistiche calcistiche e
+configurazioni personalizzate della lega. L'intelligenza artificiale generativa
+verrà usata per spiegare le raccomandazioni, non per sostituire i calcoli o
+inventare dati mancanti.
 
-- analizzare le statistiche dei giocatori;
-- assegnare uno score da 0 a 100;
-- stimare un prezzo d'asta consigliato;
-- adattare le valutazioni alle regole della lega;
-- aiutare l'utente nella composizione della rosa;
-- suggerire in futuro la miglior formazione settimanale;
-- integrare un assistente AI per spiegare le raccomandazioni.
+Repository:
+[github.com/Francesco0002/Fantasy-ai](https://github.com/Francesco0002/Fantasy-ai)
 
-> Il progetto è attualmente in fase di sviluppo e utilizza giocatori e statistiche sintetiche a scopo dimostrativo.
+Applicazione:
+[fantasy-ai-eight.vercel.app](https://fantasy-ai-eight.vercel.app)
 
----
+## Stato del progetto
 
-## Stato attuale del progetto
+| Modulo | Stato |
+|---|---|
+| Consultazione e confronto giocatori | Completato |
+| Registrazione e autenticazione | Completato |
+| Persistenza PostgreSQL per utente | Completato |
+| Modalità Asta | Completata e coperta da test |
+| Modalità Stagione Classic | Prossima fase di sviluppo |
+| Dati calcistici reali aggiornati | Integrazione da completare |
+| Assistente AI esplicativo | Pianificato |
 
-La prima pipeline completa è funzionante:
+Il listone attualmente usato dall'interfaccia è ancora un dataset dimostrativo
+di 84 giocatori sintetici. Prima dell'uso reale dovrà essere sostituito da dati
+completi, aggiornati e utilizzabili secondo la licenza della fonte.
+
+## Funzionalità disponibili
+
+### Giocatori
+
+- ricerca per nome o squadra;
+- filtro per ruolo `P`, `D`, `C`, `A`;
+- ordinamento predefinito per ruolo e punteggio Fantasy AI;
+- ordinamento per score, prezzo, titolarità, rischio infortunio e nome;
+- scheda di dettaglio;
+- confronto tra due giocatori;
+- classifica generale e classifica interna al ruolo;
+- intervallo di prezzo consigliato e tetto massimo.
+
+### Account
+
+- registrazione e login;
+- sessione tramite cookie HttpOnly;
+- persistenza dell'accesso dopo il ricaricamento;
+- isolamento delle aste per utente;
+- logout.
+
+### Modalità Asta
+
+- creazione e gestione di più aste;
+- configurazione di partecipanti, budget, rosa e regole della lega;
+- bonus, malus, modificatori difesa e centrocampo;
+- strategia automatica o distribuzione manuale del budget;
+- modalità ruolo per ruolo o chiamata totalmente casuale;
+- registrazione degli acquisti propri e degli avversari;
+- rimozione degli acquisti;
+- aggiornamento di crediti, slot, budget di reparto e offerta massima;
+- prezzi contestuali adattati all'andamento dell'asta;
+- valutazione dell'acquisto e alternative disponibili;
+- rinomina, conclusione, consultazione in sola lettura e riapertura;
+- eliminazione separata e protetta da conferma grafica;
+- salvataggio persistente in PostgreSQL.
+
+La segnalazione `Da evitare` resta visibile quando il prezzo è poco conveniente,
+ma non richiede una seconda conferma. Restano invece vincolanti i controlli che
+impediscono di superare il budget o di non conservare i crediti minimi necessari
+per completare la rosa.
+
+## Prossima fase: Modalità Stagione
+
+La prima versione supporterà il Fantacalcio Classic. L'utente potrà configurare
+la lega, importare la propria rosa da un'asta completata oppure inserirla
+manualmente e richiedere la formazione per una giornata.
+
+Il sistema dovrà:
+
+- escludere squalificati e indisponibili certi;
+- valutare infortunati e giocatori in dubbio;
+- considerare probabilità di titolarità e di subentro;
+- rispettare i moduli consentiti e le regole delle sostituzioni;
+- valutare avversario e difficoltà della partita;
+- proporre la formazione con il punteggio atteso migliore;
+- ordinare la panchina;
+- mostrare alternative e fattori di rischio;
+- spiegare il motivo di ogni scelta e il livello di confidenza.
+
+La rosa importata verrà copiata nella lega stagionale e potrà poi cambiare in
+modo indipendente per scambi e mercato di riparazione.
+
+## Architettura
 
 ```text
-players.csv
-    ↓
-Validazione del dataset
-    ↓
-Calcolo dello score proprietario
-    ↓
-Calcolo dei prezzi d'asta
-    ↓
-API FastAPI
-    ↓
-Frontend Next.js
+Browser
+  ↓
+Next.js su Vercel
+  ↓ /api/backend/*
+Proxy same-origin Next.js
+  ↓
+FastAPI su Render
+  ↓
+PostgreSQL
 ```
 
-Le funzionalità attualmente disponibili sono:
+Il browser non chiama direttamente Render. Tutte le richieste frontend passano
+dal proxy:
 
-- caricamento e validazione del dataset;
-- controllo delle colonne obbligatorie;
-- verifica dei ruoli dei giocatori;
-- calcolo dello score proprietario;
-- classifica generale e classifica per ruolo;
-- configurazione personalizzata della lega;
-- calcolo del prezzo d'asta consigliato;
-- API REST per consultare i giocatori;
-- ricerca per nome o squadra;
-- filtro per ruolo;
-- interfaccia web con schede dei giocatori.
+```text
+frontend/app/api/backend/[...path]/route.ts
+```
 
----
+Il proxy inoltra percorso, query, intestazioni, corpo e cookie usando la
+variabile server-only `BACKEND_API_URL`.
 
-## Tecnologie utilizzate
-
-### Backend
-
-- Python
-- Pandas
-- FastAPI
-- Uvicorn
+## Tecnologie
 
 ### Frontend
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
+- Next.js 16 con App Router;
+- React 19;
+- TypeScript;
+- Tailwind CSS;
+- ESLint;
+- Node Test Runner per i test strategici.
 
-### Dati
+### Backend
 
-- CSV per il prototipo iniziale
-- JSON per la configurazione della lega
+- Python;
+- FastAPI e Uvicorn;
+- SQLAlchemy;
+- Alembic;
+- PostgreSQL con Psycopg 3;
+- JWT e cookie HttpOnly;
+- Argon2 per le password;
+- Pandas e NumPy per la pipeline dati.
 
-In futuro i file CSV potranno essere sostituiti da un database PostgreSQL.
+### Hosting
 
----
+- frontend su Vercel;
+- backend su Render;
+- deploy automatico dopo il push su `main`.
 
-## Struttura del progetto
+## Struttura principale
 
 ```text
 fantasy-ai/
-│
+├── alembic/
+│   └── versions/              # Migrazioni del database
 ├── backend/
-│   ├── __init__.py
-│   ├── check_players.py
-│   ├── check_league_config.py
-│   ├── valuation.py
-│   ├── pricing.py
-│   ├── main.py
-│   └── requirements.txt
-│
+│   ├── main.py                # App FastAPI e API giocatori
+│   ├── auth_routes.py         # Registrazione, login e sessione
+│   ├── auction_routes.py      # API della Modalità Asta
+│   ├── models.py              # Modelli SQLAlchemy
+│   ├── schemas.py             # Schemi Pydantic
+│   ├── valuation.py           # Score proprietario
+│   ├── pricing.py             # Prezzi d'asta
+│   ├── providers/             # Importazione e normalizzazione dati
+│   └── tests/                 # Test backend
 ├── config/
-│   └── league_config.json
-│
+│   └── league_config.json     # Configurazione base della lega
 ├── data/
 │   ├── players.csv
 │   ├── player_valuations.csv
 │   └── player_prices.csv
-│
 ├── frontend/
-│   ├── app/ oppure src/app/
-│   ├── public/
-│   ├── .env.local
-│   ├── package.json
-│   └── ...
-│
-├── .venv/
-│
+│   ├── app/                   # Route Next.js
+│   ├── components/            # UI condivisa
+│   ├── hooks/                 # Stato e chiamate applicative
+│   ├── lib/                   # API, strategia e calcoli d'asta
+│   ├── tests/                 # Test strategici frontend
+│   └── types/                 # Tipi TypeScript
+├── PROJECT_CONTEXT.md         # Stato tecnico dettagliato
 └── README.md
 ```
 
----
+Il frontend usa direttamente la cartella `app` e non contiene una cartella
+`src`.
 
-## Dataset
+## Requisiti locali
 
-Il file principale è:
+- Python compatibile con le dipendenze di `backend/requirements.txt`;
+- Node.js e npm;
+- PostgreSQL locale oppure un database PostgreSQL raggiungibile;
+- Git.
 
-```text
-data/players.csv
+## Configurazione locale
+
+### 1. Clonare il repository
+
+```powershell
+git clone https://github.com/Francesco0002/Fantasy-ai.git
+cd Fantasy-ai
 ```
 
-Il dataset iniziale contiene giocatori sintetici e statistiche simulate.
-
-Ogni giocatore dispone di informazioni come:
-
-- identificativo;
-- nome;
-- squadra;
-- ruolo;
-- età;
-- presenze;
-- partite da titolare;
-- minuti giocati;
-- gol;
-- assist;
-- clean sheet;
-- gol subiti;
-- parate;
-- ammonizioni;
-- espulsioni;
-- rigori segnati;
-- media voto;
-- fantamedia;
-- rischio infortunio;
-- probabilità di titolarità;
-- potenziale di crescita;
-- livello sui calci piazzati.
-
-Il campo:
-
-```text
-data_source
-```
-
-è impostato su:
-
-```text
-synthetic_demo
-```
-
-per indicare che i dati non provengono da una fonte calcistica reale.
-
----
-
-## Algoritmo di valutazione
-
-Il file:
-
-```text
-backend/valuation.py
-```
-
-calcola uno score proprietario da 0 a 100.
-
-Lo score combina cinque componenti:
-
-| Componente | Peso |
-|---|---:|
-| Rendimento | 30% |
-| Titolarità | 25% |
-| Bonus | 20% |
-| Affidabilità | 15% |
-| Potenziale | 10% |
-
-La formula generale è:
-
-```text
-Overall Score =
-    Performance Score × 0.30
-    + Starting Score × 0.25
-    + Bonus Score × 0.20
-    + Reliability Score × 0.15
-    + Potential Score × 0.10
-```
-
-Le statistiche vengono normalizzate separatamente per ruolo, evitando di confrontare direttamente portieri, difensori, centrocampisti e attaccanti.
-
-L'esecuzione genera:
-
-```text
-data/player_valuations.csv
-```
-
----
-
-## Algoritmo dei prezzi d'asta
-
-Il file:
-
-```text
-backend/pricing.py
-```
-
-trasforma lo score proprietario in crediti d'asta.
-
-Il calcolo considera:
-
-- score del giocatore;
-- ruolo;
-- budget iniziale;
-- numero di partecipanti;
-- numero di giocatori da acquistare per ruolo;
-- distribuzione del budget tra i reparti;
-- disponibilità dei giocatori nel listone;
-- limite massimo di spesa per ruolo.
-
-Per ogni giocatore vengono calcolati:
-
-- `base_price`: valore iniziale non arrotondato;
-- `recommended_min`: prezzo considerato conveniente;
-- `recommended_price`: prezzo centrale consigliato;
-- `recommended_max`: limite superiore ragionevole;
-- `absolute_max`: prezzo oltre il quale fermarsi;
-- `market_coverage`: completezza del listone;
-- `price_rank`: posizione del giocatore nel proprio ruolo.
-
-L'esecuzione genera:
-
-```text
-data/player_prices.csv
-```
-
----
-
-## Configurazione della lega
-
-La configurazione è contenuta in:
-
-```text
-config/league_config.json
-```
-
-Esempio:
-
-```json
-{
-  "league_name": "Lega di prova",
-  "participants": 8,
-  "budget_per_team": 500,
-  "minimum_bid": 1,
-  "mode": "classic",
-
-  "roster_slots": {
-    "P": 3,
-    "D": 8,
-    "C": 8,
-    "A": 6
-  },
-
-  "budget_distribution": {
-    "P": 0.08,
-    "D": 0.16,
-    "C": 0.26,
-    "A": 0.50
-  },
-
-  "role_price_caps": {
-    "P": 0.08,
-    "D": 0.12,
-    "C": 0.20,
-    "A": 0.35
-  },
-
-  "score_exponent": 3.0,
-
-  "price_range": {
-    "minimum_multiplier": 0.90,
-    "maximum_multiplier": 1.10,
-    "absolute_max_multiplier": 1.20
-  }
-}
-```
-
-Il file viene validato da:
-
-```text
-backend/check_league_config.py
-```
-
----
-
-## Installazione del backend
-
-### 1. Creare l'ambiente virtuale
-
-Dalla cartella principale del progetto:
+### 2. Preparare il backend
 
 ```powershell
 python -m venv .venv
-```
-
-### 2. Attivare l'ambiente virtuale
-
-Su Windows PowerShell:
-
-```powershell
 .\.venv\Scripts\Activate.ps1
-```
-
-### 3. Installare le dipendenze
-
-```powershell
 python -m pip install -r .\backend\requirements.txt
 ```
 
----
+Nella root del progetto creare `.env`:
 
-## Preparazione dei dati
-
-Prima di avviare il backend è possibile rigenerare valutazioni e prezzi.
-
-### Controllare il dataset
-
-```powershell
-python .\backend\check_players.py
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+AUTH_JWT_SECRET=replace_with_a_secure_random_secret
+AUTH_ACCESS_TOKEN_MINUTES=720
+AUTH_COOKIE_SECURE=false
+AUTH_COOKIE_SAMESITE=lax
 ```
 
-### Controllare la configurazione della lega
+Non committare `.env`, segreti JWT o credenziali del database.
+
+Applicare le migrazioni:
 
 ```powershell
-python .\backend\check_league_config.py
+python -m alembic upgrade head
 ```
 
-### Calcolare le valutazioni
-
-```powershell
-python .\backend\valuation.py
-```
-
-### Calcolare i prezzi
-
-```powershell
-python .\backend\pricing.py
-```
-
----
-
-## Avvio del backend
-
-Dalla cartella principale:
+Avviare FastAPI dalla root:
 
 ```powershell
 python -m uvicorn backend.main:app --reload
 ```
 
-Il backend sarà disponibile su:
+Backend e documentazione interattiva:
 
 ```text
-http://127.0.0.1:8000
+http://localhost:8000
+http://localhost:8000/docs
 ```
 
-La documentazione interattiva delle API sarà disponibile su:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
-## Endpoint disponibili
-
-### Stato dell'applicazione
-
-```http
-GET /
-```
-
-### Controllo del servizio
-
-```http
-GET /health
-```
-
-### Elenco dei giocatori
-
-```http
-GET /players
-```
-
-Parametri disponibili:
-
-| Parametro | Descrizione |
-|---|---|
-| `role` | Filtra per P, D, C oppure A |
-| `search` | Cerca per nome o squadra |
-| `limit` | Limita il numero di risultati |
-
-Esempi:
-
-```text
-http://127.0.0.1:8000/players?role=A
-```
-
-```text
-http://127.0.0.1:8000/players?search=Colombo
-```
-
-```text
-http://127.0.0.1:8000/players?role=C&limit=5
-```
-
-### Dettaglio di un giocatore
-
-```http
-GET /players/{player_id}
-```
-
-Esempio:
-
-```text
-http://127.0.0.1:8000/players/1
-```
-
----
-
-## Installazione del frontend
-
-Entrare nella cartella:
+### 3. Preparare il frontend
 
 ```powershell
-cd .\frontend
-```
-
-Installare le dipendenze:
-
-```powershell
+cd frontend
 npm install
 ```
 
-Il file:
-
-```text
-frontend/.env.local
-```
-
-deve contenere:
+Creare `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+BACKEND_API_URL=http://localhost:8000
 ```
 
----
+`BACKEND_API_URL` è una variabile server-only: non usare il prefisso
+`NEXT_PUBLIC_`.
 
-## Avvio del frontend
-
-Dentro la cartella `frontend`:
+Avviare Next.js:
 
 ```powershell
 npm run dev
 ```
 
-Il sito sarà disponibile su:
+Frontend locale:
 
 ```text
 http://localhost:3000
 ```
 
-Durante lo sviluppo devono essere attivi contemporaneamente due terminali.
+Usare sempre `localhost` per entrambi i servizi, senza alternarlo con
+`127.0.0.1`, per evitare problemi con i cookie.
 
-### Terminale backend
+## Preparazione dei dati dimostrativi
 
-```powershell
-python -m uvicorn backend.main:app --reload
-```
-
-### Terminale frontend
+Dalla root del progetto:
 
 ```powershell
-cd .\frontend
-npm run dev
+python .\backend\check_players.py
+python .\backend\check_league_config.py
+python .\backend\valuation.py
+python .\backend\pricing.py
 ```
 
----
+La pipeline produce:
 
-## Interfaccia attuale
+```text
+data/players.csv
+  ↓ validazione
+data/player_valuations.csv
+  ↓ calcolo prezzi
+data/player_prices.csv
+```
 
-La prima pagina del sito permette di:
+Lo score proprietario è calcolato separatamente per ruolo e combina rendimento,
+titolarità, bonus, affidabilità e potenziale. Il motore prezzi usa score, budget,
+numero di partecipanti, slot, distribuzione per reparto e copertura del listone.
 
-- visualizzare i giocatori;
-- cercare per nome;
-- cercare per squadra;
-- filtrare per ruolo;
-- consultare lo score proprietario;
-- vedere il ranking del giocatore;
-- consultare prezzo conveniente, consigliato e massimo;
-- visualizzare probabilità di titolarità;
-- visualizzare rischio infortunio.
+## API principali
 
----
+### Servizio e giocatori
 
-## Limitazioni attuali
+```http
+GET /health
+GET /health/database
+GET /players
+GET /players/{player_id}
+```
 
-La versione corrente presenta alcune limitazioni:
+`GET /players` supporta `role`, `search` e `limit`.
 
-- i dati sono sintetici;
-- il listone contiene solamente 84 giocatori;
-- non sono ancora presenti dati aggiornati automaticamente;
-- i coefficienti dell'algoritmo sono sperimentali;
-- il sistema supporta soltanto il Fantacalcio Classic;
-- non è ancora possibile registrare gli acquisti;
-- non è ancora presente un database;
-- non è ancora integrata un'intelligenza artificiale generativa;
-- non è ancora disponibile la gestione settimanale della formazione.
+### Autenticazione
 
----
+```http
+POST /auth/register
+POST /auth/login
+GET  /auth/me
+POST /auth/logout
+```
+
+### Aste
+
+```http
+GET    /auction-sessions
+POST   /auction-sessions
+GET    /auction-sessions/{session_id}
+PATCH  /auction-sessions/{session_id}
+DELETE /auction-sessions/{session_id}
+
+GET    /auction-sessions/{session_id}/contextual-prices
+POST   /auction-sessions/{session_id}/purchases
+DELETE /auction-sessions/{session_id}/purchases/{player_id}
+```
+
+Le API d'asta sono protette e ogni query è filtrata anche per l'identificativo
+dell'utente autenticato.
+
+## Test e controlli
+
+Test backend, dalla root:
+
+```powershell
+python -m unittest discover -s backend/tests -v
+```
+
+Test strategici frontend:
+
+```powershell
+cd frontend
+npm run test:auction
+```
+
+Lint e build di produzione:
+
+```powershell
+npm run lint
+npm run build
+```
+
+La suite attuale comprende:
+
+- 4 test backend per aggiornamento, rinomina e stato delle aste;
+- 9 test frontend per budget, modificatori, redistribuzione, modalità d'asta,
+  valutazione del prezzo e crediti minimi.
+
+`frontend/next-env.d.ts` è generato da Next.js e non deve essere incluso nei
+commit se la build lo modifica localmente.
+
+## Deploy
+
+### Render
+
+Build command:
+
+```text
+pip install -r backend/requirements.txt && python -m alembic upgrade head
+```
+
+Start command:
+
+```text
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+```
+
+Variabili principali:
+
+```env
+DATABASE_URL=...
+AUTH_JWT_SECRET=...
+AUTH_ACCESS_TOKEN_MINUTES=720
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAMESITE=lax
+```
+
+### Vercel
+
+Variabile per Production e Preview:
+
+```env
+BACKEND_API_URL=https://fantasy-ai-api.onrender.com
+```
+
+Dopo ogni push attendere che Render sia `Live` e Vercel sia `Ready`, quindi
+verificare login, persistenza, creazione e ripresa dell'asta, acquisti,
+conclusione, riapertura, rinomina ed eliminazione.
 
 ## Roadmap
 
-### Fase 1 — Motore d'asta
+### Fase 1 — Fondamenta e Modalità Asta
 
-- [x] Dataset iniziale
-- [x] Validazione dei dati
-- [x] Score proprietario
-- [x] Configurazione della lega
-- [x] Prezzi d'asta
-- [x] API FastAPI
-- [x] Prima interfaccia Next.js
-- [ ] Dettaglio completo del giocatore
-- [ ] Registrazione degli acquisti
-- [ ] Gestione del budget residuo
-- [ ] Gestione delle rose degli avversari
-- [ ] Aggiornamento dinamico dei prezzi
-- [ ] Suggerimento delle alternative disponibili
+- [x] dataset e validazione iniziali;
+- [x] score proprietario e prezzi d'asta;
+- [x] API giocatori, dettaglio e confronto;
+- [x] autenticazione e PostgreSQL;
+- [x] configurazione completa della lega;
+- [x] più aste indipendenti per utente;
+- [x] acquisti propri e degli avversari;
+- [x] budget dinamico, consigli e alternative;
+- [x] conclusione, sola lettura, riapertura e rinomina;
+- [x] test automatici della strategia e delle API di aggiornamento.
 
-### Fase 2 — Dati reali
+### Fase 2 — Modalità Stagione Classic
 
-- [ ] Individuazione di fonti con licenza compatibile
-- [ ] Importazione delle rose reali
-- [ ] Importazione delle statistiche storiche
-- [ ] Gestione degli identificativi dei giocatori
-- [ ] Aggiornamento di infortuni e squalifiche
-- [ ] Stima proprietaria della titolarità
+- [ ] modelli database e migrazioni per lega e rosa;
+- [ ] creazione e configurazione della lega stagionale;
+- [ ] importazione rosa da un'asta completata;
+- [ ] inserimento e modifica manuale della rosa;
+- [ ] schema normalizzato dei dati della giornata;
+- [ ] gestione di indisponibili, squalificati, infortunati e dubbi;
+- [ ] ottimizzatore deterministico dei moduli e dei titolari;
+- [ ] panchina ordinata e alternative;
+- [ ] motivazioni, rischi e confidenza;
+- [ ] test e verifica in produzione.
 
-### Fase 3 — Gestione della stagione
+Le prime entità previste sono:
 
-- [ ] Creazione delle leghe
-- [ ] Salvataggio delle rose
-- [ ] Configurazione dei moduli
-- [ ] Formazione consigliata
-- [ ] Ordinamento della panchina
-- [ ] Gestione degli indisponibili
-- [ ] Ottimizzazione della formazione
+```text
+SeasonLeague
+SeasonRosterPlayer
+SeasonLineup
+SeasonLineupPlayer
+```
 
-### Fase 4 — Intelligenza artificiale
+### Fase 3 — Dati reali
 
-- [ ] Assistente conversazionale
-- [ ] Confronto tra giocatori
-- [ ] Spiegazione delle valutazioni
-- [ ] Strategia personalizzata per l'asta
-- [ ] Motivazione delle scelte di formazione
-- [ ] Riepilogo settimanale della rosa
+- [ ] fonti con licenza compatibile;
+- [ ] anagrafica e identificativi normalizzati;
+- [ ] statistiche storiche complete;
+- [ ] calendario e difficoltà delle partite;
+- [ ] aggiornamento di infortuni e squalifiche;
+- [ ] stima proprietaria di titolarità e subentro;
+- [ ] tracciamento di fonte, timestamp e qualità del dato.
 
----
+### Fase 4 — AI e funzionalità avanzate
 
-## Utilizzo dei dati
+- [ ] spiegazioni in linguaggio naturale;
+- [ ] assistente conversazionale;
+- [ ] riepilogo settimanale della rosa;
+- [ ] analisi di scambi e mercato di riparazione;
+- [ ] supporto Mantra dopo la stabilizzazione della modalità Classic.
 
-I dati presenti nella versione iniziale sono stati generati artificialmente e vengono utilizzati esclusivamente per sviluppare e testare il sistema.
+## Principi del progetto
 
-Il progetto non utilizza scraping di siti fantacalcistici e non ripubblica dati proprietari di terze parti.
+- le decisioni numeriche devono essere riproducibili e testabili;
+- l'AI spiega i risultati, ma non sostituisce il motore di calcolo;
+- i dati mancanti devono essere dichiarati, non inventati;
+- ogni dato futuro deve conservare fonte e data di aggiornamento;
+- i payload dei provider devono essere convertiti in uno schema interno comune;
+- le informazioni e le aste di utenti diversi devono restare isolate;
+- segreti e credenziali non devono mai essere salvati nel repository.
 
-Prima di integrare dati calcistici reali sarà necessario verificare:
-
-- licenza della fonte;
-- possibilità di memorizzazione;
-- possibilità di visualizzazione pubblica;
-- possibilità di utilizzo commerciale;
-- possibilità di creare valutazioni derivate;
-- possibilità di utilizzare i dati come input per sistemi AI.
-
----
-
-## Obiettivo finale
-
-L'obiettivo finale è costruire un assistente fantacalcistico completo che supporti l'utente:
-
-1. prima dell'asta;
-2. durante l'asta;
-3. nella gestione della rosa;
-4. nella scelta della formazione;
-5. nell'analisi degli scambi;
-6. durante l'intera stagione.
-
-Le decisioni numeriche saranno prodotte da algoritmi deterministici e modelli statistici, mentre l'intelligenza artificiale verrà utilizzata per spiegare i risultati e interagire con l'utente in linguaggio naturale.
+Per lo stato tecnico dettagliato e le regole da seguire nelle prossime sessioni
+di sviluppo, consultare [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md).
