@@ -74,6 +74,10 @@ const ROLE_OPTIONS = [
  */
 const SORT_OPTIONS = [
   {
+    value: "role_asc",
+    label: "Ruolo",
+  },
+  {
     value: "score_desc",
     label: "Punteggio Fantasy AI",
   },

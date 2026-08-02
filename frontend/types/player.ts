@@ -21,6 +21,7 @@ export type PlayerRole = "P" | "D" | "C" | "A";
  * l'elenco dei giocatori.
  */
 export type SortOption =
+  | "role_asc"
   | "score_desc"
   | "price_desc"
   | "starting_desc"

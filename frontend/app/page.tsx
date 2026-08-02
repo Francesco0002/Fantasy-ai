@@ -65,6 +65,18 @@ import type {
 } from "../types/player";
 
 
+/*
+ * Ordine utilizzato per mostrare i ruoli nel listone:
+ * Portieri, Difensori, Centrocampisti e Attaccanti.
+ */
+const ROLE_ORDER: Record<Player["role"], number> = {
+  P: 0,
+  D: 1,
+  C: 2,
+  A: 3,
+};
+
+
 export default function Home() {
 
   const {
@@ -96,13 +108,13 @@ export default function Home() {
 
 
   /*
-    * Criterio di ordinamento attualmente selezionato.
-    *
-    * Come valore iniziale mostriamo prima
-    * i giocatori con il Punteggio Fantasy AI più alto.
-    */
+  * Criterio di ordinamento attualmente selezionato.
+  *
+  * Come valore iniziale mostriamo i giocatori
+  * ordinati per ruolo: P → D → C → A.
+  */
   const [sortBy, setSortBy] =
-    useState<SortOption>("score_desc");
+    useState<SortOption>("role_asc");
 
 
   /*
@@ -127,6 +139,31 @@ export default function Home() {
     const playersCopy = [...players];
 
     switch (sortBy) {
+      case "role_asc":
+        return playersCopy.sort((firstPlayer, secondPlayer) => {
+          /*
+           * Prima confrontiamo il ruolo:
+           * P → D → C → A.
+           */
+          const roleDifference =
+            ROLE_ORDER[firstPlayer.role] -
+            ROLE_ORDER[secondPlayer.role];
+
+          if (roleDifference !== 0) {
+            return roleDifference;
+          }
+
+          /*
+           * I giocatori dello stesso ruolo vengono ordinati
+           * dal punteggio Fantasy AI più alto al più basso.
+           */
+          return (
+            secondPlayer.overall_score -
+            firstPlayer.overall_score
+          );
+        });
+
+
       /*
       * Punteggio Fantasy AI:
       * dal valore più alto al più basso.
@@ -389,7 +426,7 @@ export default function Home() {
         {!isLoading &&
           !error &&
           players.length > 0 && (
-            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <section className="space-y-3">
               {sortedPlayers.map((player) => (
                 <PlayerCard
                   key={player.player_id}
