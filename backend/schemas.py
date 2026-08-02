@@ -1,6 +1,6 @@
 """
 Schemi Pydantic utilizzati dagli endpoint
-della modalità asta.
+di Fantasy AI.
 
 Gli schemi:
 
@@ -16,6 +16,7 @@ from uuid import UUID
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     EmailStr,
     Field,
     field_validator,
@@ -980,4 +981,111 @@ class AuctionSessionListResponse(BaseModel):
 
     sessions: list[
         AuctionSessionSummaryResponse
+    ]
+
+
+class SeasonLeagueCreate(BaseModel):
+    """
+    Dati minimi per creare una lega stagionale.
+
+    Il proprietario e la modalità non vengono
+    accettati dal client: li decide il backend.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+    leagueName: str = Field(
+        min_length=1,
+        max_length=120,
+    )
+
+    teamName: str = Field(
+        min_length=1,
+        max_length=120,
+    )
+
+    season: str = Field(
+        pattern=r"^\d{4}/\d{2}$",
+    )
+
+    @field_validator(
+        "leagueName",
+        "teamName",
+    )
+    @classmethod
+    def normalize_names(
+        cls,
+        value: str,
+    ) -> str:
+        """Elimina spazi doppi e laterali."""
+
+        normalized_value = " ".join(
+            value.split()
+        )
+
+        if normalized_value == "":
+            raise ValueError(
+                "Il nome non può essere vuoto."
+            )
+
+        return normalized_value
+
+    @field_validator(
+        "season",
+    )
+    @classmethod
+    def validate_season_sequence(
+        cls,
+        value: str,
+    ) -> str:
+        """
+        Controlla che 2026/27 rappresenti
+        due anni consecutivi.
+        """
+
+        start_year = int(
+            value[:4]
+        )
+
+        expected_end_year = (
+            start_year + 1
+        ) % 100
+
+        if int(value[-2:]) != expected_end_year:
+            raise ValueError(
+                "La stagione deve contenere "
+                "due anni consecutivi, "
+                "ad esempio 2026/27."
+            )
+
+        return value
+
+
+class SeasonLeagueResponse(BaseModel):
+    """Lega stagionale restituita dall'API."""
+
+    id: UUID
+
+    leagueName: str
+    teamName: str
+    season: str
+
+    mode: Literal["CLASSIC"]
+
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class SeasonLeagueListResponse(BaseModel):
+    """
+    Elenco delle leghe appartenenti
+    all'utente autenticato.
+    """
+
+    count: int
+
+    leagues: list[
+        SeasonLeagueResponse
     ]

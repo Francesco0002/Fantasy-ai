@@ -1,13 +1,4 @@
-"""
-Modelli SQLAlchemy utilizzati
-dalla modalità asta.
-
-In questa prima versione salviamo:
-
-- configurazione della sessione;
-- squadre partecipanti;
-- acquisti registrati.
-"""
+"""Modelli SQLAlchemy persistenti di Fantasy AI."""
 
 from __future__ import annotations
 
@@ -116,6 +107,16 @@ class User(Base):
         list["AuctionSession"]
     ] = relationship(
         back_populates="user",
+    )
+
+    # Leghe create dall'utente
+    # per la Modalità Stagione.
+    season_leagues: Mapped[
+        list["SeasonLeague"]
+    ] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -551,4 +552,99 @@ class Purchase(Base):
 
     team: Mapped["Team"] = relationship(
         back_populates="purchases",
+    )
+
+
+class SeasonLeague(Base):
+    """
+    Lega personale della Modalità Stagione.
+
+    In questo primo step salviamo soltanto
+    l'identità della lega. Regole, rosa e
+    formazioni verranno aggiunte separatamente.
+    """
+
+    __tablename__ = "season_leagues"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "season",
+            "league_name",
+            name=(
+                "uq_season_leagues_"
+                "user_season_name"
+            ),
+        ),
+        CheckConstraint(
+            "mode IN ('CLASSIC')",
+            name=(
+                "ck_season_leagues_"
+                "mode_valid"
+            ),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+
+    # Il proprietario viene sempre ricavato
+    # dal cookie dell'utente autenticato.
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "users.id",
+            name=(
+                "fk_season_leagues_"
+                "user_id_users"
+            ),
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    league_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    team_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    # Formato interno, ad esempio 2026/27.
+    season: Mapped[str] = mapped_column(
+        String(7),
+        nullable=False,
+    )
+
+    # Iniziamo dal Fantacalcio Classic.
+    # Il frontend non sceglie questo valore.
+    mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="CLASSIC",
+        server_default="CLASSIC",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    user: Mapped["User"] = relationship(
+        back_populates="season_leagues",
     )

@@ -50,6 +50,12 @@ from backend.auth_routes import (
     router as auth_router,
 )
 
+# Endpoint del primo step
+# della Modalità Stagione.
+from backend.season_routes import (
+    router as season_router,
+)
+
 # Risaliamo dalla cartella backend
 # alla cartella principale fantasy-ai.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -131,6 +137,12 @@ app.include_router(
 # dedicati alle sessioni d'asta.
 app.include_router(
     auction_router
+)
+
+# Aggiungiamo creazione e consultazione
+# delle leghe stagionali personali.
+app.include_router(
+    season_router
 )
 
 
