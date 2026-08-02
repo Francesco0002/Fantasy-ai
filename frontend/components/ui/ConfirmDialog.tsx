@@ -2,7 +2,12 @@
 
 import {
   useEffect,
+  useSyncExternalStore,
 } from "react";
+
+import {
+  createPortal,
+} from "react-dom";
 
 
 type ConfirmDialogProps = {
@@ -16,6 +21,25 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   onCancel: () => void;
 };
+
+
+/*
+ * Permette di creare il portal soltanto
+ * dopo l'idratazione nel browser.
+ */
+function subscribeToPortalMount() {
+  return () => { };
+}
+
+
+function getPortalClientSnapshot() {
+  return true;
+}
+
+
+function getPortalServerSnapshot() {
+  return false;
+}
 
 
 /*
@@ -33,6 +57,17 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  /*
+   * La finestra viene renderizzata direttamente
+   * nel body, sopra anche ai pannelli laterali.
+   */
+  const isPortalMounted =
+    useSyncExternalStore(
+      subscribeToPortalMount,
+      getPortalClientSnapshot,
+      getPortalServerSnapshot,
+    );
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -66,7 +101,7 @@ export default function ConfirmDialog({
     onCancel,
   ]);
 
-  if (!isOpen) {
+  if (!isOpen || !isPortalMounted) {
     return null;
   }
 
@@ -75,7 +110,7 @@ export default function ConfirmDialog({
       ? "bg-red-700 hover:bg-red-800"
       : "bg-emerald-700 hover:bg-emerald-800";
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-950/50 p-4"
       role="presentation"
@@ -132,6 +167,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
