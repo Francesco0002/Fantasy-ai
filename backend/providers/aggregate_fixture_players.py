@@ -88,6 +88,65 @@ def safe_float(value: Any) -> float:
         return 0.0
 
 
+def calculate_fantasy_average(
+    role: str,
+    appearances: int,
+    average_rating: float,
+    goals: int,
+    assists: int,
+    goals_conceded: int,
+    penalties_saved: int,
+    yellow_cards: int,
+    red_cards: int,
+) -> float:
+    """
+    Calcola una prima stima della fantamedia
+    usando i dati aggregati delle partite.
+
+    Bonus e malus:
+    - +3 per ogni gol;
+    - +1 per ogni assist;
+    - -0,5 per ogni ammonizione;
+    - -1 per ogni espulsione;
+    - per i portieri:
+      -1 per ogni gol subito;
+      +3 per ogni rigore parato.
+    """
+
+    if appearances <= 0:
+        return 0.0
+
+    total_points = (
+        average_rating
+        * appearances
+    )
+
+    total_points += goals * 3
+    total_points += assists
+    total_points -= yellow_cards * 0.5
+    total_points -= red_cards
+
+    if role == "P":
+        total_points -= goals_conceded
+        total_points += penalties_saved * 3
+
+    fantasy_average = (
+        total_points
+        / appearances
+    )
+
+    return round(
+        min(
+            max(
+                fantasy_average,
+                0.0,
+            ),
+            15.0,
+        ),
+        2,
+    )
+
+
 def normalize_role(value: Any) -> str:
     """
     Converte il ruolo API nel formato
@@ -155,6 +214,70 @@ def output_path(
         / f"season_{season}"
         / "player_season_stats_partial.csv"
     )
+
+
+def player_profiles_path(
+    season: int,
+) -> Path:
+    """
+    Restituisce il percorso del CSV
+    contenente i profili anagrafici.
+    """
+
+    return (
+        PROJECT_ROOT
+        / "data"
+        / "raw"
+        / f"api_football_players_{season}.csv"
+    )
+
+
+def load_player_ages(
+    season: int,
+) -> dict[int, int]:
+    """
+    Carica l'associazione player_id -> age
+    dal CSV generato da api_football.py.
+    """
+
+    path = player_profiles_path(
+        season
+    )
+
+    if not path.exists():
+        raise FileNotFoundError(
+            "CSV dei profili anagrafici non trovato: "
+            f"{path}"
+        )
+
+    dataframe = pd.read_csv(
+        path,
+        usecols=[
+            "player_id",
+            "age",
+        ],
+    )
+
+    player_ages: dict[int, int] = {}
+
+    for row in dataframe.itertuples(
+        index=False
+    ):
+        player_id = safe_int(
+            row.player_id
+        )
+
+        age = safe_int(
+            row.age
+        )
+
+        if (
+            player_id > 0
+            and 15 <= age <= 50
+        ):
+            player_ages[player_id] = age
+
+    return player_ages
 
 
 def load_snapshot(
@@ -512,6 +635,7 @@ def choose_primary_value(
 
 def build_rows(
     players: dict[int, dict[str, Any]],
+    player_ages: dict[int, int],
     season: int,
     snapshot_count: int,
 ) -> list[dict[str, Any]]:
@@ -525,6 +649,14 @@ def build_rows(
     ] = []
 
     for record in players.values():
+        player_id = safe_int(
+            record["player_id"]
+        )
+
+        age = player_ages.get(
+            player_id
+        )
+
         appearances = len(
             record["fixture_ids"]
         )
@@ -645,10 +777,36 @@ def build_rows(
             )
         )
 
+        fantasy_average = (
+            calculate_fantasy_average(
+                role=primary_role,
+                appearances=appearances,
+                average_rating=average_rating,
+                goals=safe_int(
+                    record["goals"]
+                ),
+                assists=safe_int(
+                    record["assists"]
+                ),
+                goals_conceded=safe_int(
+                    record["goals_conceded"]
+                ),
+                penalties_saved=safe_int(
+                    record["penalties_saved"]
+                ),
+                yellow_cards=safe_int(
+                    record["yellow_cards"]
+                ),
+                red_cards=safe_int(
+                    record["red_cards"]
+                ),
+            )
+        )
+
         rows.append(
             {
                 "player_id":
-                    record["player_id"],
+                    player_id,
 
                 "name":
                     record["name"],
@@ -661,6 +819,9 @@ def build_rows(
 
                 "role":
                     primary_role,
+
+                "age":
+                    age,
 
                 "season":
                     season,
@@ -703,6 +864,9 @@ def build_rows(
                         average_rating,
                         3,
                     ),
+
+                "fantasy_average_last_season":
+                    fantasy_average,
                     
                 "rating_matches":
                     rating_matches,
@@ -761,6 +925,21 @@ def main() -> None:
 
     arguments = parse_arguments()
 
+    try:
+        player_ages = load_player_ages(
+            arguments.season
+        )
+
+    except (
+        OSError,
+        ValueError,
+    ) as error:
+        print(
+            "Impossibile caricare "
+            f"le età dei giocatori: {error}"
+        )
+        return
+
     directory = snapshots_directory(
         arguments.season
     )
@@ -818,6 +997,7 @@ def main() -> None:
 
     rows = build_rows(
         players=players,
+        player_ages=player_ages,
         season=arguments.season,
         snapshot_count=valid_snapshots,
     )

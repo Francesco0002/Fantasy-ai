@@ -18,10 +18,12 @@ import {
   deleteAuctionPurchase,
   deleteAuctionSession,
   fetchAuctionSessionById,
+  fetchContextualPlayerPrices,
 } from "../lib/api";
 
 import type {
   AuctionSessionApiResponse,
+  ContextualPlayerPricesApiResponse,
 } from "../lib/api";
 
 import {
@@ -334,6 +336,36 @@ export function useAuctionSession() {
 
 
   /*
+ * Quotazioni calcolate in base
+ * alle impostazioni dell'asta attiva.
+ */
+  /*
+ * Conserviamo l'intera risposta per associare
+ * sempre le quotazioni alla corretta asta.
+ */
+  const [
+    storedContextualPrices,
+    setContextualPrices,
+  ] = useState<
+    ContextualPlayerPricesApiResponse | null
+  >(null);
+
+
+  /*
+   * Esponiamo le quotazioni soltanto quando
+   * appartengono all'utente e all'asta attivi.
+   */
+  const contextualPrices =
+    user &&
+      stateUserId === user.id &&
+      storedContextualPrices !== null &&
+      storedContextualPrices.sessionId ===
+      storedSession?.id
+      ? storedContextualPrices.players
+      : [];
+
+
+  /*
    * Non esponiamo mai una sessione rimasta
    * in memoria dopo un cambio di account.
    */
@@ -342,6 +374,54 @@ export function useAuctionSession() {
       stateUserId === user.id
       ? storedSession
       : null;
+
+
+  const activeSessionId =
+    session?.id ?? null;
+
+
+  /*
+   * Ogni volta che cambia l'asta attiva,
+   * carichiamo le relative quotazioni.
+   *
+   * AbortController interrompe la richiesta
+   * se l'utente cambia asta o lascia la pagina.
+   */
+  useEffect(() => {
+    if (!activeSessionId) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void fetchContextualPlayerPrices(
+      activeSessionId,
+      controller.signal,
+    )
+      .then((response) => {
+        if (!controller.signal.aborted) {
+          setContextualPrices(response);
+        }
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
+
+        /*
+         * Un errore nelle quotazioni non deve
+         * impedire il caricamento dell'asta.
+         */
+        setContextualPrices(null);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [activeSessionId]);
 
 
   /*
@@ -940,6 +1020,7 @@ export function useAuctionSession() {
 
   return {
     session,
+    contextualPrices,
     isStorageReady,
     actionError,
 

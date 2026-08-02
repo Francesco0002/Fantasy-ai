@@ -6,15 +6,18 @@ from math import ceil, floor
 # e calcolare i prezzi dei giocatori.
 import pandas as pd
 
-# Importiamo la funzione che legge e controlla players.csv.
-from check_players import load_players, PROJECT_ROOT
+from backend.check_players import (
+    PROJECT_ROOT,
+    load_players,
+)
 
-# Importiamo la configurazione della lega.
-from check_league_config import load_league_config
+from backend.check_league_config import (
+    load_league_config,
+)
 
-# Importiamo il motore che calcola lo score
-# proprietario di ogni giocatore.
-from valuation import calculate_player_scores
+from backend.valuation import (
+    calculate_player_scores,
+)
 
 
 # Percorso del file che conterrà i prezzi d'asta.
@@ -125,9 +128,13 @@ def calculate_auction_prices(
             * config["roster_slots"][role]
         )
 
-        # Se non abbiamo giocatori per il ruolo,
-        # passiamo direttamente al ruolo successivo.
-        if available_players == 0:
+        # Se il listone non contiene giocatori del ruolo
+        # oppure la lega non prevede slot per quel ruolo,
+        # lasciamo a zero tutte le relative quotazioni.
+        if (
+            available_players == 0
+            or required_players == 0
+        ):
             continue
 
         # Percentuale di copertura del listone.

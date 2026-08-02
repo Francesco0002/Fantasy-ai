@@ -50,9 +50,26 @@ from backend.schemas import (
     AuctionSessionListResponse,
     AuctionSessionResponse,
     AuctionSessionSummaryResponse,
+    ContextualPlayerPriceResponse,
+    ContextualPlayerPricesResponse,
     PurchaseCreate,
     PurchaseResponse,
     TeamResponse,
+)
+
+
+# Funzioni utilizzate per ricalcolare
+# le quotazioni in base alla singola asta.
+from backend.check_league_config import (
+    load_league_config,
+)
+
+from backend.check_players import (
+    load_players,
+)
+
+from backend.pricing import (
+    calculate_auction_prices,
 )
 
 
@@ -62,6 +79,44 @@ router = APIRouter(
     prefix="/auction-sessions",
     tags=["Auction sessions"],
 )
+
+
+def create_contextual_pricing_config(
+    auction_session: AuctionSession,
+) -> dict:
+    """
+    Costruisce la configurazione richiesta
+    dal motore dei prezzi utilizzando
+    i parametri della sessione d'asta.
+
+    I parametri tecnici non configurabili
+    dal frontend restano quelli definiti
+    nella configurazione generale.
+    """
+
+    config = load_league_config()
+
+    config["participants"] = (
+        auction_session.participants
+    )
+
+    config["budget_per_team"] = (
+        auction_session.starting_budget
+    )
+
+    config["minimum_bid"] = (
+        auction_session.minimum_bid
+    )
+
+    config["roster_slots"] = dict(
+        auction_session.roster_slots
+    )
+
+    config["budget_distribution"] = dict(
+        auction_session.budget_distribution
+    )
+
+    return config
 
 
 def load_auction_session(
@@ -784,6 +839,127 @@ def list_auction_sessions(
         ),
 
         sessions=session_summaries,
+    )
+
+
+@router.get(
+    "/{session_id}/contextual-prices",
+    response_model=ContextualPlayerPricesResponse,
+)
+def get_contextual_player_prices(
+    session_id: UUID,
+
+    current_user: User = Depends(
+        get_current_user
+    ),
+
+    database: Session = Depends(
+        get_database_session
+    ),
+) -> ContextualPlayerPricesResponse:
+    """
+    Ricalcola le quotazioni dei giocatori
+    utilizzando le impostazioni della
+    specifica sessione d'asta.
+    """
+
+    # Recuperiamo soltanto una sessione
+    # appartenente all'utente autenticato.
+    auction_session = load_auction_session(
+        database,
+        session_id,
+        current_user.id,
+    )
+
+    if auction_session is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Sessione d'asta "
+                "non trovata."
+            ),
+        )
+
+    try:
+        # Carichiamo i dati originali dei giocatori.
+        players = load_players()
+
+        # Convertiamo le impostazioni salvate
+        # nel formato richiesto dal motore prezzi.
+        pricing_config = (
+            create_contextual_pricing_config(
+                auction_session
+            )
+        )
+
+        # Calcoliamo le nuove quotazioni
+        # senza modificare i CSV originali.
+        contextual_prices = (
+            calculate_auction_prices(
+                players,
+                pricing_config,
+            )
+        )
+
+    except (
+        FileNotFoundError,
+        KeyError,
+        ValueError,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Non è possibile calcolare "
+                "le quotazioni contestuali: "
+                f"{error}"
+            ),
+        ) from error
+
+    # Convertiamo esplicitamente i valori Pandas
+    # nei tipi Python attesi dagli schemi Pydantic.
+    price_records = [
+        ContextualPlayerPriceResponse(
+            player_id=int(
+                row.player_id
+            ),
+
+            base_price=float(
+                row.base_price
+            ),
+
+            recommended_min=int(
+                row.recommended_min
+            ),
+
+            recommended_price=int(
+                row.recommended_price
+            ),
+
+            recommended_max=int(
+                row.recommended_max
+            ),
+
+            absolute_max=int(
+                row.absolute_max
+            ),
+
+            market_coverage=float(
+                row.market_coverage
+            ),
+
+            price_rank=int(
+                row.price_rank
+            ),
+        )
+        for row in contextual_prices.itertuples(
+            index=False
+        )
+    ]
+
+    return ContextualPlayerPricesResponse(
+        sessionId=auction_session.id,
+        count=len(price_records),
+        players=price_records,
     )
 
 

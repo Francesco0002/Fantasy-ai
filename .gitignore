@@ -39,3 +39,6 @@ data/backups/
 !data/raw/.gitkeep
 
 next-env.d.ts
+
+# TypeScript incremental build information
+*.tsbuildinfo

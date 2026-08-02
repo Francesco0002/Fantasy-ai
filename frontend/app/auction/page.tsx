@@ -63,6 +63,7 @@ export default function AuctionPage() {
   */
   const {
     session,
+    contextualPrices,
     isStorageReady,
     actionError,
     myPurchases,
@@ -336,6 +337,7 @@ export default function AuctionPage() {
               {/* Ricerca e registrazione degli acquisti */}
               <AuctionMarket
                 config={startedConfig}
+                contextualPrices={contextualPrices}
                 remainingBudget={
                   session?.remainingBudget ?? 0
                 }

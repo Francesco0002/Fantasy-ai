@@ -72,6 +72,15 @@ import type {
 
 
 /*
+ * Quotazione ricalcolata dal backend
+ * per la specifica sessione d'asta.
+ */
+import type {
+  ContextualPlayerPriceApiResponse,
+} from "../../lib/api";
+
+
+/*
  * Logica dell'assistente strategico
  * per valutare il prezzo inserito.
  */
@@ -95,6 +104,13 @@ type AuctionMarketProps = {
   >;
 
   config: AuctionConfig;
+
+  /*
+  * Quotazioni iniziali calcolate
+  * secondo le impostazioni dell'asta.
+  */
+  contextualPrices:
+  ContextualPlayerPriceApiResponse[];
 
   remainingBudget: number;
 
@@ -245,6 +261,7 @@ function formatPercentage(
  */
 export default function AuctionMarket({
   config,
+  contextualPrices,
   remainingBudget,
   remainingSlots,
   dynamicRoleBudgets,
@@ -266,11 +283,13 @@ export default function AuctionMarket({
     useState("");
 
   /*
-   * Giocatore selezionato dalla lista.
-   */
+  * Conserva il giocatore selezionato
+  * prima dell'applicazione delle
+  * quotazioni contestuali.
+  */
   const [
-    selectedPlayer,
-    setSelectedPlayer,
+    storedSelectedPlayer,
+    setStoredSelectedPlayer,
   ] = useState<Player | null>(null);
 
   /*
@@ -447,12 +466,132 @@ export default function AuctionMarket({
 
 
   /*
+  * Associamo rapidamente ogni quotazione
+  * contestuale al relativo giocatore.
+  */
+  const contextualPricesByPlayerId =
+    useMemo(() => {
+      return new Map(
+        contextualPrices.map(
+          (price) => [
+            price.player_id,
+            price,
+          ],
+        ),
+      );
+    }, [contextualPrices]);
+
+
+  /*
+  * Applica al giocatore selezionato
+  * la quotazione contestuale dell'asta.
+  *
+  * Essendo un valore derivato non serve
+  * sincronizzarlo tramite useEffect.
+  */
+  const selectedPlayer = useMemo(() => {
+    if (!storedSelectedPlayer) {
+      return null;
+    }
+
+    const contextualPrice =
+      contextualPricesByPlayerId.get(
+        storedSelectedPlayer.player_id,
+      );
+
+    /*
+     * Finché il backend non restituisce
+     * il prezzo contestuale manteniamo
+     * i valori generali del giocatore.
+     */
+    if (!contextualPrice) {
+      return storedSelectedPlayer;
+    }
+
+    return {
+      ...storedSelectedPlayer,
+
+      base_price:
+        contextualPrice.base_price,
+
+      recommended_min:
+        contextualPrice.recommended_min,
+
+      recommended_price:
+        contextualPrice.recommended_price,
+
+      recommended_max:
+        contextualPrice.recommended_max,
+
+      absolute_max:
+        contextualPrice.absolute_max,
+
+      market_coverage:
+        contextualPrice.market_coverage,
+
+      price_rank:
+        contextualPrice.price_rank,
+    };
+  }, [
+    storedSelectedPlayer,
+    contextualPricesByPlayerId,
+  ]);
+
+
+  /*
    * Escludiamo i giocatori acquistati
    * e ordiniamo gli altri per punteggio.
    */
   const availablePlayers =
     useMemo(() => {
-      return [...players]
+      return players
+        .map((player) => {
+          const contextualPrice =
+            contextualPricesByPlayerId.get(
+              player.player_id,
+            );
+
+          /*
+           * Durante il caricamento o in caso
+           * di prezzo mancante conserviamo
+           * la quotazione generale del giocatore.
+           */
+          if (!contextualPrice) {
+            return player;
+          }
+
+          /*
+           * Sostituiamo le quotazioni generali
+           * con quelle calcolate per questa asta.
+           *
+           * Tutta la successiva logica dinamica
+           * partirà quindi dai valori contestuali.
+           */
+          return {
+            ...player,
+
+            base_price:
+              contextualPrice.base_price,
+
+            recommended_min:
+              contextualPrice.recommended_min,
+
+            recommended_price:
+              contextualPrice.recommended_price,
+
+            recommended_max:
+              contextualPrice.recommended_max,
+
+            absolute_max:
+              contextualPrice.absolute_max,
+
+            market_coverage:
+              contextualPrice.market_coverage,
+
+            price_rank:
+              contextualPrice.price_rank,
+          };
+        })
         .filter(
           (player) =>
             !purchasedPlayerIds.has(
@@ -467,7 +606,11 @@ export default function AuctionMarket({
             secondPlayer.overall_score -
             firstPlayer.overall_score,
         );
-    }, [players, purchasedPlayerIds]);
+    }, [
+      players,
+      purchasedPlayerIds,
+      contextualPricesByPlayerId,
+    ]);
 
 
   /*
@@ -584,7 +727,7 @@ export default function AuctionMarket({
   function selectPlayer(
     player: Player,
   ) {
-    setSelectedPlayer(player);
+    setStoredSelectedPlayer(player);
     setFeedback(null);
 
     /*
@@ -735,7 +878,7 @@ export default function AuctionMarket({
   ) {
     setActiveRole(role);
     setSearch("");
-    setSelectedPlayer(null);
+    setStoredSelectedPlayer(null);
     setPurchasePrice("");
     setFeedback(null);
   }
@@ -878,7 +1021,7 @@ export default function AuctionMarket({
         `${purchasedPlayerName} acquistato ${destination} per ${parsedPrice} crediti.`,
     });
 
-    setSelectedPlayer(null);
+    setStoredSelectedPlayer(null);
     setPurchasePrice("");
 
     /*

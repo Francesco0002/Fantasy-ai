@@ -828,6 +828,63 @@ class AuctionSessionResponse(BaseModel):
     purchases: list[PurchaseResponse]
 
 
+class ContextualPlayerPriceResponse(BaseModel):
+    """
+    Quotazioni di un giocatore ricalcolate
+    secondo le impostazioni dell'asta.
+    """
+
+    player_id: int = Field(
+        gt=0,
+    )
+
+    base_price: float = Field(
+        ge=0,
+    )
+
+    recommended_min: int = Field(
+        ge=0,
+    )
+
+    recommended_price: int = Field(
+        ge=0,
+    )
+
+    recommended_max: int = Field(
+        ge=0,
+    )
+
+    absolute_max: int = Field(
+        ge=0,
+    )
+
+    market_coverage: float = Field(
+        ge=0,
+        le=100,
+    )
+
+    price_rank: int = Field(
+        gt=0,
+    )
+
+
+class ContextualPlayerPricesResponse(BaseModel):
+    """
+    Elenco delle quotazioni calcolate
+    per una specifica sessione d'asta.
+    """
+
+    sessionId: UUID
+
+    count: int = Field(
+        ge=0,
+    )
+
+    players: list[
+        ContextualPlayerPriceResponse
+    ]
+
+
 class AuctionSessionSummaryResponse(BaseModel):
     """
     Informazioni sintetiche utilizzate

@@ -5,7 +5,10 @@ import pandas as pd
 # Importiamo la funzione già creata in check_players.py.
 # In questo modo non dobbiamo riscrivere la logica
 # per caricare e validare il file CSV.
-from check_players import load_players, PROJECT_ROOT
+from backend.check_players import (
+    PROJECT_ROOT,
+    load_players,
+)
 
 
 # Percorso del nuovo file che conterrà

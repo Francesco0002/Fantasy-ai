@@ -503,6 +503,41 @@ export type AuctionSessionListApiResponse = {
 
 
 /*
+ * Quotazioni di un singolo giocatore
+ * ricalcolate per una specifica asta.
+ *
+ * I nomi mantengono lo snake_case
+ * restituito dal backend.
+ */
+export type ContextualPlayerPriceApiResponse = {
+  player_id: number;
+
+  base_price: number;
+
+  recommended_min: number;
+  recommended_price: number;
+  recommended_max: number;
+
+  absolute_max: number;
+  market_coverage: number;
+  price_rank: number;
+};
+
+
+/*
+ * Risposta dell'endpoint
+ * GET /auction-sessions/{session_id}/contextual-prices.
+ */
+export type ContextualPlayerPricesApiResponse = {
+  sessionId: string;
+  count: number;
+
+  players:
+    ContextualPlayerPriceApiResponse[];
+};
+
+
+/*
  * Recupera tutte le sessioni d'asta
  * appartenenti all'utente autenticato.
  */
@@ -636,6 +671,39 @@ export async function fetchAuctionSessionById(
 
   const data: AuctionSessionApiResponse =
     await response.json();
+
+  return data;
+}
+
+
+/*
+ * Recupera le quotazioni dei giocatori
+ * ricalcolate secondo le impostazioni
+ * della specifica sessione d'asta.
+ */
+export async function fetchContextualPlayerPrices(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<ContextualPlayerPricesApiResponse> {
+  const response = await apiFetch(
+    `/auction-sessions/${encodeURIComponent(
+      sessionId,
+    )}/contextual-prices`,
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data:
+    ContextualPlayerPricesApiResponse =
+      await response.json();
 
   return data;
 }
