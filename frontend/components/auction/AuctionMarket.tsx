@@ -4,9 +4,6 @@
 import CustomSelect from
   "../ui/CustomSelect";
 
-import ConfirmDialog from
-  "../ui/ConfirmDialog";
-
 
 /*
  * Calcola la quotazione aggiornata
@@ -30,7 +27,7 @@ import AuctionSuggestions from "./AuctionSuggestions";
  * - ricerca;
  * - giocatore scelto;
  * - prezzo d'acquisto;
- * - messaggi di conferma o errore.
+ * - messaggi di esito o errore.
  */
 import {
   useMemo,
@@ -327,8 +324,8 @@ export default function AuctionMarket({
 
 
   /*
-   * Messaggio di conferma o errore.
-   */
+  * Messaggio di esito o errore.
+  */
   const [feedback, setFeedback] =
     useState<Feedback | null>(null);
 
@@ -341,14 +338,6 @@ export default function AuctionMarket({
     isRegisteringPurchase,
     setIsRegisteringPurchase,
   ] = useState(false);
-
-  const [
-    pendingRiskyPurchase,
-    setPendingRiskyPurchase,
-  ] = useState<AuctionPurchase | null>(
-    null,
-  );
-
 
   /*
   * Nomi delle squadre configurati
@@ -1012,20 +1001,10 @@ export default function AuctionMarket({
     };
 
     /*
-     * Per un acquisto classificato come
-     * "Da evitare" chiediamo una conferma
-     * coerente con l'interfaccia del sito.
+     * Anche quando il prezzo supera la soglia
+     * ottimale, l'avviso strategico resta visibile
+     * ma l'acquisto viene registrato al primo clic.
      */
-    if (
-      purchaseOwner === "ME" &&
-      auctionAdvice?.label ===
-      "Da evitare"
-    ) {
-      setPendingRiskyPurchase(purchase);
-
-      return;
-    }
-
     await registerPreparedPurchase(
       purchase,
     );
@@ -1070,36 +1049,6 @@ export default function AuctionMarket({
 
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
-      <ConfirmDialog
-        isOpen={pendingRiskyPurchase !== null}
-        title="Prezzo molto elevato"
-        description={
-          pendingRiskyPurchase
-            ? `Fantasy AI considera eccessivo il prezzo di ${pendingRiskyPurchase.purchasePrice} crediti per ${pendingRiskyPurchase.playerName}. Vuoi registrare comunque l'acquisto?`
-            : ""
-        }
-        confirmLabel="Registra comunque"
-        tone="danger"
-        isConfirming={isRegisteringPurchase}
-        onCancel={() => {
-          setPendingRiskyPurchase(null);
-        }}
-        onConfirm={() => {
-          if (!pendingRiskyPurchase) {
-            return;
-          }
-
-          const purchase =
-            pendingRiskyPurchase;
-
-          void registerPreparedPurchase(
-            purchase,
-          ).finally(() => {
-            setPendingRiskyPurchase(null);
-          });
-        }}
-      />
-
       {/* Intestazione */}
       <div>
 
