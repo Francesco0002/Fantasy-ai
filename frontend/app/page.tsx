@@ -1,6 +1,9 @@
 "use client";
 
 
+import Link from "next/link";
+
+
 /*
  * Finestra utilizzata per scegliere
  * il secondo giocatore del confronto.
@@ -316,35 +319,54 @@ export default function Home() {
 
           <AuthPanel />
 
-          {/* Accesso alla modalità asta */}
-          <button
-            type="button"
-            onClick={handleOpenAuction}
-            aria-busy={isAuctionOpening}
-            disabled={
-              !isAuthReady ||
-              user === null ||
-              isAuctionOpening
-            }
-            className="
-              mt-5 inline-flex items-center
-              justify-center rounded-xl
-              bg-emerald-700 px-5 py-3
-              text-sm font-semibold text-white
-              transition-colors duration-200
-              hover:bg-emerald-800
-              disabled:cursor-not-allowed
-              disabled:bg-slate-400
-            "
-          >
-            {!isAuthReady
-              ? "Verifica account..."
-              : !user
-                ? "Accedi per gestire le aste"
-                : isAuctionOpening
-                  ? "Apertura aste..."
-                  : "Gestisci aste"}
-          </button>
+          {/* Accesso alle modalità principali */}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleOpenAuction}
+              aria-busy={isAuctionOpening}
+              disabled={
+                !isAuthReady ||
+                user === null ||
+                isAuctionOpening
+              }
+              className="
+                inline-flex items-center
+                justify-center rounded-xl
+                bg-emerald-700 px-5 py-3
+                text-sm font-semibold text-white
+                transition-colors duration-200
+                hover:bg-emerald-800
+                disabled:cursor-not-allowed
+                disabled:bg-slate-400
+              "
+            >
+              {!isAuthReady
+                ? "Verifica account..."
+                : !user
+                  ? "Accedi per gestire le aste"
+                  : isAuctionOpening
+                    ? "Apertura aste..."
+                    : "Gestisci aste"}
+            </button>
+
+            {isAuthReady && user && (
+              <Link
+                href="/season"
+                className="
+                  inline-flex items-center
+                  justify-center rounded-xl
+                  border border-emerald-700
+                  bg-white px-5 py-3
+                  text-sm font-semibold text-emerald-700
+                  transition-colors duration-200
+                  hover:bg-emerald-50
+                "
+              >
+                Gestisci stagione
+              </Link>
+            )}
+          </div>
         </header>
 
 
