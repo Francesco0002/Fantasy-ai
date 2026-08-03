@@ -274,6 +274,14 @@ export default function SeasonPage() {
                     Ultimo aggiornamento:{" "}
                     {formatDate(league.updatedAt)}
                   </p>
+                  <div className="mt-5">
+                    <Link
+                      href={`/season/${league.id}`}
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                    >
+                      Gestisci lega
+                    </Link>
+                  </div>
                 </article>
               ))}
             </section>

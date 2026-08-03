@@ -335,6 +335,39 @@ export async function fetchSeasonLeagues(
 
 
 /*
+ * Recupera una singola lega stagionale.
+ *
+ * Il backend restituisce la lega soltanto
+ * se appartiene all'utente autenticato.
+ */
+export async function fetchSeasonLeague(
+  leagueId: string,
+  signal?: AbortSignal,
+): Promise<SeasonLeague> {
+  const response = await apiFetch(
+    `/season-leagues/${encodeURIComponent(
+      leagueId,
+    )}`,
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: SeasonLeague =
+    await response.json();
+
+  return data;
+}
+
+
+/*
  * Crea una nuova lega stagionale
  * appartenente all'utente autenticato.
  *
