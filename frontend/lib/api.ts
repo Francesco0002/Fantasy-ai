@@ -28,6 +28,8 @@ import type {
 
 
 import type {
+  CreateSeasonLeagueInput,
+  SeasonLeague,
   SeasonLeaguesResponse,
 } from "../types/season";
 
@@ -326,6 +328,40 @@ export async function fetchSeasonLeagues(
   }
 
   const data: SeasonLeaguesResponse =
+    await response.json();
+
+  return data;
+}
+
+
+/*
+ * Crea una nuova lega stagionale
+ * appartenente all'utente autenticato.
+ *
+ * Il cookie HttpOnly permette al backend
+ * di identificare il proprietario della lega.
+ */
+export async function createSeasonLeague(
+  input: CreateSeasonLeagueInput,
+): Promise<SeasonLeague> {
+  const response = await apiFetch(
+    "/season-leagues",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: SeasonLeague =
     await response.json();
 
   return data;

@@ -22,6 +22,20 @@ export type SeasonLeague = {
 
 
 /*
+ * Dati inviati al backend
+ * per creare una nuova lega stagionale.
+ *
+ * Il proprietario e la modalità vengono
+ * determinati esclusivamente dal backend.
+ */
+export type CreateSeasonLeagueInput = {
+  leagueName: string;
+  teamName: string;
+  season: string;
+};
+
+
+/*
  * Risposta restituita dall'elenco
  * delle leghe dell'utente.
  */

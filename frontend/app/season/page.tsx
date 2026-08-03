@@ -11,9 +11,13 @@ import {
 } from "../../hooks/useSeasonLeagues";
 
 import type {
+  CreateSeasonLeagueInput,
   SeasonLeagueMode,
 } from "../../types/season";
 
+import {
+  SeasonLeagueForm,
+} from "../../components/SeasonLeagueForm";
 
 /*
  * Converte la data ricevuta dal backend
@@ -73,10 +77,23 @@ export default function SeasonPage() {
   const {
     leagues,
     isLoading,
+    isCreating,
     error,
+    addSeasonLeague,
   } = useSeasonLeagues(
     isAuthReady && Boolean(user),
   );
+
+
+  /*
+  * Invia i dati del form all'hook
+  * che crea e registra la nuova lega.
+  */
+  async function handleCreateLeague(
+    input: CreateSeasonLeagueInput,
+  ): Promise<void> {
+    await addSeasonLeague(input);
+  }
 
 
   return (
@@ -139,6 +156,18 @@ export default function SeasonPage() {
         )}
 
 
+        {/* Creazione di una nuova lega */}
+        {isAuthReady &&
+          user &&
+          !isLoading &&
+          !error && (
+            <SeasonLeagueForm
+              isSubmitting={isCreating}
+              onCreate={handleCreateLeague}
+            />
+          )}
+
+
         {/* Caricamento delle leghe */}
         {isAuthReady && user && isLoading && (
           <section className="rounded-2xl bg-white p-8 text-center shadow-sm">
@@ -172,7 +201,7 @@ export default function SeasonPage() {
           !isLoading &&
           !error &&
           leagues.length === 0 && (
-            <section className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-8 text-center shadow-sm">
+            <section className="mt-6 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-8 text-center shadow-sm">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-3xl font-bold text-emerald-700">
                 +
               </div>
@@ -195,7 +224,7 @@ export default function SeasonPage() {
           !isLoading &&
           !error &&
           leagues.length > 0 && (
-            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {leagues.map((league) => (
                 <article
                   key={league.id}
