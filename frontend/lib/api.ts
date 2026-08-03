@@ -27,6 +27,11 @@ import type {
 } from "../types/auth";
 
 
+import type {
+  SeasonLeaguesResponse,
+} from "../types/season";
+
+
 /*
  * Tutte le richieste del browser
  * passano dal proxy Next.js.
@@ -296,6 +301,34 @@ export async function logoutUser(
       response,
     );
   }
+}
+
+
+/*
+ * Recupera tutte le leghe stagionali
+ * appartenenti all'utente autenticato.
+ */
+export async function fetchSeasonLeagues(
+  signal?: AbortSignal,
+): Promise<SeasonLeaguesResponse> {
+  const response = await apiFetch(
+    "/season-leagues",
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiRequestError(
+      response,
+    );
+  }
+
+  const data: SeasonLeaguesResponse =
+    await response.json();
+
+  return data;
 }
 
 
