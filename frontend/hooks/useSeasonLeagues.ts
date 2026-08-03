@@ -35,7 +35,9 @@ import type {
  * - stato di caricamento;
  * - eventuale messaggio di errore.
  */
-export function useSeasonLeagues() {
+export function useSeasonLeagues(
+  isEnabled: boolean,
+) {
   /*
    * Leghe appartenenti all'account corrente.
    */
@@ -56,6 +58,15 @@ export function useSeasonLeagues() {
 
 
   useEffect(() => {
+    /*
+    * Non interroghiamo il backend finché
+    * l'autenticazione non è stata verificata.
+    */
+    if (!isEnabled) {
+      return;
+    }
+
+
     /*
      * Permette di annullare la richiesta
      * se il componente viene smontato.
@@ -119,16 +130,17 @@ export function useSeasonLeagues() {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [isEnabled]);
 
 
   /*
-   * Valori messi a disposizione
-   * dei componenti frontend.
-   */
+  * Quando il caricamento non è abilitato,
+  * esponiamo uno stato vuoto senza modificarlo
+  * direttamente all'interno dell'effetto.
+  */
   return {
-    leagues,
-    isLoading,
-    error,
+    leagues: isEnabled ? leagues : [],
+    isLoading: isEnabled ? isLoading : false,
+    error: isEnabled ? error : null,
   };
 }
