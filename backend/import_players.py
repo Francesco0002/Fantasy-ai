@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from check_players import (
+from backend.check_players import (
     CSV_PATH,
     PROJECT_ROOT,
     load_players,
@@ -406,15 +406,27 @@ def calculate_starting_probability(
     if appearances <= 0:
         return 0.0
 
-    starts_ratio = (
-        starts / appearances
+    # Limitiamo separatamente i rapporti tra 0 e 1.
+    # In questo modo eventuali piccoli minuti extra
+    # della fonte non aumentano artificialmente
+    # la probabilità di titolarità.
+    starts_ratio = min(
+        max(
+            starts / appearances,
+            0.0,
+        ),
+        1.0,
     )
 
-    minutes_ratio = (
-        minutes
-        / (
-            appearances * 90
-        )
+    minutes_ratio = min(
+        max(
+            minutes
+            / (
+                appearances * 90
+            ),
+            0.0,
+        ),
+        1.0,
     )
 
     estimated_probability = (
@@ -473,11 +485,12 @@ def calculate_growth_potential(
 
 
 def calculate_set_piece_level(
-    penalties_scored: int,
+    penalties_attempted: int,
 ) -> int:
     """
-    Stima il livello sui calci piazzati
-    usando i rigori segnati.
+    Stima il coinvolgimento del giocatore
+    sui rigori usando i tentativi complessivi,
+    cioè rigori segnati più rigori sbagliati.
 
     Livelli:
     0 = nessuna evidenza;
@@ -486,16 +499,41 @@ def calculate_set_piece_level(
     3 = rigorista principale.
     """
 
-    if penalties_scored >= 4:
+    if penalties_attempted >= 4:
         return 3
 
-    if penalties_scored >= 2:
+    if penalties_attempted >= 2:
         return 2
 
-    if penalties_scored == 1:
+    if penalties_attempted == 1:
         return 1
 
     return 0
+
+
+def has_injury_risk_data(
+    player: pd.Series,
+) -> bool:
+    """
+    Indica se il rischio infortuni deriva
+    da un dato realmente disponibile.
+
+    Il controllo deve essere eseguito prima
+    di assegnare il fallback neutro.
+    """
+
+    existing_risk = player.get(
+        "injury_risk"
+    )
+
+    missed_games = player.get(
+        "missed_games_injury"
+    )
+
+    return bool(
+        pd.notna(existing_risk)
+        or pd.notna(missed_games)
+    )
 
 
 def calculate_injury_risk(
@@ -672,11 +710,20 @@ def prepare_players(
         "set_piece_level"
         not in players.columns
     ):
-        players["set_piece_level"] = (
+        # Consideriamo anche i rigori sbagliati:
+        # un errore dal dischetto dimostra comunque
+        # che il giocatore è stato scelto per tirarlo.
+        penalties_attempted = (
             players[
                 "penalties_scored_last_season"
             ]
-            .apply(
+            + players[
+                "penalties_missed_last_season"
+            ]
+        )
+
+        players["set_piece_level"] = (
+            penalties_attempted.apply(
                 calculate_set_piece_level
             )
         )
@@ -708,6 +755,18 @@ def prepare_players(
             "missed_games_injury",
         )
 
+
+    # Registriamo prima la disponibilità del dato.
+    # Questo controllo deve precedere il fallback,
+    # altrimenti il valore tecnico 0.20 sembrerebbe
+    # un rischio realmente misurato.
+    players["injury_risk_available"] = (
+        players.apply(
+            has_injury_risk_data,
+            axis=1,
+        )
+        .astype(bool)
+    )
 
     players["injury_risk"] = (
         players.apply(
@@ -766,6 +825,7 @@ def prepare_players(
         "fantasy_average_last_season",
 
         "injury_risk",
+        "injury_risk_available",
         "starting_probability",
         "growth_potential",
         "set_piece_level",

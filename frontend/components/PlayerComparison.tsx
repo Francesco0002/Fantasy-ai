@@ -54,6 +54,12 @@ type ComparisonRowProps = {
    * deve essere considerato migliore.
    */
   better: "higher" | "lower";
+
+  /*
+   * Se false, i valori vengono mostrati
+   * senza evidenziare un giocatore migliore.
+   */
+  comparable?: boolean;
 };
 
 
@@ -124,18 +130,37 @@ function ComparisonRow({
   firstNumericValue,
   secondNumericValue,
   better,
+  comparable = true,
 }: ComparisonRowProps) {
+  /*
+   * Se uno dei dati non è disponibile,
+   * entrambi i valori mantengono uno stile neutro.
+   */
+  const neutralClass =
+    "bg-slate-100 text-slate-600";
+
+  const firstComparisonClass = comparable
+    ? getComparisonClass(
+      firstNumericValue,
+      secondNumericValue,
+      better,
+    )
+    : neutralClass;
+
+  const secondComparisonClass = comparable
+    ? getComparisonClass(
+      secondNumericValue,
+      firstNumericValue,
+      better,
+    )
+    : neutralClass;
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-slate-200 py-4">
       {/* Valore del primo giocatore */}
       <div
         className={`
           rounded-lg px-3 py-2 text-center font-semibold
-          ${getComparisonClass(
-          firstNumericValue,
-          secondNumericValue,
-          better,
-        )}
+          ${firstComparisonClass}
         `}
       >
         {firstValue}
@@ -150,11 +175,7 @@ function ComparisonRow({
       <div
         className={`
           rounded-lg px-3 py-2 text-center font-semibold
-          ${getComparisonClass(
-          secondNumericValue,
-          firstNumericValue,
-          better,
-        )}
+          ${secondComparisonClass}
         `}
       >
         {secondValue}
@@ -515,16 +536,24 @@ export default function PlayerComparison({
 
           <ComparisonRow
             label="Rischio"
-            firstValue={`${formatPercentage(
-              firstPlayer.injury_risk,
-            )} · ${getInjuryRiskLabel(
-              firstPlayer.injury_risk,
-            )}`}
-            secondValue={`${formatPercentage(
-              secondPlayer.injury_risk,
-            )} · ${getInjuryRiskLabel(
-              secondPlayer.injury_risk,
-            )}`}
+            firstValue={
+              firstPlayer.injury_risk_available
+                ? `${formatPercentage(
+                  firstPlayer.injury_risk,
+                )} · ${getInjuryRiskLabel(
+                  firstPlayer.injury_risk,
+                )}`
+                : "Dato non disponibile"
+            }
+            secondValue={
+              secondPlayer.injury_risk_available
+                ? `${formatPercentage(
+                  secondPlayer.injury_risk,
+                )} · ${getInjuryRiskLabel(
+                  secondPlayer.injury_risk,
+                )}`
+                : "Dato non disponibile"
+            }
             firstNumericValue={
               firstPlayer.injury_risk
             }
@@ -532,6 +561,10 @@ export default function PlayerComparison({
               secondPlayer.injury_risk
             }
             better="lower"
+            comparable={
+              firstPlayer.injury_risk_available &&
+              secondPlayer.injury_risk_available
+            }
           />
 
           <ComparisonRow

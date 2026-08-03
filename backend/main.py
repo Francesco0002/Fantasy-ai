@@ -367,6 +367,7 @@ def get_players(
         "role_rank",
         "starting_probability",
         "injury_risk",
+        "injury_risk_available",
         "recommended_min",
         "recommended_price",
         "recommended_max",

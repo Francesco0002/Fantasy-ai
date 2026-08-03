@@ -202,16 +202,55 @@ export default function Home() {
 
       /*
       * Rischio infortunio:
-      * dal rischio più basso al più alto.
+      * i giocatori con un dato disponibile
+      * vengono ordinati dal rischio più basso
+      * al rischio più alto.
       *
-      * In questo caso un valore minore
-      * viene considerato migliore.
+      * I giocatori senza un dato reale vengono
+      * spostati in fondo senza utilizzare
+      * il valore tecnico di fallback.
       */
       case "injury_asc":
         return playersCopy.sort(
-          (firstPlayer, secondPlayer) =>
-            firstPlayer.injury_risk -
-            secondPlayer.injury_risk,
+          (firstPlayer, secondPlayer) => {
+            const firstAvailable =
+              firstPlayer.injury_risk_available;
+
+            const secondAvailable =
+              secondPlayer.injury_risk_available;
+
+            /*
+             * Se soltanto uno dei due giocatori
+             * possiede il dato, quello disponibile
+             * deve comparire per primo.
+             */
+            if (
+              firstAvailable !== secondAvailable
+            ) {
+              return firstAvailable ? -1 : 1;
+            }
+
+            /*
+             * Se entrambi sono senza dato,
+             * manteniamo il loro ordine precedente.
+             */
+            if (
+              !firstAvailable &&
+              !secondAvailable
+            ) {
+              return 0;
+            }
+
+            /*
+             * Se entrambi possiedono il dato,
+             * ordiniamo dal rischio minore
+             * al rischio maggiore.
+             */
+            return (
+              firstPlayer.injury_risk -
+              secondPlayer.injury_risk
+            );
+          },
         );
 
       /*

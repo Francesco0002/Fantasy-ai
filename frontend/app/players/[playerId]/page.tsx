@@ -98,7 +98,7 @@ export default function PlayerDetailsPage() {
    */
   const playerId =
     Number.isInteger(parsedPlayerId) &&
-    parsedPlayerId > 0
+      parsedPlayerId > 0
       ? parsedPlayerId
       : null;
 
@@ -419,26 +419,38 @@ export default function PlayerDetailsPage() {
               </h2>
 
               <span className="font-bold">
-                {formatPercentage(
-                  player.injury_risk,
-                )}{" "}
-                ·{" "}
-                {getInjuryRiskLabel(
-                  player.injury_risk,
-                )}
+                {player.injury_risk_available
+                  ? `${formatPercentage(
+                    player.injury_risk,
+                  )} · ${getInjuryRiskLabel(
+                    player.injury_risk,
+                  )}`
+                  : "Dato non disponibile"}
               </span>
             </div>
 
-            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-red-500"
-                style={{
-                  width: formatPercentage(
-                    player.injury_risk,
-                  ),
-                }}
-              />
-            </div>
+            {player.injury_risk_available ? (
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{
+                    width: formatPercentage(
+                      player.injury_risk,
+                    ),
+                  }}
+                />
+              </div>
+            ) : (
+              <p
+                className="
+                  mt-4 rounded-xl bg-slate-100
+                  px-4 py-3 text-sm text-slate-500
+                "
+              >
+                Il rischio infortunio non è disponibile
+                per questo giocatore.
+              </p>
+            )}
           </div>
         </section>
 

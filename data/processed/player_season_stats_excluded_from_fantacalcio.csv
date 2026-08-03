@@ -1,0 +1,17 @@
+﻿player_id,name,team,teams_played_for,role,age,season,appearances_last_season,starts_last_season,minutes_last_season,goals_last_season,assists_last_season,clean_sheets_last_season,goals_conceded_last_season,saves_last_season,penalties_scored_last_season,penalties_missed_last_season,penalties_saved_last_season,average_rating_last_season,fantasy_average_last_season,rating_matches,rating_coverage,role_confidence,data_quality,role_needs_review,rating_needs_review,yellow_cards_last_season,red_cards_last_season,source_fixture_count,data_source,exclusion_reason
+353611,Bob Murphy Omoregbe,AC Milan,AC Milan,A,22,2024,1,0,9,0,0,0,0,0,0,0,0,6.3,6.3,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+384422,Nicola Pintus,Cagliari,Cagliari,D,20,2024,1,0,3,0,0,0,0,0,0,0,0,0.0,0.0,0,0.0,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+383002,Ismael Konate,Empoli,Empoli,A,19,2024,12,0,136,0,1,0,0,0,0,0,0,6.651,6.73,10,0.833,1.0,MEDIUM,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+358638,Jacopo Bacci,Empoli,Empoli,C,20,2024,3,0,29,0,0,0,0,0,0,0,0,6.396,6.4,2,0.667,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+422152,Lorenzo Tosto,Empoli,Empoli,D,19,2024,1,0,1,0,0,0,0,0,0,0,0,0.0,0.0,0,0.0,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+462229,Thomas Campaniello,Empoli,Empoli,A,17,2024,3,0,28,0,0,0,0,0,0,0,0,6.233,6.23,2,0.667,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+418334,Maat Daniel Caprini,Fiorentina,Fiorentina,A,19,2024,2,0,15,0,0,0,0,0,0,0,0,6.2,6.2,1,0.5,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+437095,Tommaso Rubino,Fiorentina,Fiorentina,C,19,2024,1,0,13,0,0,0,0,0,0,0,0,6.6,6.6,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+342003,Federico Accornero,Genoa,Genoa,C,21,2024,1,0,10,0,0,0,0,0,0,0,0,6.3,6.3,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+367878,Luka Topalović,Inter,Inter,C,19,2024,1,0,10,0,0,0,0,0,0,0,0,6.7,6.7,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+441552,Diego Pugno,Juventus,Juventus,A,19,2024,1,0,10,0,0,0,0,0,0,0,0,6.5,6.5,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+349218,Lorenzo Anghelè,Juventus,Juventus,A,20,2024,1,0,9,0,0,0,0,0,0,0,0,6.6,6.6,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+343538,Aaron Ciammaglichella,Torino,Torino,C,20,2024,1,0,1,0,0,0,0,0,0,0,0,0.0,0.0,0,0.0,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+437088,Tommaso Gabellini,Torino,Torino,A,19,2024,1,0,9,0,0,0,0,0,0,0,0,6.7,6.7,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+422156,Matteo Palma,Udinese,Udinese,D,17,2024,1,0,8,0,0,0,0,0,0,0,0,6.9,6.9,1,1.0,1.0,LOW,False,False,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list
+408634,Junior Ajayi,Verona,Verona,A,21,2024,2,0,11,0,0,0,0,0,0,0,0,6.3,6.3,1,0.5,1.0,LOW,False,True,0,0,380,api_football_fixtures_2024,not_in_official_fantacalcio_list

@@ -265,25 +265,41 @@ export default function PlayerCard({
               </p>
 
               <span className="text-sm font-bold text-slate-700">
-                {Math.round(injuryPercentage)}%
+                {player.injury_risk_available
+                  ? `${Math.round(injuryPercentage)}%`
+                  : "—"}
               </span>
             </div>
 
-            <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="
-                  h-full rounded-full bg-red-500
-                  transition-all duration-300
-                "
-                style={{
-                  width: `${injuryPercentage}%`,
-                }}
-              />
-            </div>
+            {player.injury_risk_available ? (
+              <>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="
+                      h-full rounded-full bg-red-500
+                      transition-all duration-300
+                    "
+                    style={{
+                      width: `${injuryPercentage}%`,
+                    }}
+                  />
+                </div>
 
-            <p className="mt-1 text-[11px] text-slate-500">
-              {getInjuryRiskLabel(player.injury_risk)}
-            </p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {getInjuryRiskLabel(player.injury_risk)}
+                </p>
+              </>
+            ) : (
+              <p
+                className="
+                  rounded-lg bg-slate-100 px-2 py-1.5
+                  text-center text-[11px] font-medium
+                  text-slate-500
+                "
+              >
+                Dato non disponibile
+              </p>
+            )}
           </div>
         </div>
 

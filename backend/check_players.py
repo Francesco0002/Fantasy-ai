@@ -63,6 +63,7 @@ REQUIRED_COLUMNS = [
     "fantasy_average_last_season",
 
     "injury_risk",
+    "injury_risk_available",
     "starting_probability",
     "growth_potential",
     "set_piece_level",
@@ -627,6 +628,18 @@ def load_players() -> pd.DataFrame:
         1,
     )
 
+    # La disponibilità del rischio infortuni
+    # deve essere rappresentata esclusivamente
+    # con un valore booleano True oppure False.
+    if not pd.api.types.is_bool_dtype(
+        players["injury_risk_available"]
+    ):
+        raise ValueError(
+            "injury_risk_available deve contenere "
+            "esclusivamente valori booleani "
+            "True oppure False."
+        )
+
     validate_range(
         players,
         "starting_probability",
@@ -738,6 +751,7 @@ def main() -> None:
         "fantasy_average_last_season",
         "starting_probability",
         "injury_risk",
+        "injury_risk_available",
         "data_source",
     ]
 

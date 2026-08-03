@@ -84,12 +84,12 @@ export type Player = {
   fantasy_average_last_season: number;
 
   /*
-   * Affidabilità e potenziale.
-   *
-   * injury_risk e starting_probability
-   * sono espressi tramite valori tra 0 e 1.
+   * injury_risk_available distingue un dato reale
+   * dal valore tecnico di fallback utilizzato
+   * quando il rischio infortuni non è disponibile.
    */
   injury_risk: number;
+  injury_risk_available: boolean;
   starting_probability: number;
   growth_potential: number;
   set_piece_level: number;
