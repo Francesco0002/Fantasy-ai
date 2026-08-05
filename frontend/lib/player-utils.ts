@@ -46,11 +46,11 @@ export const ROLE_BADGE_CLASSES: Record<
 export function getInjuryRiskLabel(
   risk: number,
 ): string {
-  if (risk < 0.15) {
+  if (risk < 0.30) {
     return "Basso";
   }
 
-  if (risk < 0.30) {
+  if (risk < 0.50) {
     return "Medio";
   }
 

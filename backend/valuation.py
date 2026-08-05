@@ -28,13 +28,13 @@ OUTPUT_PATH = (
 # In questa prima versione:
 # - il rendimento pesa il 35%;
 # - la titolarità pesa il 25%;
-# - bonus e malus pesano il 25%;
-# - l'affidabilità pesa il 15%.
+# - bonus e malus pesano il 30%;
+# - l'affidabilità fisica pesa il 10%.
 SCORE_WEIGHTS = {
     "performance": 0.35,
     "starting": 0.25,
-    "bonus": 0.25,
-    "reliability": 0.15,
+    "bonus": 0.30,
+    "reliability": 0.10,
 }
 
 
@@ -430,39 +430,35 @@ def calculate_player_scores(
     ] = 50.0
 
     # --------------------------------------------------
-    # 4. COMPONENTE AFFIDABILITÀ
+    # 4. COMPONENTE AFFIDABILITÀ FISICA
     # --------------------------------------------------
+    #
+    # L'Affidabilità misura esclusivamente il profilo
+    # fisico del giocatore e non la sua continuità
+    # di impiego, già considerata nella Titolarità.
+    #
+    # In assenza di dati reali sugli infortuni
+    # assegniamo il valore neutro 50.
+    #
+    scored_players["reliability_score"] = 50.0
 
-    #
-    # L'Affidabilità misura la continuità con cui
-    # il giocatore ha garantito una presenza
-    # valutabile durante la stagione precedente.
-    #
-    # Utilizziamo il numero di partite per cui
-    # disponiamo di un voto, rapportato alle
-    # 38 giornate del campionato.
-    #
-    continuity_score = (
-        scored_players["rating_matches"]
-        / 38
-        * 100
-    ).clip(
-        lower=0,
-        upper=100,
-    )
-
-
-    #
-    # Il rischio infortunio viene considerato
-    # soltanto quando proviene da una fonte
-    # realmente disponibile.
-    #
     injury_risk_available = (
         scored_players["injury_risk_available"]
         .eq(True)
     )
 
-    health_score = (
+    #
+    # injury_risk è compreso tra 0 e 1:
+    #
+    # - 0 indica rischio minimo;
+    # - 1 indica rischio massimo.
+    #
+    # Lo convertiamo in Affidabilità fisica:
+    #
+    # - 100 indica elevata affidabilità;
+    # - 0 indica rischio molto elevato.
+    #
+    physical_reliability_score = (
         1
         - scored_players["injury_risk"]
         .clip(
@@ -471,34 +467,17 @@ def calculate_player_scores(
         )
     ) * 100
 
-
     #
-    # In assenza di dati reali sugli infortuni,
-    # l'Affidabilità coincide con la continuità
-    # osservata nella stagione precedente.
-    #
-    scored_players["reliability_score"] = (
-        continuity_score
-    )
-
-
-    #
-    # Quando il rischio infortunio è disponibile:
-    #
-    # - la continuità storica pesa l'80%;
-    # - la condizione fisica stimata pesa il 20%.
+    # Utilizziamo il punteggio fisico soltanto
+    # per i giocatori per cui il dato è realmente
+    # disponibile.
     #
     scored_players.loc[
         injury_risk_available,
         "reliability_score",
-    ] = (
-        continuity_score[
-            injury_risk_available
-        ] * 0.80
-        + health_score[
-            injury_risk_available
-        ] * 0.20
-    )
+    ] = physical_reliability_score[
+        injury_risk_available
+    ]
 
 
     # --------------------------------------------------

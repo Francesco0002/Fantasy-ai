@@ -388,13 +388,15 @@ export default function PlayerDetailsPage() {
             <div className="rounded-xl bg-slate-100 p-4">
               <div className="flex items-center gap-2">
                 <p className="text-sm text-slate-500">
-                  Affidabilità
+                  Affidabilità fisica
                 </p>
 
-                <InfoTooltip label="Affidabilità">
-                  Indica la continuità con cui il giocatore
-                  ha garantito una presenza valutabile nella
-                  stagione precedente.
+                <InfoTooltip label="Affidabilità fisica">
+                  Misura quanto il giocatore è risultato affidabile
+                  dal punto di vista fisico, sulla base dello storico
+                  recente degli infortuni. Un valore più alto indica
+                  un profilo fisico più affidabile. Quando lo storico
+                  non è disponibile, viene assegnato il valore neutro 50.
                 </InfoTooltip>
               </div>
 
@@ -441,9 +443,18 @@ export default function PlayerDetailsPage() {
           {/* Rischio infortunio */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="font-bold">
-                Rischio infortunio
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold">
+                  Rischio infortunio
+                </h2>
+
+                <InfoTooltip label="Rischio infortunio">
+                  È un indice storico calcolato considerando frequenza,
+                  durata e recenza degli infortuni degli ultimi tre anni.
+                  Non rappresenta la probabilità certa che il giocatore
+                  si infortuni.
+                </InfoTooltip>
+              </div>
 
               <span className="font-bold">
                 {player.injury_risk_available
@@ -457,15 +468,22 @@ export default function PlayerDetailsPage() {
             </div>
 
             {player.injury_risk_available ? (
-              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-red-500"
-                  style={{
-                    width: formatPercentage(
-                      player.injury_risk,
-                    ),
-                  }}
-                />
+              <div>
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-red-500"
+                    style={{
+                      width: formatPercentage(
+                        player.injury_risk,
+                      ),
+                    }}
+                  />
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                  Indice storico basato su frequenza, durata e recenza
+                  degli infortuni. Un valore più basso indica un profilo
+                  fisico più affidabile.
+                </p>
               </div>
             ) : (
               <p
@@ -474,8 +492,9 @@ export default function PlayerDetailsPage() {
                   px-4 py-3 text-sm text-slate-500
                 "
               >
-                Il rischio infortunio non è disponibile
-                per questo giocatore.
+                Lo storico degli infortuni non è sufficiente
+                per calcolare un indice affidabile. Nel Fantasy
+                AI Score viene utilizzato il valore neutro 50.
               </p>
             )}
           </div>
