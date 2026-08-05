@@ -382,69 +382,30 @@ def calculate_starting_probability(
     player: pd.Series,
 ) -> float:
     """
-    Stima la probabilità di titolarità.
-
-    Utilizziamo:
-    - percentuale di presenze da titolare;
-    - minuti medi disputati per presenza.
+    Calcola la probabilità storica di titolarità
+    sulle 38 giornate della stagione di Serie A.
     """
-
-    appearances = float(
-        player[
-            "appearances_last_season"
-        ]
-    )
 
     starts = float(
         player["starts_last_season"]
     )
 
-    minutes = float(
-        player["minutes_last_season"]
-    )
+    # Una stagione completa di Serie A
+    # è composta da 38 giornate.
+    season_matches = 38.0
 
-    if appearances <= 0:
+    if pd.isna(starts):
         return 0.0
 
-    # Limitiamo separatamente i rapporti tra 0 e 1.
-    # In questo modo eventuali piccoli minuti extra
-    # della fonte non aumentano artificialmente
-    # la probabilità di titolarità.
-    starts_ratio = min(
-        max(
-            starts / appearances,
-            0.0,
-        ),
-        1.0,
-    )
-
-    minutes_ratio = min(
-        max(
-            minutes
-            / (
-                appearances * 90
-            ),
-            0.0,
-        ),
-        1.0,
-    )
-
-    estimated_probability = (
-        starts_ratio * 0.70
-        + minutes_ratio * 0.30
-    )
-
-    return round(
+    # Limitiamo il risultato tra 0 e 1
+    # per gestire eventuali anomalie nei dati.
+    return max(
+        0.0,
         min(
-            max(
-                estimated_probability,
-                0.0,
-            ),
+            starts / season_matches,
             1.0,
         ),
-        3,
     )
-
 
 def calculate_growth_potential(
     age: int,
@@ -663,23 +624,16 @@ def prepare_players(
         )
 
 
-    # Manteniamo i valori proprietari
-    # quando la fonte li contiene.
-    if (
-        "starting_probability"
-        not in players.columns
-    ):
-        players["starting_probability"] = (
-            players.apply(
-                calculate_starting_probability,
-                axis=1,
-            )
+    # Ricalcoliamo sempre la probabilità di titolarità
+    # sulle 38 giornate stagionali, evitando di
+    # conservare eventuali valori calcolati con
+    # la vecchia formula.
+    players["starting_probability"] = (
+        players.apply(
+            calculate_starting_probability,
+            axis=1,
         )
-    else:
-        convert_numeric_column(
-            players,
-            "starting_probability",
-        )
+    )
 
 
     if (
