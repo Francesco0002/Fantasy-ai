@@ -60,6 +60,12 @@ type ComparePlayerModalProps = {
   basePlayer: Player;
 
   /*
+   * Salva filtri e posizione della lista
+   * prima di aprire il confronto completo.
+   */
+  onOpenComparison: () => void;
+
+  /*
    * Funzione utilizzata per chiudere
    * la finestra.
    */
@@ -89,6 +95,7 @@ function formatPercentage(
  */
 export default function ComparePlayerModal({
   basePlayer,
+  onOpenComparison,
   onClose,
 }: ComparePlayerModalProps) {
   /*
@@ -375,7 +382,10 @@ export default function ComparePlayerModal({
                           candidate.player_id
                         }
                         href={`/compare?first=${basePlayer.player_id}&second=${candidate.player_id}`}
-                        onClick={onClose}
+                        onClick={() => {
+                          onOpenComparison();
+                          onClose();
+                        }}
                         className="
                           flex flex-col gap-4
                           rounded-xl border

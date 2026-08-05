@@ -33,6 +33,13 @@ import {
  */
 type PlayerCardProps = {
   player: Player;
+
+  /*
+   * Salva filtri e posizione della lista
+   * prima di aprire la pagina dettagli.
+   */
+  onOpenDetails: () => void;
+
   onCompare: (player: Player) => void;
 };
 
@@ -46,6 +53,7 @@ type PlayerCardProps = {
  */
 export default function PlayerCard({
   player,
+  onOpenDetails,
   onCompare,
 }: PlayerCardProps) {
   /*
@@ -315,6 +323,7 @@ export default function PlayerCard({
         >
           <Link
             href={`/players/${player.player_id}`}
+            onClick={onOpenDetails}
             className="
               flex-1 rounded-lg border border-slate-300
               px-3 py-2 text-center text-xs font-semibold

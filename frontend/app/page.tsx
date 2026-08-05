@@ -45,6 +45,7 @@ import type {
 
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -77,6 +78,26 @@ const ROLE_ORDER: Record<Player["role"], number> = {
   D: 1,
   C: 2,
   A: 3,
+};
+
+
+/*
+ * Chiave usata per conservare temporaneamente
+ * lo stato della lista quando si apre un giocatore.
+ */
+const PLAYER_LIST_STATE_STORAGE_KEY =
+  "fantasy-ai:player-list-state";
+
+
+/*
+ * Stato della lista da ripristinare
+ * quando si torna dalla pagina dettagli.
+ */
+type PlayerListStateSnapshot = {
+  search: string;
+  role: Role;
+  sortBy: SortOption;
+  scrollY: number;
 };
 
 
@@ -118,6 +139,110 @@ export default function Home() {
   */
   const [sortBy, setSortBy] =
     useState<SortOption>("role_asc");
+
+
+  /*
+   * Stato che resta valorizzato fino a quando
+   * posizione e filtri non sono stati ripristinati.
+   */
+  const [
+    pendingListState,
+    setPendingListState,
+  ] = useState<PlayerListStateSnapshot | null>(
+    null,
+  );
+
+
+  /*
+   * Recupera lo stato salvato prima
+   * dell'apertura della pagina dettagli.
+   */
+  useEffect(() => {
+    const storedState =
+      window.sessionStorage.getItem(
+        PLAYER_LIST_STATE_STORAGE_KEY,
+      );
+
+    if (!storedState) {
+      return;
+    }
+
+    try {
+      const parsedState = JSON.parse(
+        storedState,
+      ) as Partial<PlayerListStateSnapshot>;
+
+      const validRoles: Role[] = [
+        "",
+        "P",
+        "D",
+        "C",
+        "A",
+      ];
+
+      const validSortOptions: SortOption[] = [
+        "role_asc",
+        "score_desc",
+        "starting_desc",
+        "injury_asc",
+      ];
+
+      const isValidRole =
+        typeof parsedState.role === "string"
+        && validRoles.includes(
+          parsedState.role as Role,
+        );
+
+      const isValidSortOption =
+        typeof parsedState.sortBy === "string"
+        && validSortOptions.includes(
+          parsedState.sortBy as SortOption,
+        );
+
+      const isValidSearch =
+        typeof parsedState.search === "string";
+
+      const isValidScrollPosition =
+        typeof parsedState.scrollY === "number"
+        && Number.isFinite(
+          parsedState.scrollY,
+        )
+        && parsedState.scrollY >= 0;
+
+      if (
+        !isValidRole
+        || !isValidSortOption
+        || !isValidSearch
+        || !isValidScrollPosition
+      ) {
+        window.sessionStorage.removeItem(
+          PLAYER_LIST_STATE_STORAGE_KEY,
+        );
+
+        return;
+      }
+
+      const restoredState: PlayerListStateSnapshot = {
+        search: parsedState.search as string,
+        role: parsedState.role as Role,
+        sortBy: parsedState.sortBy as SortOption,
+        scrollY: parsedState.scrollY as number,
+      };
+
+      setSearch(restoredState.search);
+      setRole(restoredState.role);
+      setSortBy(restoredState.sortBy);
+      setPendingListState(restoredState);
+    } catch {
+      /*
+       * Un valore non valido non deve
+       * compromettere il caricamento della home.
+       */
+      window.sessionStorage.removeItem(
+        PLAYER_LIST_STATE_STORAGE_KEY,
+      );
+    }
+  }, []);
 
 
   /*
@@ -276,6 +401,74 @@ export default function Home() {
         return playersCopy;
     }
   }, [players, sortBy]);
+
+
+  /*
+   * Ripristina lo scroll soltanto quando:
+   *
+   * - i filtri salvati sono stati applicati;
+   * - il caricamento dei giocatori ? terminato;
+   * - la lista corretta ? presente nella pagina.
+   */
+  useEffect(() => {
+    if (
+      !pendingListState
+      || isLoading
+      || error
+      || search !== pendingListState.search
+      || role !== pendingListState.role
+      || sortBy !== pendingListState.sortBy
+    ) {
+      return;
+    }
+
+    const animationFrame =
+      window.requestAnimationFrame(() => {
+        window.scrollTo({
+          top: pendingListState.scrollY,
+          behavior: "auto",
+        });
+
+        window.sessionStorage.removeItem(
+          PLAYER_LIST_STATE_STORAGE_KEY,
+        );
+
+        setPendingListState(null);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        animationFrame,
+      );
+    };
+  }, [
+    error,
+    isLoading,
+    pendingListState,
+    role,
+    search,
+    sortBy,
+    sortedPlayers.length,
+  ]);
+
+
+  /*
+   * Salva lo stato corrente prima di lasciare
+   * la lista per dettagli o confronto.
+   */
+  function savePlayerListState() {
+    const stateToSave: PlayerListStateSnapshot = {
+      search,
+      role,
+      sortBy,
+      scrollY: window.scrollY,
+    };
+
+    window.sessionStorage.setItem(
+      PLAYER_LIST_STATE_STORAGE_KEY,
+      JSON.stringify(stateToSave),
+    );
+  }
 
 
   /*
@@ -492,6 +685,9 @@ export default function Home() {
                 <PlayerCard
                   key={player.player_id}
                   player={player}
+                  onOpenDetails={
+                    savePlayerListState
+                  }
                   onCompare={(selectedPlayer) => {
                     /*
                      * Fissiamo il giocatore selezionato
@@ -513,6 +709,9 @@ export default function Home() {
       {compareBasePlayer && (
         <ComparePlayerModal
           basePlayer={compareBasePlayer}
+          onOpenComparison={
+            savePlayerListState
+          }
           onClose={() => {
             setCompareBasePlayer(null);
           }}
