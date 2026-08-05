@@ -82,20 +82,12 @@ const SORT_OPTIONS = [
     label: "Punteggio Fantasy AI",
   },
   {
-    value: "price_desc",
-    label: "Prezzo consigliato",
-  },
-  {
     value: "starting_desc",
     label: "Probabilità titolare",
   },
   {
     value: "injury_asc",
     label: "Minor rischio infortunio",
-  },
-  {
-    value: "name_asc",
-    label: "Nome alfabetico",
   },
 ];
 
