@@ -1410,10 +1410,72 @@ export default function AuctionMarket({
 
 
           {/* Riepilogo dell'acquisto */}
-          <aside className="rounded-xl bg-slate-100 p-3">
-            <h3 className="text-base font-bold">
-              Riepilogo acquisto
-            </h3>
+          <aside
+            className={`
+              bg-slate-100 p-3
+
+              ${selectedPlayer || feedback
+                ? `
+                  fixed inset-0 z-50
+                  overflow-y-auto overscroll-contain
+                  shadow-2xl
+                  md:static md:z-auto
+                  md:overflow-visible
+                  md:rounded-xl md:shadow-none
+                `
+                : `
+                  hidden rounded-xl
+                  md:block
+                `
+              }
+            `}
+          >
+            {/*
+             * Su telefono il titolo rimane visibile
+             * durante lo scorrimento del riepilogo.
+             */}
+            <div
+              className="
+                sticky top-0 z-10
+                -mx-3 -mt-3
+                flex items-center
+                justify-between gap-3
+                border-b border-slate-200
+                bg-slate-100 px-3 py-3
+
+                md:static md:mx-0 md:mt-0
+                md:border-0 md:p-0
+              "
+            >
+              <h3 className="text-base font-bold">
+                Riepilogo acquisto
+              </h3>
+
+              {(selectedPlayer || feedback) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoredSelectedPlayer(null);
+                    setPurchasePrice("");
+                    setPurchaseOwner("ME");
+                    setOpponentName("");
+                    setFeedback(null);
+                  }}
+                  className="
+                    rounded-lg border
+                    border-slate-300 bg-white
+                    px-3 py-1.5
+                    text-xs font-semibold
+                    text-slate-700 shadow-sm
+                    transition
+                    hover:bg-slate-50
+                    md:hidden
+                  "
+                >
+                  Chiudi
+                </button>
+              )}
+            </div>
 
             {!selectedPlayer && (
               <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">

@@ -31,6 +31,7 @@ import {
 } from "next/navigation";
 
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -63,6 +64,66 @@ import {
  */
 export default function AuctionPage() {
   const router = useRouter();
+
+
+  /*
+   * Su telefono la pagina dell'asta deve
+   * essere mostrata sempre dall'inizio.
+   *
+   * Ripetiamo il riposizionamento dopo il primo
+   * rendering per evitare il ripristino automatico
+   * dello scroll effettuato dal browser.
+   */
+  useEffect(() => {
+    const isMobile = window.matchMedia(
+      "(max-width: 767px)",
+    ).matches;
+
+    if (!isMobile) {
+      return;
+    }
+
+    const previousScrollRestoration =
+      window.history.scrollRestoration;
+
+    window.history.scrollRestoration =
+      "manual";
+
+    function scrollToPageStart() {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "auto",
+      });
+    }
+
+    scrollToPageStart();
+
+    const animationFrame =
+      window.requestAnimationFrame(
+        scrollToPageStart,
+      );
+
+    const delayedReset =
+      window.setTimeout(
+        scrollToPageStart,
+        150,
+      );
+
+    return () => {
+      window.cancelAnimationFrame(
+        animationFrame,
+      );
+
+      window.clearTimeout(
+        delayedReset,
+      );
+
+      window.history.scrollRestoration =
+        previousScrollRestoration;
+    };
+  }, []);
+
 
   const [
     isCompletionDialogOpen,
