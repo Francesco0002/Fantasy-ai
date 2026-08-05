@@ -619,23 +619,6 @@ export default function PlayerComparison({
           />
 
           <ComparisonRow
-            label="Potenziale"
-            firstValue={formatNumber(
-              firstPlayer.potential_score,
-            )}
-            secondValue={formatNumber(
-              secondPlayer.potential_score,
-            )}
-            firstNumericValue={
-              firstPlayer.potential_score
-            }
-            secondNumericValue={
-              secondPlayer.potential_score
-            }
-            better="higher"
-          />
-
-          <ComparisonRow
             label="Fantamedia"
             firstValue={formatNumber(
               firstPlayer.fantasy_average_last_season,

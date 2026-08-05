@@ -62,6 +62,7 @@ export type Player = {
   goals_last_season: number;
   assists_last_season: number;
   penalties_scored_last_season: number;
+  penalties_missed_last_season: number;
 
   /*
    * Statistiche particolarmente utili
@@ -70,6 +71,8 @@ export type Player = {
   clean_sheets_last_season: number;
   goals_conceded_last_season: number;
   saves_last_season: number;
+  penalties_faced_last_season: number;
+  penalties_saved_last_season: number;
 
   /*
    * Malus disciplinari.
@@ -91,7 +94,6 @@ export type Player = {
   injury_risk: number;
   injury_risk_available: boolean;
   starting_probability: number;
-  growth_potential: number;
   set_piece_level: number;
 
   /*
@@ -107,7 +109,6 @@ export type Player = {
   starting_score: number;
   bonus_score: number;
   reliability_score: number;
-  potential_score: number;
 
   /*
    * Punteggio finale e classifiche.

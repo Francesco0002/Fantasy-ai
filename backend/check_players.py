@@ -57,7 +57,13 @@ REQUIRED_COLUMNS = [
     "clean_sheets_last_season",
     "goals_conceded_last_season",
     "saves_last_season",
+    "penalties_faced_last_season",
+    "penalties_saved_last_season",
     "penalties_scored_last_season",
+    "penalties_missed_last_season",
+
+    "rating_matches",
+    "rating_coverage",
 
     "average_rating_last_season",
     "fantasy_average_last_season",
@@ -65,7 +71,6 @@ REQUIRED_COLUMNS = [
     "injury_risk",
     "injury_risk_available",
     "starting_probability",
-    "growth_potential",
     "set_piece_level",
 
     # Permette di sapere da quale
@@ -89,9 +94,12 @@ INTEGER_COLUMNS = [
     "clean_sheets_last_season",
     "goals_conceded_last_season",
     "saves_last_season",
+    "penalties_faced_last_season",
+    "penalties_saved_last_season",
     "penalties_scored_last_season",
+    "penalties_missed_last_season",
+    "rating_matches",
 
-    "growth_potential",
     "set_piece_level",
 ]
 
@@ -101,6 +109,7 @@ INTEGER_COLUMNS = [
 DECIMAL_COLUMNS = [
     "average_rating_last_season",
     "fantasy_average_last_season",
+    "rating_coverage",
     "injury_risk",
     "starting_probability",
 ]
@@ -118,7 +127,11 @@ NON_NEGATIVE_COLUMNS = [
     "clean_sheets_last_season",
     "goals_conceded_last_season",
     "saves_last_season",
+    "penalties_faced_last_season",
+    "penalties_saved_last_season",
     "penalties_scored_last_season",
+    "penalties_missed_last_season",
+    "rating_matches",
 ]
 
 
@@ -517,6 +530,16 @@ def load_players() -> pd.DataFrame:
     )
 
 
+    # La copertura indica la quota di presenze
+    # per cui il provider ha fornito un voto.
+    validate_range(
+        players,
+        "rating_coverage",
+        0,
+        1,
+    )
+
+
     for column in NON_NEGATIVE_COLUMNS:
         validate_non_negative(
             players,
@@ -647,14 +670,6 @@ def load_players() -> pd.DataFrame:
         1,
     )
 
-
-    # Punteggi proprietari.
-    validate_range(
-        players,
-        "growth_potential",
-        0,
-        100,
-    )
 
     validate_range(
         players,

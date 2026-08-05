@@ -328,7 +328,12 @@ def create_player_record(
         "saves": 0,
         "penalties_scored": 0,
         "penalties_missed": 0,
+
+        # Per i portieri contiene il numero
+        # complessivo di rigori affrontati.
+        "penalties_faced": 0,
         "penalties_saved": 0,
+
         "yellow_cards": 0,
         "red_cards": 0,
         "rating_weighted_sum": 0.0,
@@ -389,6 +394,147 @@ def aggregate_snapshot(
     ):
         return
 
+    #
+    # Prima di aggregare i singoli giocatori,
+    # calcoliamo per ogni squadra:
+    #
+    # - quanti rigori ha tentato;
+    # - quali portieri sono effettivamente
+    #   scesi in campo.
+    #
+    # Il totale affrontato dal portiere di una
+    # squadra corrisponde ai rigori tentati
+    # dalla squadra avversaria.
+    #
+    team_penalty_attempts: dict[
+        int,
+        int,
+    ] = {}
+
+    team_active_goalkeepers: dict[
+        int,
+        list[int],
+    ] = {}
+
+    for context_team_block in team_blocks:
+        context_team = (
+            context_team_block.get(
+                "team",
+                {},
+            )
+        )
+
+        context_team_id = safe_int(
+            context_team.get("id")
+        )
+
+        if context_team_id <= 0:
+            continue
+
+        penalty_attempts = 0
+        active_goalkeeper_ids: list[int] = []
+
+        context_player_items = (
+            context_team_block.get(
+                "players",
+                [],
+            )
+        )
+
+        if not isinstance(
+            context_player_items,
+            list,
+        ):
+            continue
+
+        for context_player_item in (
+            context_player_items
+        ):
+            context_player = (
+                context_player_item.get(
+                    "player",
+                    {},
+                )
+            )
+
+            context_player_id = safe_int(
+                context_player.get("id")
+            )
+
+            context_statistics_list = (
+                context_player_item.get(
+                    "statistics",
+                    [],
+                )
+            )
+
+            if (
+                context_player_id <= 0
+                or not isinstance(
+                    context_statistics_list,
+                    list,
+                )
+                or len(
+                    context_statistics_list
+                ) == 0
+            ):
+                continue
+
+            context_statistics = (
+                context_statistics_list[0]
+            )
+
+            context_games = (
+                context_statistics.get(
+                    "games",
+                    {},
+                )
+            )
+
+            context_minutes = safe_int(
+                context_games.get("minutes")
+            )
+
+            if context_minutes <= 0:
+                continue
+
+            context_penalty = (
+                context_statistics.get(
+                    "penalty",
+                    {},
+                )
+            )
+
+            penalty_attempts += (
+                safe_int(
+                    context_penalty.get(
+                        "scored"
+                    )
+                )
+                + safe_int(
+                    context_penalty.get(
+                        "missed"
+                    )
+                )
+            )
+
+            context_role = normalize_role(
+                context_games.get("position")
+            )
+
+            if context_role == "P":
+                active_goalkeeper_ids.append(
+                    context_player_id
+                )
+
+        team_penalty_attempts[
+            context_team_id
+        ] = penalty_attempts
+
+        team_active_goalkeepers[
+            context_team_id
+        ] = active_goalkeeper_ids
+
     for team_block in team_blocks:
         team = team_block.get(
             "team",
@@ -408,12 +554,15 @@ def aggregate_snapshot(
 
         if team_id == home_team_id:
             final_goals_conceded = away_goals
+            opponent_team_id = away_team_id
 
         elif team_id == away_team_id:
             final_goals_conceded = home_goals
+            opponent_team_id = home_team_id
 
         else:
             final_goals_conceded = 0
+            opponent_team_id = 0
 
         player_items = team_block.get(
             "players",
@@ -519,6 +668,39 @@ def aggregate_snapshot(
             record["team_minutes"][
                 team_name
             ] += minutes
+
+            #
+            # Attribuiamo i rigori tentati dagli
+            # avversari soltanto quando nella
+            # partita è presente un unico portiere
+            # della squadra.
+            #
+            # Il controllo effettuato sui 380
+            # snapshot ha confermato che tutti i
+            # casi con rigori sono attribuibili
+            # senza ambiguità.
+            #
+            active_goalkeeper_ids = (
+                team_active_goalkeepers.get(
+                    team_id,
+                    [],
+                )
+            )
+
+            if (
+                role == "P"
+                and len(
+                    active_goalkeeper_ids
+                ) == 1
+                and active_goalkeeper_ids[0]
+                == player_id
+            ):
+                record[
+                    "penalties_faced"
+                ] += team_penalty_attempts.get(
+                    opponent_team_id,
+                    0,
+                )
 
             goals = statistics.get(
                 "goals",
@@ -855,6 +1037,9 @@ def build_rows(
 
                 "penalties_missed_last_season":
                     record["penalties_missed"],
+
+                "penalties_faced_last_season":
+                    record["penalties_faced"],
 
                 "penalties_saved_last_season":
                     record["penalties_saved"],

@@ -29,12 +29,13 @@ from backend.check_players import (
 )
 
 
-# File sorgente predefinito.
+# Dataset processato predefinito,
+# completo dei ruoli classici del Fantacalcio.
 DEFAULT_SOURCE_PATH = (
     PROJECT_ROOT
     / "data"
-    / "raw"
-    / "players_source.csv"
+    / "processed"
+    / "player_season_stats_with_classic_roles.csv"
 )
 
 
@@ -65,7 +66,14 @@ SOURCE_REQUIRED_COLUMNS = [
     "clean_sheets_last_season",
     "goals_conceded_last_season",
     "saves_last_season",
+    "penalties_faced_last_season",
+    "penalties_saved_last_season",
     "penalties_scored_last_season",
+    "penalties_missed_last_season",
+
+    # Copertura dei voti forniti dal provider.
+    "rating_matches",
+    "rating_coverage",
 
     "average_rating_last_season",
     "fantasy_average_last_season",
@@ -87,7 +95,13 @@ NUMERIC_SOURCE_COLUMNS = [
     "clean_sheets_last_season",
     "goals_conceded_last_season",
     "saves_last_season",
+    "penalties_faced_last_season",
+    "penalties_saved_last_season",
     "penalties_scored_last_season",
+    "penalties_missed_last_season",
+
+    "rating_matches",
+    "rating_coverage",
 
     "average_rating_last_season",
     "fantasy_average_last_season",
@@ -407,43 +421,6 @@ def calculate_starting_probability(
         ),
     )
 
-def calculate_growth_potential(
-    age: int,
-) -> int:
-    """
-    Stima il margine di crescita
-    principalmente in base all'età.
-
-    È una prima euristica e potrà essere
-    sostituita da un modello più avanzato.
-    """
-
-    if age <= 20:
-        return 95
-
-    if age <= 22:
-        return 88
-
-    if age <= 24:
-        return 78
-
-    if age <= 26:
-        return 68
-
-    if age <= 28:
-        return 58
-
-    if age <= 30:
-        return 48
-
-    if age <= 32:
-        return 38
-
-    if age <= 34:
-        return 28
-
-    return 18
-
 
 def calculate_set_piece_level(
     penalties_attempted: int,
@@ -613,7 +590,11 @@ def prepare_players(
         "clean_sheets_last_season",
         "goals_conceded_last_season",
         "saves_last_season",
+        "penalties_faced_last_season",
+        "penalties_saved_last_season",
         "penalties_scored_last_season",
+        "penalties_missed_last_season",
+        "rating_matches",
     ]
 
     for column in integer_columns:
@@ -634,30 +615,6 @@ def prepare_players(
             axis=1,
         )
     )
-
-
-    if (
-        "growth_potential"
-        not in players.columns
-    ):
-        players["growth_potential"] = (
-            players["age"].apply(
-                calculate_growth_potential
-            )
-        )
-    else:
-        convert_numeric_column(
-            players,
-            "growth_potential",
-        )
-
-        players["growth_potential"] = (
-            players[
-                "growth_potential"
-            ]
-            .round()
-            .astype(int)
-        )
 
 
     if (
@@ -770,10 +727,21 @@ def prepare_players(
 
         "goals_last_season",
         "assists_last_season",
+
+        # Statistiche specifiche dei portieri.
         "clean_sheets_last_season",
         "goals_conceded_last_season",
         "saves_last_season",
+        "penalties_faced_last_season",
+        "penalties_saved_last_season",
+
+        # Statistiche dei rigori calciati.
         "penalties_scored_last_season",
+        "penalties_missed_last_season",
+
+        # Quantità e copertura dei voti disponibili.
+        "rating_matches",
+        "rating_coverage",
 
         "average_rating_last_season",
         "fantasy_average_last_season",
@@ -781,7 +749,6 @@ def prepare_players(
         "injury_risk",
         "injury_risk_available",
         "starting_probability",
-        "growth_potential",
         "set_piece_level",
 
         "data_source",
@@ -944,13 +911,14 @@ def parse_arguments() -> argparse.Namespace:
         help=(
             "Percorso del CSV sorgente. "
             "Predefinito: "
-            "data/raw/players_source.csv"
+            "data/processed/"
+            "player_season_stats_with_classic_roles.csv"
         ),
     )
 
     parser.add_argument(
         "--source-name",
-        default="manual_import",
+        default="api_football_2024_25",
         help=(
             "Nome della fonte salvato "
             "nella colonna data_source."

@@ -6,6 +6,8 @@
  */
 import Link from "next/link";
 
+import { InfoTooltip } from "../../../components/InfoTooltip";
+
 /*
  * useParams permette di leggere il parametro dinamico
  * presente nell'indirizzo /players/[playerId].
@@ -319,9 +321,18 @@ export default function PlayerDetailsPage() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Rendimento
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-slate-500">
+                  Rendimento
+                </p>
+
+                <InfoTooltip label="Rendimento">
+                  Misura la qualità media delle prestazioni
+                  nella stagione precedente rispetto agli
+                  altri giocatori dello stesso ruolo. Il valore
+                  50 rappresenta la media del ruolo.
+                </InfoTooltip>
+              </div>
 
               <p className="mt-1 text-2xl font-bold">
                 {formatNumber(
@@ -331,9 +342,19 @@ export default function PlayerDetailsPage() {
             </div>
 
             <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Titolarità
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-slate-500">
+                  Titolarità
+                </p>
+
+                <InfoTooltip label="Titolarità">
+                  Indica la percentuale delle giornate della
+                  stagione precedente in cui il giocatore è
+                  partito titolare. Considera anche le partite
+                  saltate e misura quindi la continuità da
+                  titolare nell&apos;intera stagione.
+                </InfoTooltip>
+              </div>
 
               <p className="mt-1 text-2xl font-bold">
                 {formatNumber(
@@ -343,9 +364,19 @@ export default function PlayerDetailsPage() {
             </div>
 
             <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Bonus
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-slate-500">
+                  Bonus/Malus
+                </p>
+
+                <InfoTooltip label="Bonus e Malus">
+                  Indica la capacità di produrre bonus e
+                  limitare i malus nella stagione precedente,
+                  rispetto agli altri giocatori dello stesso
+                  ruolo. Il valore 50 rappresenta la media
+                  del ruolo.
+                </InfoTooltip>
+              </div>
 
               <p className="mt-1 text-2xl font-bold">
                 {formatNumber(
@@ -355,25 +386,21 @@ export default function PlayerDetailsPage() {
             </div>
 
             <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Affidabilità
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-slate-500">
+                  Affidabilità
+                </p>
+
+                <InfoTooltip label="Affidabilità">
+                  Indica la continuità con cui il giocatore
+                  ha garantito una presenza valutabile nella
+                  stagione precedente.
+                </InfoTooltip>
+              </div>
 
               <p className="mt-1 text-2xl font-bold">
                 {formatNumber(
                   player.reliability_score,
-                )}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Potenziale
-              </p>
-
-              <p className="mt-1 text-2xl font-bold">
-                {formatNumber(
-                  player.potential_score,
                 )}
               </p>
             </div>
@@ -461,7 +488,14 @@ export default function PlayerDetailsPage() {
             Statistiche ultima stagione
           </h2>
 
+          <p className="mt-1 text-sm text-slate-500">
+            {player.role === "P"
+              ? "Dati generali e statistiche specifiche del portiere."
+              : "Presenze, rendimento e bonus prodotti nella stagione."}
+          </p>
+
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {/* Statistiche di utilizzo comuni a tutti i ruoli */}
             <div className="rounded-xl bg-slate-100 p-4">
               <p className="text-sm text-slate-500">
                 Presenze
@@ -492,36 +526,117 @@ export default function PlayerDetailsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Gol
-              </p>
+            {player.role === "P" ? (
+              <>
+                {/*
+                 * Per i portieri diamo priorità alle
+                 * statistiche specifiche del ruolo.
+                 */}
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Porte inviolate
+                  </p>
 
-              <p className="mt-1 text-xl font-bold">
-                {player.goals_last_season}
-              </p>
-            </div>
+                  <p className="mt-1 text-xl font-bold">
+                    {player.clean_sheets_last_season}
+                  </p>
+                </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Assist
-              </p>
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Gol subiti
+                  </p>
 
-              <p className="mt-1 text-xl font-bold">
-                {player.assists_last_season}
-              </p>
-            </div>
+                  <p className="mt-1 text-xl font-bold">
+                    {player.goals_conceded_last_season}
+                  </p>
+                </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="text-sm text-slate-500">
-                Rigori segnati
-              </p>
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Parate
+                  </p>
 
-              <p className="mt-1 text-xl font-bold">
-                {player.penalties_scored_last_season}
-              </p>
-            </div>
+                  <p className="mt-1 text-xl font-bold">
+                    {player.saves_last_season}
+                  </p>
+                </div>
 
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Rigori parati
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.penalties_saved_last_season}
+                    {" / "}
+                    {player.penalties_faced_last_season}
+                  </p>
+                </div>
+
+                {/*
+                 * Gol e assist restano visibili anche
+                 * per i portieri, pur essendo eventi rari.
+                 */}
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Gol
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.goals_last_season}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Assist
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.assists_last_season}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Bonus principali dei giocatori di movimento */}
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Gol
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.goals_last_season}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Assist
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.assists_last_season}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-slate-100 p-4">
+                  <p className="text-sm text-slate-500">
+                    Rigori segnati
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold">
+                    {player.penalties_scored_last_season}
+                    {" / "}
+                    {player.penalties_scored_last_season +
+                      player.penalties_missed_last_season}
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Medie comuni a tutti i ruoli */}
             <div className="rounded-xl bg-slate-100 p-4">
               <p className="text-sm text-slate-500">
                 Media voto
@@ -558,18 +673,6 @@ export default function PlayerDetailsPage() {
           </h2>
 
           <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-slate-500">
-                Potenziale di crescita
-              </dt>
-
-              <dd className="mt-1 font-semibold">
-                {formatPercentage(
-                  player.growth_potential,
-                )}
-              </dd>
-            </div>
-
             <div>
               <dt className="text-sm text-slate-500">
                 Pericolosità sui piazzati

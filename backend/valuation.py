@@ -1,3 +1,5 @@
+import math
+
 # Pandas viene utilizzato per eseguire calcoli
 # sulle colonne del dataset dei giocatori.
 import pandas as pd
@@ -24,119 +26,151 @@ OUTPUT_PATH = (
 #
 # La somma deve essere uguale a 1.
 # In questa prima versione:
-# - il rendimento pesa il 30%;
+# - il rendimento pesa il 35%;
 # - la titolarità pesa il 25%;
-# - i bonus pesano il 20%;
-# - l'affidabilità pesa il 15%;
-# - il potenziale pesa il 10%.
+# - bonus e malus pesano il 25%;
+# - l'affidabilità pesa il 15%.
 SCORE_WEIGHTS = {
-    "performance": 0.30,
+    "performance": 0.35,
     "starting": 0.25,
-    "bonus": 0.20,
+    "bonus": 0.25,
     "reliability": 0.15,
-    "potential": 0.10,
 }
 
 
-def normalize_series(series: pd.Series) -> pd.Series:
+#
+# Numero di partite utilizzato per correggere
+# le medie voto ottenute su campioni ridotti.
+#
+# Con 20 partite la media registrata dal
+# giocatore e la media del suo ruolo hanno
+# lo stesso peso.
+#
+# In questo modo voti molto alti ottenuti in
+# poche presenze non producono immediatamente
+# un Rendimento da top di ruolo.
+#
+RATING_SHRINKAGE_MATCHES = 20
+
+
+#
+# Numero di minuti utilizzato per ridurre
+# l'impatto di produzioni molto elevate
+# ottenute su campioni ridotti.
+#
+# 900 minuti corrispondono a circa
+# dieci partite complete.
+#
+BONUS_SHRINKAGE_MINUTES = 900
+
+
+def calculate_standardized_score(
+    z_scores: pd.Series,
+) -> pd.Series:
     """
-    Normalizza una serie numerica in un intervallo da 0 a 100.
+    Converte una distanza standardizzata dalla media
+    del ruolo in un punteggio compreso tra 0 e 100.
 
-    Il valore minimo della serie riceve punteggio 0.
-    Il valore massimo riceve punteggio 100.
-    Tutti gli altri valori vengono distribuiti
-    proporzionalmente tra 0 e 100.
+    Il valore 50 rappresenta la media del ruolo.
+    Valori superiori a 50 indicano prestazioni
+    superiori alla media, mentre valori inferiori
+    indicano prestazioni sotto la media.
     """
 
-    minimum = series.min()
-    maximum = series.max()
+    return z_scores.apply(
+        lambda value: (
+            0.5
+            * (
+                1
+                + math.erf(
+                    value / math.sqrt(2)
+                )
+            )
+            * 100
+        )
+    )
 
-    # Se tutti i valori sono uguali, non è possibile
-    # distinguerli con la normalizzazione.
-    # In questo caso assegniamo a tutti un valore neutro di 50.
-    if maximum == minimum:
+
+def calculate_percentile_score(
+    series: pd.Series,
+) -> pd.Series:
+    """
+    Converte i valori osservati in un percentile
+    compreso tra 0 e 100.
+
+    Il confronto viene eseguito separatamente
+    per ciascun ruolo.
+
+    I valori uguali ricevono la posizione media.
+    """
+
+    if len(series) <= 1:
         return pd.Series(
             50.0,
             index=series.index,
         )
 
-    normalized = (
-        (series - minimum)
-        / (maximum - minimum)
+    ranks = series.rank(
+        method="average",
+        ascending=True,
+    )
+
+    return (
+        (ranks - 1)
+        / (len(series) - 1)
         * 100
     )
 
-    return normalized
 
-
-def normalize_by_role(
-    players: pd.DataFrame,
-    column: str,
-) -> pd.Series:
+def calculate_bonus_raw(
+    player: pd.Series,
+) -> float:
     """
-    Normalizza una colonna separatamente per ogni ruolo.
+    Calcola i fantapunti storici prodotti
+    dagli eventi registrati nella stagione.
 
-    Questo è importante perché portieri, difensori,
-    centrocampisti e attaccanti hanno statistiche diverse.
+    Gol e assist generano bonus.
 
-    Per esempio, non avrebbe senso confrontare direttamente
-    i gol di un portiere con quelli di un attaccante.
+    Rigori sbagliati e provvedimenti
+    disciplinari generano malus.
+
+    Per i portieri vengono considerati anche
+    clean sheet, rigori parati e gol subiti.
     """
 
-    return (
-        players
-        .groupby("role")[column]
-        .transform(normalize_series)
+    event_points = (
+        player["goals_last_season"] * 3
+        + player["assists_last_season"]
+        - player[
+            "penalties_missed_last_season"
+        ] * 3
+        - player[
+            "yellow_cards_last_season"
+        ] * 0.5
+        - player[
+            "red_cards_last_season"
+        ]
     )
 
-
-def calculate_bonus_raw(player: pd.Series) -> float:
-    """
-    Calcola un valore grezzo relativo al potenziale bonus.
-
-    La formula cambia in base al ruolo del giocatore.
-
-    I coefficienti sono provvisori e serviranno
-    per costruire il primo prototipo del modello.
-    """
-
-    role = player["role"]
-
-    goals = player["goals_last_season"]
-    assists = player["assists_last_season"]
-    penalties = player["penalties_scored_last_season"]
-    clean_sheets = player["clean_sheets_last_season"]
-    goals_conceded = player["goals_conceded_last_season"]
-    saves = player["saves_last_season"]
-    set_piece_level = player["set_piece_level"]
-
-    # Per i portieri consideriamo soprattutto:
-    # clean sheet, parate e gol subiti.
-    if role == "P":
-        return (
-            clean_sheets * 3
-            + saves * 0.05
-            - goals_conceded * 0.15
+    #
+    # I rigori segnati sono già inclusi
+    # nel totale dei gol e non devono quindi
+    # ricevere un secondo premio.
+    #
+    if player["role"] == "P":
+        event_points += (
+            player[
+                "clean_sheets_last_season"
+            ]
+            + player[
+                "penalties_saved_last_season"
+            ] * 3
+            - player[
+                "goals_conceded_last_season"
+            ]
         )
 
-    # Per i difensori consideriamo:
-    # gol, assist, clean sheet e capacità sui piazzati.
-    if role == "D":
-        return (
-            goals * 3
-            + assists * 1.5
-            + clean_sheets * 0.4
-            + set_piece_level * 1.5
-        )
-
-    # Per centrocampisti e attaccanti consideriamo:
-    # gol, assist, rigori e partecipazione ai calci piazzati.
-    return (
-        goals * 3
-        + assists * 1.5
-        + penalties * 1.5
-        + set_piece_level * 2
-    )
+    return float(event_points)
 
 
 def calculate_player_scores(
@@ -155,24 +189,138 @@ def calculate_player_scores(
     # --------------------------------------------------
     # 1. COMPONENTE RENDIMENTO
     # --------------------------------------------------
-
-    # Il rendimento grezzo combina:
-    # - media voto tradizionale;
-    # - fantamedia, che tiene conto di gol, assist
-    #   e altri bonus o malus.
     #
-    # La fantamedia riceve un peso maggiore
-    # perché è più importante nel Fantacalcio.
-    scored_players["performance_raw"] = (
-        scored_players["average_rating_last_season"] * 0.35
-        + scored_players["fantasy_average_last_season"] * 0.65
+    # Il Rendimento misura la qualità media delle
+    # prestazioni, separatamente dalla produzione
+    # di bonus fantacalcistici.
+    #
+    # Utilizziamo quindi la media voto tradizionale
+    # e non la fantamedia, evitando di conteggiare
+    # gol e assist sia qui sia nella componente Bonus.
+    #
+    valid_rating_mask = (
+        scored_players["rating_matches"] > 0
     )
 
-    # Normalizziamo il rendimento separatamente per ruolo.
-    scored_players["performance_score"] = normalize_by_role(
-        scored_players,
-        "performance_raw",
+    #
+    # I giocatori senza alcun voto hanno valore 0
+    # nel CSV, ma quello zero significa "dato assente"
+    # e non una prestazione realmente insufficiente.
+    #
+    # Li escludiamo quindi dal calcolo delle medie.
+    #
+    valid_average_ratings = (
+        scored_players[
+            "average_rating_last_season"
+        ].where(valid_rating_mask)
     )
+
+    global_rating_average = (
+        valid_average_ratings.mean()
+    )
+
+    global_rating_std = (
+        valid_average_ratings.std()
+    )
+
+    role_rating_average = (
+        valid_average_ratings
+        .groupby(scored_players["role"])
+        .transform("mean")
+        .fillna(global_rating_average)
+    )
+
+    role_rating_std = (
+        valid_average_ratings
+        .groupby(scored_players["role"])
+        .transform("std")
+        .fillna(global_rating_std)
+        .replace(0, global_rating_std)
+    )
+
+    #
+    # La confidenza aumenta con il numero di partite
+    # per cui possediamo un voto.
+    #
+    # Con 20 partite la media del giocatore e quella
+    # del ruolo hanno lo stesso peso.
+    #
+    # Con molte partite prevale progressivamente
+    # la media realmente registrata dal giocatore.
+    #
+    performance_confidence = (
+        scored_players["rating_matches"]
+        / (
+            scored_players["rating_matches"]
+            + RATING_SHRINKAGE_MATCHES
+        )
+    )
+
+    #
+    # Correggiamo la media voto verso la media
+    # del ruolo quando il campione è ridotto.
+    #
+    scored_players["performance_raw"] = (
+        role_rating_average
+        + performance_confidence
+        * (
+            scored_players[
+                "average_rating_last_season"
+            ]
+            - role_rating_average
+        )
+    )
+
+    #
+    # Chi non possiede alcun voto riceve come valore
+    # corretto la media del proprio ruolo.
+    #
+    scored_players.loc[
+        ~valid_rating_mask,
+        "performance_raw",
+    ] = role_rating_average[
+        ~valid_rating_mask
+    ]
+
+    #
+    # Misuriamo quanto il valore corretto del giocatore
+    # si discosta dalla media del proprio ruolo.
+    #
+    # La distanza viene espressa utilizzando la
+    # deviazione standard dei voti del ruolo.
+    #
+    performance_z_score = (
+        (
+            scored_players["performance_raw"]
+            - role_rating_average
+        )
+        / role_rating_std
+    )
+
+    #
+    # Convertiamo la distanza dalla media in un valore
+    # compreso tra 0 e 100.
+    #
+    # Il valore 50 rappresenta la media del ruolo.
+    # Valori superiori indicano un rendimento migliore,
+    # mentre valori inferiori indicano un rendimento
+    # peggiore rispetto alla media.
+    #
+    scored_players["performance_score"] = (
+        calculate_standardized_score(
+            performance_z_score
+        )
+        .clip(0, 100)
+    )
+
+    #
+    # I giocatori senza alcun voto ricevono il valore
+    # neutro 50.
+    #
+    scored_players.loc[
+        ~valid_rating_mask,
+        "performance_score",
+    ] = 50.0
 
     # --------------------------------------------------
     # 2. COMPONENTE TITOLARITÀ
@@ -190,85 +338,174 @@ def calculate_player_scores(
     # --------------------------------------------------
     # 3. COMPONENTE BONUS
     # --------------------------------------------------
-
-    # apply esegue calculate_bonus_raw su ogni giocatore.
-    scored_players["bonus_raw"] = scored_players.apply(
-        calculate_bonus_raw,
-        axis=1,
+    #
+    # Calcoliamo i fantapunti storici prodotti
+    # da bonus e malus durante la stagione.
+    #
+    scored_players["bonus_raw"] = (
+        scored_players.apply(
+            calculate_bonus_raw,
+            axis=1,
+        )
     )
 
-    # Anche i bonus vengono confrontati
-    # soltanto tra giocatori dello stesso ruolo.
-    scored_players["bonus_score"] = normalize_by_role(
-        scored_players,
-        "bonus_raw",
+    bonus_minutes = (
+        scored_players["minutes_last_season"]
     )
+
+    valid_bonus_mask = (
+        bonus_minutes > 0
+    )
+
+    #
+    # Portiamo la produzione a 90 minuti
+    # per confrontare giocatori che hanno avuto
+    # un minutaggio differente.
+    #
+    scored_players["bonus_per_90"] = (
+        scored_players["bonus_raw"]
+        / bonus_minutes.replace(0, pd.NA)
+        * 90
+    )
+
+    #
+    # Calcoliamo la posizione percentuale
+    # rispetto ai giocatori dello stesso ruolo.
+    #
+    scored_players["bonus_percentile"] = 50.0
+
+    valid_bonus_players = scored_players.loc[
+        valid_bonus_mask,
+        [
+            "role",
+            "bonus_per_90",
+        ],
+    ]
+
+    scored_players.loc[
+        valid_bonus_mask,
+        "bonus_percentile",
+    ] = (
+        valid_bonus_players
+        .groupby("role")["bonus_per_90"]
+        .transform(
+            calculate_percentile_score
+        )
+    )
+
+    #
+    # La confidenza cresce con i minuti disputati.
+    #
+    # Con pochi minuti il punteggio viene avvicinato
+    # al valore neutro 50, evitando che brevi exploit
+    # producano immediatamente uno score da top.
+    #
+    bonus_confidence = (
+        bonus_minutes
+        / (
+            bonus_minutes
+            + BONUS_SHRINKAGE_MINUTES
+        )
+    )
+
+    scored_players["bonus_score"] = (
+        50
+        + bonus_confidence
+        * (
+            scored_players["bonus_percentile"]
+            - 50
+        )
+    ).clip(
+        lower=0,
+        upper=100,
+    )
+
+    #
+    # Chi non ha disputato alcun minuto
+    # riceve il valore neutro 50.
+    #
+    scored_players.loc[
+        ~valid_bonus_mask,
+        "bonus_score",
+    ] = 50.0
 
     # --------------------------------------------------
     # 4. COMPONENTE AFFIDABILITÀ
     # --------------------------------------------------
 
-    # Calcoliamo la percentuale di minuti disputati
-    # rispetto al massimo teorico di 3420 minuti:
-    # 38 partite per 90 minuti.
-    minutes_score = (
-        scored_players["minutes_last_season"]
-        / 3420
-        * 100
-    ).clip(lower=0, upper=100)
-
-    # Calcoliamo il rapporto tra partite iniziate
-    # da titolare e presenze complessive.
     #
-    # replace evita eventuali divisioni per zero.
-    appearances = (
-        scored_players["appearances_last_season"]
-        .replace(0, pd.NA)
+    # L'Affidabilità misura la continuità con cui
+    # il giocatore ha garantito una presenza
+    # valutabile durante la stagione precedente.
+    #
+    # Utilizziamo il numero di partite per cui
+    # disponiamo di un voto, rapportato alle
+    # 38 giornate del campionato.
+    #
+    continuity_score = (
+        scored_players["rating_matches"]
+        / 38
+        * 100
+    ).clip(
+        lower=0,
+        upper=100,
     )
 
-    starts_score = (
-        scored_players["starts_last_season"]
-        / appearances
-        * 100
-    ).fillna(0).clip(lower=0, upper=100)
 
-    # Un injury_risk pari a 0 indica rischio minimo.
-    # Un valore pari a 1 indicherebbe rischio massimo.
     #
-    # Convertiamo quindi il rischio in affidabilità.
+    # Il rischio infortunio viene considerato
+    # soltanto quando proviene da una fonte
+    # realmente disponibile.
+    #
+    injury_risk_available = (
+        scored_players["injury_risk_available"]
+        .eq(True)
+    )
+
     health_score = (
         1
         - scored_players["injury_risk"]
-        .clip(lower=0, upper=1)
+        .clip(
+            lower=0,
+            upper=1,
+        )
     ) * 100
 
-    # L'affidabilità finale combina:
-    # - minuti disputati;
-    # - frequenza da titolare;
-    # - rischio fisico.
+
+    #
+    # In assenza di dati reali sugli infortuni,
+    # l'Affidabilità coincide con la continuità
+    # osservata nella stagione precedente.
+    #
     scored_players["reliability_score"] = (
-        minutes_score * 0.45
-        + starts_score * 0.25
-        + health_score * 0.30
+        continuity_score
     )
 
-    # --------------------------------------------------
-    # 5. COMPONENTE POTENZIALE
-    # --------------------------------------------------
 
-    # growth_potential è già espresso da 0 a 100.
-    # clip garantisce che eventuali valori errati
-    # non superino i limiti previsti.
-    scored_players["potential_score"] = (
-        scored_players["growth_potential"]
-        .clip(lower=0, upper=100)
+    #
+    # Quando il rischio infortunio è disponibile:
+    #
+    # - la continuità storica pesa l'80%;
+    # - la condizione fisica stimata pesa il 20%.
+    #
+    scored_players.loc[
+        injury_risk_available,
+        "reliability_score",
+    ] = (
+        continuity_score[
+            injury_risk_available
+        ] * 0.80
+        + health_score[
+            injury_risk_available
+        ] * 0.20
     )
 
+
     # --------------------------------------------------
-    # 6. SCORE FINALE
+    # 5. SCORE FINALE
     # --------------------------------------------------
 
-    # Combiniamo le cinque componenti utilizzando
+    # Combiniamo le quattro componenti utilizzando
     # i pesi definiti all'inizio del file.
     scored_players["overall_score"] = (
         scored_players["performance_score"]
@@ -279,8 +516,6 @@ def calculate_player_scores(
         * SCORE_WEIGHTS["bonus"]
         + scored_players["reliability_score"]
         * SCORE_WEIGHTS["reliability"]
-        + scored_players["potential_score"]
-        * SCORE_WEIGHTS["potential"]
     )
 
     # Arrotondiamo i punteggi per rendere
@@ -290,7 +525,6 @@ def calculate_player_scores(
         "starting_score",
         "bonus_score",
         "reliability_score",
-        "potential_score",
         "overall_score",
     ]
 
@@ -355,7 +589,6 @@ def print_top_players(
         "starting_score",
         "bonus_score",
         "reliability_score",
-        "potential_score",
     ]
 
     for role in roles:
