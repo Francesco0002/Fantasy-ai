@@ -419,7 +419,7 @@ type FetchPlayersOptions = {
 export async function fetchPlayers({
   role,
   search,
-  limit = 100,
+  limit = 1000,
   signal,
 }: FetchPlayersOptions): Promise<PlayersResponse> {
   const params = new URLSearchParams();

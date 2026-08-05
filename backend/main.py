@@ -283,9 +283,9 @@ def get_players(
         ),
     ),
     limit: int = Query(
-        default=20,
+        default=1000,
         ge=1,
-        le=100,
+        le=1000,
         description=(
             "Numero massimo di giocatori restituiti."
         ),

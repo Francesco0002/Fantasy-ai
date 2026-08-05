@@ -73,7 +73,7 @@ export function usePlayers(
         const data = await fetchPlayers({
           role,
           search,
-          limit: 100,
+          limit: 1000,
           signal: controller.signal,
         });
 
