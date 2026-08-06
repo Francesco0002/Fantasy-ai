@@ -128,6 +128,12 @@ export default function AuctionPageTransition() {
      * Copertura della Home.
      */
     useEffect(() => {
+        /*
+         * Precarichiamo le destinazioni principali
+         * per ridurre il tempo percepito durante
+         * la navigazione tra le pagine.
+         */
+        router.prefetch("/");
         router.prefetch("/auction");
         router.prefetch("/my-auctions");
 
