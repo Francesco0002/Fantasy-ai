@@ -12,6 +12,7 @@ Lo script:
 
 from __future__ import annotations
 
+import argparse
 import re
 import unicodedata
 from collections import Counter
@@ -53,6 +54,11 @@ MATCHED_OUTPUT_PATH = (
 EXCLUDED_OUTPUT_PATH = (
     PROCESSED_PATH
     / "player_season_stats_excluded_from_fantacalcio.csv"
+)
+
+PLAYER_MAP_OUTPUT_PATH = (
+    PROCESSED_PATH
+    / "fantacalcio_api_football_player_map_2024_25.csv"
 )
 
 
@@ -186,7 +192,12 @@ def read_fantacalcio_sheet(sheet_name: str) -> pd.DataFrame:
         for column in dataframe.columns
     ]
 
-    required_columns = {"Nome", "Squadra", "R"}
+    required_columns = {
+        "Id",
+        "Nome",
+        "Squadra",
+        "R",
+    }
     missing_columns = required_columns - set(dataframe.columns)
 
     if missing_columns:
@@ -196,8 +207,22 @@ def read_fantacalcio_sheet(sheet_name: str) -> pd.DataFrame:
         )
 
     dataframe = dataframe[
-        ["Nome", "Squadra", "R"]
+        [
+            "Id",
+            "Nome",
+            "Squadra",
+            "R",
+        ]
     ].copy()
+
+    #
+    # L'ID Fantacalcio diventa la chiave stabile
+    # utilizzata per collegare stagioni e provider.
+    #
+    dataframe["Id"] = pd.to_numeric(
+        dataframe["Id"],
+        errors="raise",
+    ).astype("Int64")
 
     dataframe["list_sheet"] = sheet_name
 
@@ -391,6 +416,37 @@ def candidate_score(
     return round(min(score, 1.0), 3)
 
 
+
+def parse_arguments() -> argparse.Namespace:
+    """
+    Legge le opzioni dello script.
+
+    Per impostazione predefinita viene generata soltanto
+    la mappa tra ID Fantacalcio e ID API-Football.
+
+    I vecchi CSV elaborati vengono riscritti soltanto
+    quando viene passato --write-legacy-outputs.
+    """
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Abbina API-Football al listone Fantacalcio "
+            "2024/25 e genera la mappa permanente."
+        )
+    )
+
+    parser.add_argument(
+        "--write-legacy-outputs",
+        action="store_true",
+        help=(
+            "Rigenera anche i vecchi CSV dentro "
+            "data/processed."
+        ),
+    )
+
+    return parser.parse_args()
+
+
 def validate_source_files() -> None:
     """Controlla che entrambi i file sorgente esistano."""
 
@@ -406,7 +462,14 @@ def validate_source_files() -> None:
 
 
 def main() -> None:
-    """Esegue l'abbinamento e genera i due file elaborati."""
+    """
+    Esegue l'abbinamento e genera la mappa permanente.
+
+    I vecchi CSV vengono riscritti soltanto quando
+    richiesto esplicitamente.
+    """
+
+    arguments = parse_arguments()
 
     validate_source_files()
 
@@ -845,6 +908,7 @@ def main() -> None:
     list_export = fantacalcio_players[
         [
             "list_row",
+            "Id",
             "Nome",
             "Squadra",
             "R",
@@ -871,6 +935,7 @@ def main() -> None:
 
     processed = processed.rename(
         columns={
+            "Id": "fantacalcio_id",
             "role": "role_api",
             "R": "role_classic",
             "Nome": "fantacalcio_name",
@@ -909,6 +974,11 @@ def main() -> None:
         else:
             output_columns.append(column)
 
+    #
+    # Il vecchio dataset elaborato mantiene la sua
+    # struttura originale. L'ID Fantacalcio viene
+    # conservato soltanto nella nuova mappa separata.
+    #
     output_columns.extend(
         [
             "fantacalcio_name",
@@ -917,6 +987,63 @@ def main() -> None:
             "role_match_method",
             "role_match_score",
         ]
+    )
+
+    #
+    # Mappa permanente tra l'identificativo
+    # Fantacalcio e quello API-Football.
+    #
+    # Non contiene statistiche: serve esclusivamente
+    # a collegare in modo affidabile fonti e stagioni.
+    #
+    player_map = processed[
+        [
+            "fantacalcio_id",
+            "player_id",
+            "fantacalcio_name",
+            "name",
+            "fantacalcio_team",
+            "team",
+            "role_classic",
+            "role_api",
+            "fantacalcio_sheet",
+            "role_match_method",
+            "role_match_score",
+        ]
+    ].copy()
+
+    player_map.rename(
+        columns={
+            "player_id":
+                "api_football_player_id",
+            "name":
+                "api_football_name",
+            "team":
+                "api_football_team",
+        },
+        inplace=True,
+    )
+
+    player_map.insert(
+        2,
+        "source_season",
+        "2024_25",
+    )
+
+    player_map["match_status"] = "MATCHED"
+
+    player_map.sort_values(
+        by=[
+            "fantacalcio_id",
+            "api_football_player_id",
+        ],
+        inplace=True,
+        kind="stable",
+    )
+
+    player_map.reset_index(
+        drop=True,
+        inplace=True,
     )
 
     processed = processed[output_columns]
@@ -941,17 +1068,35 @@ def main() -> None:
         exist_ok=True,
     )
 
-    processed.to_csv(
-        MATCHED_OUTPUT_PATH,
+    #
+    # La mappa è il nuovo output principale.
+    #
+    player_map.to_csv(
+        PLAYER_MAP_OUTPUT_PATH,
         index=False,
         encoding="utf-8-sig",
+        lineterminator="\n",
     )
 
-    excluded.to_csv(
-        EXCLUDED_OUTPUT_PATH,
-        index=False,
-        encoding="utf-8-sig",
-    )
+    #
+    # I CSV storici vengono rigenerati soltanto
+    # tramite un'opzione esplicita, evitando diff
+    # inutili dovuti a codifica e fine riga.
+    #
+    if arguments.write_legacy_outputs:
+        processed.to_csv(
+            MATCHED_OUTPUT_PATH,
+            index=False,
+            encoding="utf-8-sig",
+            lineterminator="\n",
+        )
+
+        excluded.to_csv(
+            EXCLUDED_OUTPUT_PATH,
+            index=False,
+            encoding="utf-8-sig",
+            lineterminator="\n",
+        )
 
     role_differences = processed[
         processed["role_api"].astype(str).str.upper()
@@ -988,8 +1133,24 @@ def main() -> None:
     )
 
     print("\nFILE GENERATI")
-    print(MATCHED_OUTPUT_PATH.relative_to(PROJECT_ROOT))
-    print(EXCLUDED_OUTPUT_PATH.relative_to(PROJECT_ROOT))
+    print(
+        PLAYER_MAP_OUTPUT_PATH.relative_to(
+            PROJECT_ROOT
+        )
+    )
+
+    if arguments.write_legacy_outputs:
+        print(
+            MATCHED_OUTPUT_PATH.relative_to(
+                PROJECT_ROOT
+            )
+        )
+
+        print(
+            EXCLUDED_OUTPUT_PATH.relative_to(
+                PROJECT_ROOT
+            )
+        )
 
 
 if __name__ == "__main__":

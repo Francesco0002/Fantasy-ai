@@ -42,3 +42,4 @@ next-env.d.ts
 
 # TypeScript incremental build information
 *.tsbuildinfo
+data/processed/fantacalcio_api_football_player_map_2024_25.csv
