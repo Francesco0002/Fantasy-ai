@@ -273,7 +273,11 @@ export default function Home() {
     players,
     isLoading,
     error,
-  } = usePlayers(role, search);
+  } = usePlayers(
+    role,
+    search,
+    true,
+  );
 
 
   /*
