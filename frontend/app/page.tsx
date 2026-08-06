@@ -45,7 +45,7 @@ import type {
 
 
 import {
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -154,16 +154,32 @@ export default function Home() {
 
 
   /*
+   * Il contenuto della home rimane invisibile
+   * durante il ripristino della lista.
+   *
+   * In questo modo il browser non mostra prima
+   * la parte iniziale della pagina per poi saltare
+   * alla posizione precedentemente salvata.
+   */
+  const [
+    isPlayerListReady,
+    setIsPlayerListReady,
+  ] = useState(false);
+
+
+  /*
    * Recupera lo stato salvato prima
    * dell'apertura della pagina dettagli.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     const storedState =
       window.sessionStorage.getItem(
         PLAYER_LIST_STATE_STORAGE_KEY,
       );
 
     if (!storedState) {
+      setIsPlayerListReady(true);
+
       return;
     }
 
@@ -219,6 +235,8 @@ export default function Home() {
           PLAYER_LIST_STATE_STORAGE_KEY,
         );
 
+        setIsPlayerListReady(true);
+
         return;
       }
 
@@ -241,6 +259,8 @@ export default function Home() {
       window.sessionStorage.removeItem(
         PLAYER_LIST_STATE_STORAGE_KEY,
       );
+
+      setIsPlayerListReady(true);
     }
   }, []);
 
@@ -410,37 +430,59 @@ export default function Home() {
    * - il caricamento dei giocatori ? terminato;
    * - la lista corretta ? presente nella pagina.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!pendingListState) {
+      return;
+    }
+
+    /*
+     * Aspettiamo prima che i filtri salvati
+     * siano stati applicati allo stato corrente.
+     */
     if (
-      !pendingListState
-      || isLoading
-      || error
-      || search !== pendingListState.search
+      search !== pendingListState.search
       || role !== pendingListState.role
       || sortBy !== pendingListState.sortBy
     ) {
       return;
     }
 
-    const animationFrame =
-      window.requestAnimationFrame(() => {
-        window.scrollTo({
-          top: pendingListState.scrollY,
-          behavior: "auto",
-        });
-
-        window.sessionStorage.removeItem(
-          PLAYER_LIST_STATE_STORAGE_KEY,
-        );
-
-        setPendingListState(null);
-      });
-
-    return () => {
-      window.cancelAnimationFrame(
-        animationFrame,
+    /*
+     * In caso di errore rendiamo comunque
+     * visibile la pagina con il relativo messaggio.
+     */
+    if (error) {
+      window.sessionStorage.removeItem(
+        PLAYER_LIST_STATE_STORAGE_KEY,
       );
-    };
+
+      setPendingListState(null);
+      setIsPlayerListReady(true);
+
+      return;
+    }
+
+    if (isLoading) {
+      return;
+    }
+
+    /*
+     * La lista corretta ? gi? presente nel DOM.
+     * Posizioniamo la pagina prima che il browser
+     * la renda visibile all'utente.
+     */
+    window.scrollTo({
+      top: pendingListState.scrollY,
+      left: 0,
+      behavior: "auto",
+    });
+
+    window.sessionStorage.removeItem(
+      PLAYER_LIST_STATE_STORAGE_KEY,
+    );
+
+    setPendingListState(null);
+    setIsPlayerListReady(true);
   }, [
     error,
     isLoading,
@@ -532,7 +574,16 @@ export default function Home() {
      * Contenitore principale della pagina.
      */
     <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-900">
-      <div className="mx-auto max-w-6xl">
+      <div
+        className={`
+          mx-auto max-w-6xl
+
+          ${isPlayerListReady
+            ? "visible"
+            : "invisible"
+          }
+        `}
+      >
 
         {/* Intestazione della pagina */}
         <header className="mb-8">
